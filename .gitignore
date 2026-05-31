@@ -1,0 +1,14 @@
+# Python
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# OS / IDE
+.DS_Store
+
+# gym-pybullet-drones generated logs (regenerated locally)
+gym-pybullet-drones/gym_pybullet_drones/examples/results/
