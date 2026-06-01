@@ -38,6 +38,7 @@ class BaseAviary(gym.Env):
                  vision_attributes=False,
                  output_folder='results',
                  radar_hud: bool=False,
+                 verbose_render: bool=False,
                  ):
         """Initialization of a generic aviary environment.
 
@@ -72,6 +73,9 @@ class BaseAviary(gym.Env):
         radar_hud : bool, optional
             If True and ``gui`` is True, opens a Matplotlib window with a top **Pause/Play**
             toggle and **Stop**, a planar radar (world XY), and per-drone XYZ readout.
+        verbose_render : bool, optional
+            If True, ``render()`` prints full per-drone state every control step (very slow
+            with ``gui=True``). Default False for interactive runs.
 
         """
         #### Constants #############################################
@@ -97,6 +101,7 @@ class BaseAviary(gym.Env):
         self.USER_DEBUG = user_debug_gui
         self.RADAR_HUD = bool(radar_hud and gui)
         self.radar_hud = None
+        self.VERBOSE_RENDER = bool(verbose_render)
         self.URDF = self.DRONE_MODEL.value + ".urdf"
         self.OUTPUT_FOLDER = output_folder
         #### Load the drone properties from the .urdf file #########
@@ -163,8 +168,9 @@ class BaseAviary(gym.Env):
                                          physicsClientId=self.CLIENT
                                          )
             ret = p.getDebugVisualizerCamera(physicsClientId=self.CLIENT)
-            print("viewMatrix", ret[2])
-            print("projectionMatrix", ret[3])
+            if self.VERBOSE_RENDER:
+                print("viewMatrix", ret[2])
+                print("projectionMatrix", ret[3])
             if self.USER_DEBUG:
                 #### Add input sliders to the GUI ##########################
                 self.SLIDERS = -1*np.ones(4)
@@ -224,6 +230,7 @@ class BaseAviary(gym.Env):
         if self.RADAR_HUD:
             from gym_pybullet_drones.utils.RadarHUD import RadarHUD
             self.radar_hud = RadarHUD(num_drones=self.NUM_DRONES)
+            self._radar_last_mono = float("-inf")
             self.radar_hud.update(self.pos)
     
     ################################################################################
@@ -263,6 +270,7 @@ class BaseAviary(gym.Env):
         #### Return the initial observation ########################
         if self.radar_hud is not None:
             self.radar_hud.update(self.pos)
+            self._radar_last_mono = time.monotonic()
         initial_obs = self._computeObs()
         initial_info = self._computeInfo()
         return initial_obs, initial_info
@@ -414,17 +422,23 @@ class BaseAviary(gym.Env):
         if self.first_render_call and not self.GUI:
             print("[WARNING] BaseAviary.render() is implemented as text-only, re-initialize the environment using Aviary(gui=True) to use PyBullet's graphical interface")
             self.first_render_call = False
-        print("\n[INFO] BaseAviary.render() ——— it {:04d}".format(self.step_counter),
-              "——— wall-clock time {:.1f}s,".format(time.time()-self.RESET_TIME),
-              "simulation time {:.1f}s@{:d}Hz ({:.2f}x)".format(self.step_counter*self.PYB_TIMESTEP, self.PYB_FREQ, (self.step_counter*self.PYB_TIMESTEP)/(time.time()-self.RESET_TIME)))
-        for i in range (self.NUM_DRONES):
-            print("[INFO] BaseAviary.render() ——— drone {:d}".format(i),
-                  "——— x {:+06.2f}, y {:+06.2f}, z {:+06.2f}".format(self.pos[i, 0], self.pos[i, 1], self.pos[i, 2]),
-                  "——— velocity {:+06.2f}, {:+06.2f}, {:+06.2f}".format(self.vel[i, 0], self.vel[i, 1], self.vel[i, 2]),
-                  "——— roll {:+06.2f}, pitch {:+06.2f}, yaw {:+06.2f}".format(self.rpy[i, 0]*self.RAD2DEG, self.rpy[i, 1]*self.RAD2DEG, self.rpy[i, 2]*self.RAD2DEG),
-                  "——— angular velocity {:+06.4f}, {:+06.4f}, {:+06.4f} ——— ".format(self.ang_v[i, 0], self.ang_v[i, 1], self.ang_v[i, 2]))
+        elif self.first_render_call and self.GUI:
+            self.first_render_call = False
+        if self.VERBOSE_RENDER:
+            print("\n[INFO] BaseAviary.render() ——— it {:04d}".format(self.step_counter),
+                  "——— wall-clock time {:.1f}s,".format(time.time()-self.RESET_TIME),
+                  "simulation time {:.1f}s@{:d}Hz ({:.2f}x)".format(self.step_counter*self.PYB_TIMESTEP, self.PYB_FREQ, (self.step_counter*self.PYB_TIMESTEP)/(time.time()-self.RESET_TIME)))
+            for i in range (self.NUM_DRONES):
+                print("[INFO] BaseAviary.render() ——— drone {:d}".format(i),
+                      "——— x {:+06.2f}, y {:+06.2f}, z {:+06.2f}".format(self.pos[i, 0], self.pos[i, 1], self.pos[i, 2]),
+                      "——— velocity {:+06.2f}, {:+06.2f}, {:+06.2f}".format(self.vel[i, 0], self.vel[i, 1], self.vel[i, 2]),
+                      "——— roll {:+06.2f}, pitch {:+06.2f}, yaw {:+06.2f}".format(self.rpy[i, 0]*self.RAD2DEG, self.rpy[i, 1]*self.RAD2DEG, self.rpy[i, 2]*self.RAD2DEG),
+                      "——— angular velocity {:+06.4f}, {:+06.4f}, {:+06.4f} ——— ".format(self.ang_v[i, 0], self.ang_v[i, 1], self.ang_v[i, 2]))
         if self.radar_hud is not None:
-            self.radar_hud.update(self.pos)
+            now = time.monotonic()
+            if now - self._radar_last_mono >= (1.0 / 6.0):
+                self.radar_hud.update(self.pos)
+                self._radar_last_mono = now
     
     ################################################################################
 

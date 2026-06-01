@@ -24,6 +24,7 @@ class CtrlAviary(BaseAviary):
                  user_debug_gui=True,
                  output_folder='results',
                  radar_hud=False,
+                 verbose_render=False,
                  ):
         """Initialization of an aviary environment for control applications.
 
@@ -55,6 +56,8 @@ class CtrlAviary(BaseAviary):
             Whether to draw the drones' axes and the GUI RPMs sliders.
         radar_hud : bool, optional
             If True and ``gui`` is True, show Matplotlib radar + XYZ readout.
+        verbose_render : bool, optional
+            If True, ``render()`` prints full per-drone state each step (slow).
 
         """
         super().__init__(drone_model=drone_model,
@@ -71,6 +74,7 @@ class CtrlAviary(BaseAviary):
                          user_debug_gui=user_debug_gui,
                          output_folder=output_folder,
                          radar_hud=radar_hud,
+                         verbose_render=verbose_render,
                          )
 
     ################################################################################

@@ -41,6 +41,15 @@ python3 pid.py # position and velocity reference
 python3 pid_velocity.py # desired velocity reference
 ```
 
+### Defender multi-drone demo (VIP hold + intercept / block)
+
+See [DEFENDER.md](DEFENDER.md).
+
+```sh
+# from gym-pybullet-drones/ (repo root)
+python3 gym_pybullet_drones/examples/defender_pid.py --gui true --radar_hud false
+```
+
 ### Downwash effect example
 
 ```sh
