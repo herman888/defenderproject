@@ -62,7 +62,7 @@ class DomeKillZone:
             self._status = "CLEAR"
 
         if self._status != old_status:
-            print(f"DOME STATUS: {old_status} → {self._status}")
+            print(f"DOME STATUS: {old_status} -> {self._status}")
 
     def get_status(self) -> str:
         return self._status
