@@ -2,9 +2,11 @@
 
 import math
 import time
+import numpy as np
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from matplotlib.widgets import Button
 
 
@@ -20,11 +22,12 @@ class Dashboard:
         self._dome_radius = dome_radius
         self._ctrl        = sim_control
         self._event_log   = []
-        self._intruder_trail     = []
-        self._interceptor_trail  = []
+        self._intruder_trail        = []
+        self._interceptor_trail     = []
         self._intruder_alt_trail    = []
         self._interceptor_alt_trail = []
-        self._radar_angle = 0.0
+        self._radar_angle  = 0.0
+        self._last_draw    = 0.0
         self._speed_labels = ["0.5x", "1x", "2x"]
         self._speed_values = [0, 1, 2]
         self._speed_idx    = 1
@@ -37,7 +40,6 @@ class Dashboard:
             color="lime", fontsize=13, fontweight="bold", fontfamily="monospace"
         )
 
-        # Layout: [radar | side-view] top row, [status | buttons] bottom row
         gs = self._fig.add_gridspec(
             2, 2,
             height_ratios=[8, 1],
@@ -46,11 +48,11 @@ class Dashboard:
         )
         self._ax_radar = self._fig.add_subplot(gs[0, 0])
         self._ax_side  = self._fig.add_subplot(gs[0, 1])
-        self._ax_status_gs = gs[1, 0]
 
         self._setup_radar_ax()
         self._setup_side_ax()
         self._setup_buttons(gs)
+        self._init_artists()
         plt.pause(0.01)
 
     # ------------------------------------------------------------------
@@ -84,13 +86,91 @@ class Dashboard:
         ax.tick_params(colors="gray")
         for spine in ax.spines.values():
             spine.set_color("gray")
-        # Dome cross-section circle on the side view
         for r in [5, 10]:
             ax.add_patch(plt.Circle((0, 0), r, color=(0.25, 0.25, 0.25),
                                     fill=False, linewidth=0.7, linestyle="--"))
         ax.axhline(0, color=(0.3, 0.3, 0.3), linewidth=0.8)
         ax.text(0, -0.5, "GROUND", color="gray", fontsize=7,
                 ha="center", fontfamily="monospace")
+
+    def _init_artists(self):
+        """Create all dynamic artists once — update() only calls set_data/set_text."""
+        ax = self._ax_radar
+
+        # Dome circle
+        self._dome_circle = mpatches.Circle((0, 0), self._dome_radius,
+                                             color="lime", fill=False, linewidth=2)
+        ax.add_patch(self._dome_circle)
+
+        # Radar sweep line
+        self._radar_sweep, = ax.plot([], [], color=(0, 0.6, 0), linewidth=1.5, alpha=0.7)
+
+        # Radar station marker + label
+        self._radar_marker, = ax.plot([], [], "gs", markersize=8)
+        self._radar_label   = ax.text(0, 0, "RADAR", color="lime", fontsize=6,
+                                      fontfamily="monospace", visible=False)
+
+        # Intruder trail + dot + label  (radar view)
+        self._intruder_trail_r,  = ax.plot([], [], color="red",  alpha=0.5, linewidth=1.5)
+        self._intruder_dot_r,    = ax.plot([], [], "ro", markersize=12)
+        self._intruder_label_r   = ax.text(0, 0, "INTRUDER", color="red",
+                                            fontsize=7, fontfamily="monospace", visible=False)
+
+        # Interceptor trail + dot + label  (radar view)
+        self._intercept_trail_r, = ax.plot([], [], color="cyan", alpha=0.5, linewidth=1.5)
+        self._intercept_dot_r,   = ax.plot([], [], "c^", markersize=12)
+        self._intercept_label_r  = ax.text(0, 0, "INTERCEPTOR", color="cyan",
+                                            fontsize=7, fontfamily="monospace", visible=False)
+
+        # Prediction line + marker
+        self._pred_line, = ax.plot([], [], color="yellow", linewidth=1,
+                                   linestyle="--", alpha=0.8)
+        self._pred_dot,  = ax.plot([], [], "y+", markersize=10)
+
+        # Status box
+        self._status_text = ax.text(
+            22, 22, "STATUS: CLEAR", color="lime", fontsize=10,
+            ha="right", va="top", fontweight="bold", fontfamily="monospace",
+            bbox=dict(facecolor=(0.05, 0.05, 0.08), alpha=0.8, edgecolor="lime", pad=3)
+        )
+
+        # Paused overlay (hidden until paused)
+        self._paused_text = ax.text(
+            0, 0, "-- PAUSED --", color="yellow", fontsize=16,
+            ha="center", va="center", fontweight="bold", fontfamily="monospace",
+            bbox=dict(facecolor="black", alpha=0.7, edgecolor="yellow"), visible=False
+        )
+
+        # ── Side view ──────────────────────────────────────────────────────
+        ax = self._ax_side
+
+        # Dome arc (drawn once, color updated)
+        theta = np.linspace(0, math.pi, 60)
+        self._dome_arc,  = ax.plot(self._dome_radius * np.cos(theta),
+                                    self._dome_radius * np.sin(theta),
+                                    color="lime", linewidth=2, alpha=0.8)
+        self._dome_base, = ax.plot([-self._dome_radius, self._dome_radius], [0, 0],
+                                    color="lime", linewidth=2, alpha=0.8)
+
+        # Intruder trail + dot + label  (side view)
+        self._intruder_trail_s,  = ax.plot([], [], color="red",  alpha=0.5, linewidth=1.5)
+        self._intruder_dot_s,    = ax.plot([], [], "ro", markersize=12)
+        self._intruder_label_s   = ax.text(0, 0, "", color="red",
+                                            fontsize=7, fontfamily="monospace", visible=False)
+
+        # Interceptor trail + dot + label  (side view)
+        self._intercept_trail_s, = ax.plot([], [], color="cyan", alpha=0.5, linewidth=1.5)
+        self._intercept_dot_s,   = ax.plot([], [], "c^", markersize=12)
+        self._intercept_label_s  = ax.text(0, 0, "", color="cyan",
+                                            fontsize=7, fontfamily="monospace", visible=False)
+
+        # Info text block
+        self._info_text = ax.text(
+            0.02, 0.98, "", transform=ax.transAxes,
+            color="white", fontsize=7, fontfamily="monospace",
+            va="top", ha="left",
+            bbox=dict(facecolor=(0.03, 0.05, 0.1), alpha=0.85, edgecolor="gray", pad=4)
+        )
 
     def _setup_buttons(self, gs):
         btn_row = gs[1, :]
@@ -136,10 +216,7 @@ class Dashboard:
 
     # ------------------------------------------------------------------
     def update(self, sim_state: dict):
-        # 5 Hz cap — prevents flickering and lag from redrawing too fast
         now = time.time()
-        if not hasattr(self, "_last_draw"):
-            self._last_draw = 0.0
         if now - self._last_draw < 0.20:
             return
         self._last_draw = now
@@ -155,132 +232,126 @@ class Dashboard:
             self._event_log.append(f"[{time.strftime('%H:%M:%S')}] {ev}")
         self._event_log = self._event_log[-6:]
 
-        dome_color = {"CLEAR":"lime","TRACKING":"yellow","BREACH":"orange","INTERCEPTED":"red"}.get(status,"lime")
+        dome_color = {"CLEAR":"lime","TRACKING":"yellow","BREACH":"orange",
+                      "INTERCEPTED":"red"}.get(status, "lime")
 
-        # ---- RADAR (top-down) ----------------------------------------
-        self._ax_radar.cla()
-        self._setup_radar_ax()
+        # ── Dome color ────────────────────────────────────────────────────
+        self._dome_circle.set_color(dome_color)
+        self._dome_arc.set_color(dome_color)
+        self._dome_base.set_color(dome_color)
 
-        self._ax_radar.add_patch(plt.Circle((0,0), self._dome_radius,
-                                            color=dome_color, fill=False, linewidth=2))
-
+        # ── Radar sweep ───────────────────────────────────────────────────
         self._radar_angle = (self._radar_angle + 15) % 360
         rad = math.radians(self._radar_angle)
-        self._ax_radar.plot([0, 20*math.cos(rad)], [0, 20*math.sin(rad)],
-                            color=(0.0,0.5,0.0), linewidth=1, alpha=0.6)
+        rs  = sim_state.get("radar_station", [0, -self._dome_radius, 3])
+        self._radar_sweep.set_data(
+            [rs[0], rs[0] + 22 * math.cos(rad)],
+            [rs[1], rs[1] + 22 * math.sin(rad)]
+        )
+        self._radar_marker.set_data([rs[0]], [rs[1]])
+        self._radar_label.set_position((rs[0] + 0.5, rs[1] + 0.5))
+        self._radar_label.set_visible(True)
 
+        # ── Intruder (radar view) ─────────────────────────────────────────
         if intruder_pos:
             self._intruder_trail.append(intruder_pos[:2])
-            self._intruder_trail = self._intruder_trail[-30:]
-            if len(self._intruder_trail) > 1:
-                for i in range(1, len(self._intruder_trail)):
-                    a = 0.1 + 0.9*i/len(self._intruder_trail)
-                    t = self._intruder_trail
-                    self._ax_radar.plot([t[i-1][0],t[i][0]],[t[i-1][1],t[i][1]],
-                                        color="red", alpha=a, linewidth=1.5)
-            self._ax_radar.plot(intruder_pos[0], intruder_pos[1], "ro", markersize=12)
-            self._ax_radar.text(intruder_pos[0]+0.6, intruder_pos[1]+0.6,
-                                "INTRUDER", color="red", fontsize=7, fontfamily="monospace")
+            self._intruder_trail = self._intruder_trail[-40:]
+            xs = [p[0] for p in self._intruder_trail]
+            ys = [p[1] for p in self._intruder_trail]
+            self._intruder_trail_r.set_data(xs, ys)
+            self._intruder_dot_r.set_data([intruder_pos[0]], [intruder_pos[1]])
+            self._intruder_label_r.set_position((intruder_pos[0] + 0.6, intruder_pos[1] + 0.6))
+            self._intruder_label_r.set_visible(True)
+        else:
+            self._intruder_trail_r.set_data([], [])
+            self._intruder_dot_r.set_data([], [])
+            self._intruder_label_r.set_visible(False)
 
+        # ── Interceptor (radar view) ──────────────────────────────────────
         if interceptor_pos:
             self._interceptor_trail.append(interceptor_pos[:2])
-            self._interceptor_trail = self._interceptor_trail[-30:]
-            if len(self._interceptor_trail) > 1:
-                for i in range(1, len(self._interceptor_trail)):
-                    a = 0.1 + 0.9*i/len(self._interceptor_trail)
-                    t = self._interceptor_trail
-                    self._ax_radar.plot([t[i-1][0],t[i][0]],[t[i-1][1],t[i][1]],
-                                        color="cyan", alpha=a, linewidth=1.5)
-            self._ax_radar.plot(interceptor_pos[0], interceptor_pos[1], "c^", markersize=12)
-            self._ax_radar.text(interceptor_pos[0]+0.6, interceptor_pos[1]+0.6,
-                                "INTERCEPTOR", color="cyan", fontsize=7, fontfamily="monospace")
+            self._interceptor_trail = self._interceptor_trail[-40:]
+            xs = [p[0] for p in self._interceptor_trail]
+            ys = [p[1] for p in self._interceptor_trail]
+            self._intercept_trail_r.set_data(xs, ys)
+            self._intercept_dot_r.set_data([interceptor_pos[0]], [interceptor_pos[1]])
+            self._intercept_label_r.set_position((interceptor_pos[0] + 0.6, interceptor_pos[1] + 0.6))
+            self._intercept_label_r.set_visible(True)
+        else:
+            self._intercept_trail_r.set_data([], [])
+            self._intercept_dot_r.set_data([], [])
+            self._intercept_label_r.set_visible(False)
 
-        # Radar station marker
-        rs = sim_state.get("radar_station")
-        if rs:
-            self._ax_radar.plot(rs[0], rs[1], "gs", markersize=8)
-            self._ax_radar.text(rs[0]+0.5, rs[1]+0.5, "RADAR", color="lime",
-                                fontsize=6, fontfamily="monospace")
-
+        # ── Prediction line ───────────────────────────────────────────────
         if interceptor_pos and predicted_ic:
-            self._ax_radar.plot([interceptor_pos[0], predicted_ic[0]],
-                                [interceptor_pos[1], predicted_ic[1]],
-                                color="yellow", linewidth=1, linestyle="--", alpha=0.8)
-            self._ax_radar.plot(predicted_ic[0], predicted_ic[1], "y+", markersize=10)
+            self._pred_line.set_data(
+                [interceptor_pos[0], predicted_ic[0]],
+                [interceptor_pos[1], predicted_ic[1]]
+            )
+            self._pred_dot.set_data([predicted_ic[0]], [predicted_ic[1]])
+        else:
+            self._pred_line.set_data([], [])
+            self._pred_dot.set_data([], [])
 
-        if self._ctrl and self._ctrl.paused:
-            self._ax_radar.text(0, 0, "-- PAUSED --", color="yellow", fontsize=16,
-                                ha="center", va="center", fontweight="bold",
-                                fontfamily="monospace",
-                                bbox=dict(facecolor="black", alpha=0.7, edgecolor="yellow"))
+        # ── Status text ───────────────────────────────────────────────────
+        self._status_text.set_text(f"STATUS: {status}")
+        self._status_text.set_color(dome_color)
+        self._status_text.get_bbox_patch().set_edgecolor(dome_color)
 
-        # ---- SIDE VIEW (altitude) ------------------------------------
-        self._ax_side.cla()
-        self._setup_side_ax()
+        # ── Paused overlay ────────────────────────────────────────────────
+        self._paused_text.set_visible(bool(self._ctrl and self._ctrl.paused))
 
-        # Dome arc on side view
-        import numpy as np
-        theta = np.linspace(0, math.pi, 60)
-        ax_x = self._dome_radius * np.cos(theta)
-        ax_z = self._dome_radius * np.sin(theta)
-        self._ax_side.plot(ax_x, ax_z, color=dome_color, linewidth=2, alpha=0.8)
-        self._ax_side.plot([-self._dome_radius, self._dome_radius], [0, 0],
-                           color=dome_color, linewidth=2, alpha=0.8)
-
+        # ── Intruder (side view) ──────────────────────────────────────────
         if intruder_pos:
             self._intruder_alt_trail.append((intruder_pos[0], intruder_pos[2]))
-            self._intruder_alt_trail = self._intruder_alt_trail[-30:]
-            if len(self._intruder_alt_trail) > 1:
-                xs = [p[0] for p in self._intruder_alt_trail]
-                zs = [p[1] for p in self._intruder_alt_trail]
-                self._ax_side.plot(xs, zs, color="red", alpha=0.5, linewidth=1.5)
-            self._ax_side.plot(intruder_pos[0], intruder_pos[2], "ro", markersize=12)
-            self._ax_side.text(intruder_pos[0]+0.3, intruder_pos[2]+0.3,
-                               f"INTRUDER\n{intruder_pos[2]:.1f}m", color="red",
-                               fontsize=7, fontfamily="monospace")
+            self._intruder_alt_trail = self._intruder_alt_trail[-40:]
+            self._intruder_trail_s.set_data(
+                [p[0] for p in self._intruder_alt_trail],
+                [p[1] for p in self._intruder_alt_trail]
+            )
+            self._intruder_dot_s.set_data([intruder_pos[0]], [intruder_pos[2]])
+            self._intruder_label_s.set_text(f"INTRUDER\n{intruder_pos[2]:.1f}m")
+            self._intruder_label_s.set_position((intruder_pos[0] + 0.3, intruder_pos[2] + 0.3))
+            self._intruder_label_s.set_visible(True)
+        else:
+            self._intruder_trail_s.set_data([], [])
+            self._intruder_dot_s.set_data([], [])
+            self._intruder_label_s.set_visible(False)
 
+        # ── Interceptor (side view) ───────────────────────────────────────
         if interceptor_pos:
             self._interceptor_alt_trail.append((interceptor_pos[0], interceptor_pos[2]))
-            self._interceptor_alt_trail = self._interceptor_alt_trail[-30:]
-            if len(self._interceptor_alt_trail) > 1:
-                xs = [p[0] for p in self._interceptor_alt_trail]
-                zs = [p[1] for p in self._interceptor_alt_trail]
-                self._ax_side.plot(xs, zs, color="cyan", alpha=0.5, linewidth=1.5)
-            self._ax_side.plot(interceptor_pos[0], interceptor_pos[2], "c^", markersize=12)
-            self._ax_side.text(interceptor_pos[0]+0.3, interceptor_pos[2]+0.3,
-                               f"INTERCEPTOR\n{interceptor_pos[2]:.1f}m", color="cyan",
-                               fontsize=7, fontfamily="monospace")
+            self._interceptor_alt_trail = self._interceptor_alt_trail[-40:]
+            self._intercept_trail_s.set_data(
+                [p[0] for p in self._interceptor_alt_trail],
+                [p[1] for p in self._interceptor_alt_trail]
+            )
+            self._intercept_dot_s.set_data([interceptor_pos[0]], [interceptor_pos[2]])
+            self._intercept_label_s.set_text(f"INTERCEPTOR\n{interceptor_pos[2]:.1f}m")
+            self._intercept_label_s.set_position((interceptor_pos[0] + 0.3, interceptor_pos[2] + 0.3))
+            self._intercept_label_s.set_visible(True)
+        else:
+            self._intercept_trail_s.set_data([], [])
+            self._intercept_dot_s.set_data([], [])
+            self._intercept_label_s.set_visible(False)
 
-        # ---- STATUS panel (text overlay on radar ax) -----------------
-        # Draw status as a floating text block on the right side
-        status_color = {"CLEAR":"lime","TRACKING":"yellow","BREACH":"orange","INTERCEPTED":"red"}.get(status,"white")
-        ax = self._ax_radar
-        ax.text(22, 22, f"STATUS: {status}", color=status_color, fontsize=10,
-                ha="right", va="top", fontweight="bold", fontfamily="monospace",
-                transform=ax.transData,
-                bbox=dict(facecolor=(0.05,0.05,0.08), alpha=0.8, edgecolor=status_color, pad=3))
-
+        # ── Info text ─────────────────────────────────────────────────────
         lines = []
         if intruder_pos:
             dist  = math.sqrt(sum(v**2 for v in intruder_pos))
             speed = sim_state.get("intruder_speed", 0.0)
-            lines += [f"INTRUDER  rng:{dist:.1f}m  alt:{intruder_pos[2]:.1f}m  {speed:.1f}m/s"]
+            lines.append(f"INTRUDER  rng:{dist:.1f}m  alt:{intruder_pos[2]:.1f}m  {speed:.1f}m/s")
         if interceptor_pos and intruder_pos:
-            sep   = math.sqrt(sum((interceptor_pos[i]-intruder_pos[i])**2 for i in range(3)))
+            sep   = math.sqrt(sum((interceptor_pos[i] - intruder_pos[i])**2 for i in range(3)))
             tti   = sim_state.get("tti", float("inf"))
             ispd  = sim_state.get("interceptor_speed", 0.0)
             tti_s = f"{tti:.1f}s" if tti < 999 else "---"
-            lines += [f"INTERCEPT sep:{sep:.1f}m  TTI:{tti_s}  {ispd:.1f}m/s"]
+            lines.append(f"INTERCEPT sep:{sep:.1f}m  TTI:{tti_s}  {ispd:.1f}m/s")
         if radar_return.get("detected"):
-            conf  = sim_state.get("track_confidence", 0.0)
-            lines += [f"RADAR  conf:{conf*100:.0f}%  snr:{radar_return.get('snr',0):.1f}dB"]
+            conf = sim_state.get("track_confidence", 0.0)
+            lines.append(f"RADAR  conf:{conf*100:.0f}%  snr:{radar_return.get('snr', 0):.1f}dB")
         lines += [""] + self._event_log
-
-        info = "\n".join(lines)
-        self._ax_side.text(0.02, 0.98, info, transform=self._ax_side.transAxes,
-                           color="white", fontsize=7, fontfamily="monospace",
-                           va="top", ha="left",
-                           bbox=dict(facecolor=(0.03,0.05,0.1), alpha=0.85, edgecolor="gray", pad=4))
+        self._info_text.set_text("\n".join(lines))
 
         try:
             self._fig.canvas.draw_idle()
