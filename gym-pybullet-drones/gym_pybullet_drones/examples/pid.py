@@ -14,6 +14,10 @@ Notes
 The drones move, at different altitudes, along cicular trajectories 
 in the X-Y plane, around point (0, -.3).
 
+With ``--gui true`` and ``--radar_hud true`` (defaults), ``--duration_sec 0``
+runs until you click **Stop** on the radar window; **Pause** / **Play** toggles
+the physics loop. Headless (``--gui false``) uses a 12s cap when duration is 0.
+
 """
 import os
 import time
@@ -42,7 +46,7 @@ DEFAULT_USER_DEBUG_GUI = False
 DEFAULT_OBSTACLES = True
 DEFAULT_SIMULATION_FREQ_HZ = 240
 DEFAULT_CONTROL_FREQ_HZ = 48
-DEFAULT_DURATION_SEC = 12
+DEFAULT_DURATION_SEC = 0
 DEFAULT_OUTPUT_FOLDER = 'results'
 DEFAULT_COLAB = False
 DEFAULT_RADAR_HUD = True
@@ -129,10 +133,29 @@ def run(
     if drone in [DroneModel.CF2X, DroneModel.CF2P]:
         ctrl = [DSLPIDControl(drone_model=drone) for i in range(num_drones)]
 
+    #### Run length: 0 = until Stop (needs gui + radar HUD), else headless uses 12s
+    hud = getattr(env, "radar_hud", None)
+    if duration_sec <= 0:
+        if gui and hud is not None:
+            max_steps = 10**9
+        else:
+            max_steps = int(12 * env.CTRL_FREQ)
+    else:
+        max_steps = int(duration_sec * env.CTRL_FREQ)
+
     #### Run the simulation ####################################
     action = np.zeros((num_drones,4))
     START = time.time()
-    for i in range(0, int(duration_sec*env.CTRL_FREQ)):
+    i = 0
+    while i < max_steps:
+
+        if hud is not None and hud.stop_requested:
+            break
+        while hud is not None and hud.paused and not hud.stop_requested:
+            hud.update(env.pos)
+            plt.pause(0.02)
+        if hud is not None and hud.stop_requested:
+            break
 
         #### Make it rain rubber ducks #############################
         # if i/env.SIM_FREQ>5 and i%10==0 and i/env.SIM_FREQ<10: p.loadURDF("duck_vhacd.urdf", [0+random.gauss(0, 0.3),-0.5+random.gauss(0, 0.3),3], p.getQuaternionFromEuler([random.randint(0,360),random.randint(0,360),random.randint(0,360)]), physicsClientId=PYB_CLIENT)
@@ -169,6 +192,8 @@ def run(
         if gui:
             sync(i, START, env.CTRL_TIMESTEP)
 
+        i += 1
+
     #### Close the environment #################################
     env.close()
 
@@ -193,7 +218,7 @@ if __name__ == "__main__":
     parser.add_argument('--obstacles',          default=DEFAULT_OBSTACLES,       type=str2bool,      help='Whether to add obstacles to the environment (default: True)', metavar='')
     parser.add_argument('--simulation_freq_hz', default=DEFAULT_SIMULATION_FREQ_HZ,        type=int,           help='Simulation frequency in Hz (default: 240)', metavar='')
     parser.add_argument('--control_freq_hz',    default=DEFAULT_CONTROL_FREQ_HZ,         type=int,           help='Control frequency in Hz (default: 48)', metavar='')
-    parser.add_argument('--duration_sec',       default=DEFAULT_DURATION_SEC,         type=int,           help='Duration of the simulation in seconds (default: 5)', metavar='')
+    parser.add_argument('--duration_sec',       default=DEFAULT_DURATION_SEC,         type=int,           help='Seconds to run; 0 = until Stop with gui+radar, else 12s headless (default: 0)', metavar='')
     parser.add_argument('--output_folder',     default=DEFAULT_OUTPUT_FOLDER, type=str,           help='Folder where to save logs (default: "results")', metavar='')
     parser.add_argument('--colab',              default=DEFAULT_COLAB, type=bool,           help='Whether example is being run by a notebook (default: "False")', metavar='')
     parser.add_argument('--radar_hud',        default=DEFAULT_RADAR_HUD, type=str2bool,   help='Matplotlib radar + XYZ when gui=True (default: True)', metavar='')

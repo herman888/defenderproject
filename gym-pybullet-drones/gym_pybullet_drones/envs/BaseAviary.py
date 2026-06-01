@@ -70,8 +70,8 @@ class BaseAviary(gym.Env):
         vision_attributes : bool, optional
             Whether to allocate the attributes needed by vision-based aviary subclasses.
         radar_hud : bool, optional
-            If True and ``gui`` is True, opens a Matplotlib window with a bottom-left
-            planar radar (world XY) and a per-drone XYZ coordinate readout.
+            If True and ``gui`` is True, opens a Matplotlib window with a top **Pause/Play**
+            toggle and **Stop**, a planar radar (world XY), and per-drone XYZ readout.
 
         """
         #### Constants #############################################
