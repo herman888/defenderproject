@@ -36,7 +36,8 @@ class BaseAviary(gym.Env):
                  obstacles=False,
                  user_debug_gui=True,
                  vision_attributes=False,
-                 output_folder='results'
+                 output_folder='results',
+                 radar_hud: bool=False,
                  ):
         """Initialization of a generic aviary environment.
 
@@ -68,6 +69,9 @@ class BaseAviary(gym.Env):
             Whether to draw the drones' axes and the GUI RPMs sliders.
         vision_attributes : bool, optional
             Whether to allocate the attributes needed by vision-based aviary subclasses.
+        radar_hud : bool, optional
+            If True and ``gui`` is True, opens a Matplotlib window with a bottom-left
+            planar radar (world XY) and a per-drone XYZ coordinate readout.
 
         """
         #### Constants #############################################
@@ -91,6 +95,8 @@ class BaseAviary(gym.Env):
         self.PHYSICS = physics
         self.OBSTACLES = obstacles
         self.USER_DEBUG = user_debug_gui
+        self.RADAR_HUD = bool(radar_hud and gui)
+        self.radar_hud = None
         self.URDF = self.DRONE_MODEL.value + ".urdf"
         self.OUTPUT_FOLDER = output_folder
         #### Load the drone properties from the .urdf file #########
@@ -214,6 +220,11 @@ class BaseAviary(gym.Env):
         self._updateAndStoreKinematicInformation()
         #### Start video recording #################################
         self._startVideoRecording()
+        #### Optional Matplotlib radar / coordinate HUD ############
+        if self.RADAR_HUD:
+            from gym_pybullet_drones.utils.RadarHUD import RadarHUD
+            self.radar_hud = RadarHUD(num_drones=self.NUM_DRONES)
+            self.radar_hud.update(self.pos)
     
     ################################################################################
 
@@ -250,6 +261,8 @@ class BaseAviary(gym.Env):
         #### Start video recording #################################
         self._startVideoRecording()
         #### Return the initial observation ########################
+        if self.radar_hud is not None:
+            self.radar_hud.update(self.pos)
         initial_obs = self._computeObs()
         initial_info = self._computeInfo()
         return initial_obs, initial_info
@@ -410,12 +423,17 @@ class BaseAviary(gym.Env):
                   "——— velocity {:+06.2f}, {:+06.2f}, {:+06.2f}".format(self.vel[i, 0], self.vel[i, 1], self.vel[i, 2]),
                   "——— roll {:+06.2f}, pitch {:+06.2f}, yaw {:+06.2f}".format(self.rpy[i, 0]*self.RAD2DEG, self.rpy[i, 1]*self.RAD2DEG, self.rpy[i, 2]*self.RAD2DEG),
                   "——— angular velocity {:+06.4f}, {:+06.4f}, {:+06.4f} ——— ".format(self.ang_v[i, 0], self.ang_v[i, 1], self.ang_v[i, 2]))
+        if self.radar_hud is not None:
+            self.radar_hud.update(self.pos)
     
     ################################################################################
 
     def close(self):
         """Terminates the environment.
         """
+        if self.radar_hud is not None:
+            self.radar_hud.close()
+            self.radar_hud = None
         if self.RECORD and self.GUI:
             p.stopStateLogging(self.VIDEO_ID, physicsClientId=self.CLIENT)
         p.disconnect(physicsClientId=self.CLIENT)

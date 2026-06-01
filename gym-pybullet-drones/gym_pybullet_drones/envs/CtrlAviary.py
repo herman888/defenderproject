@@ -22,7 +22,8 @@ class CtrlAviary(BaseAviary):
                  record=False,
                  obstacles=False,
                  user_debug_gui=True,
-                 output_folder='results'
+                 output_folder='results',
+                 radar_hud=False,
                  ):
         """Initialization of an aviary environment for control applications.
 
@@ -52,6 +53,8 @@ class CtrlAviary(BaseAviary):
             Whether to add obstacles to the simulation.
         user_debug_gui : bool, optional
             Whether to draw the drones' axes and the GUI RPMs sliders.
+        radar_hud : bool, optional
+            If True and ``gui`` is True, show Matplotlib radar + XYZ readout.
 
         """
         super().__init__(drone_model=drone_model,
@@ -66,7 +69,8 @@ class CtrlAviary(BaseAviary):
                          record=record,
                          obstacles=obstacles,
                          user_debug_gui=user_debug_gui,
-                         output_folder=output_folder
+                         output_folder=output_folder,
+                         radar_hud=radar_hud,
                          )
 
     ################################################################################

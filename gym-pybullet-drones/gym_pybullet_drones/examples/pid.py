@@ -45,6 +45,7 @@ DEFAULT_CONTROL_FREQ_HZ = 48
 DEFAULT_DURATION_SEC = 12
 DEFAULT_OUTPUT_FOLDER = 'results'
 DEFAULT_COLAB = False
+DEFAULT_RADAR_HUD = True
 
 def run(
         drone=DEFAULT_DRONES,
@@ -59,7 +60,8 @@ def run(
         control_freq_hz=DEFAULT_CONTROL_FREQ_HZ,
         duration_sec=DEFAULT_DURATION_SEC,
         output_folder=DEFAULT_OUTPUT_FOLDER,
-        colab=DEFAULT_COLAB
+        colab=DEFAULT_COLAB,
+        radar_hud=DEFAULT_RADAR_HUD,
         ):
     #### Initialize the simulation #############################
     H = .1
@@ -109,7 +111,8 @@ def run(
                         gui=gui,
                         record=record_video,
                         obstacles=obstacles,
-                        user_debug_gui=user_debug_gui
+                        user_debug_gui=user_debug_gui,
+                        radar_hud=radar_hud,
                         )
 
     #### Obtain the PyBullet Client ID from the environment ####
@@ -193,6 +196,7 @@ if __name__ == "__main__":
     parser.add_argument('--duration_sec',       default=DEFAULT_DURATION_SEC,         type=int,           help='Duration of the simulation in seconds (default: 5)', metavar='')
     parser.add_argument('--output_folder',     default=DEFAULT_OUTPUT_FOLDER, type=str,           help='Folder where to save logs (default: "results")', metavar='')
     parser.add_argument('--colab',              default=DEFAULT_COLAB, type=bool,           help='Whether example is being run by a notebook (default: "False")', metavar='')
+    parser.add_argument('--radar_hud',        default=DEFAULT_RADAR_HUD, type=str2bool,   help='Matplotlib radar + XYZ when gui=True (default: True)', metavar='')
     ARGS = parser.parse_args()
 
     run(**vars(ARGS))
