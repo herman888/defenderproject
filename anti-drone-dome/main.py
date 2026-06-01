@@ -1,56 +1,83 @@
 """
-Anti-Drone Dome Simulation — main entry point.
+Anti-Drone Dome Simulation — V2 main entry point.
 
-BEFORE:
-  - Physics in background thread, matplotlib on main thread
-  - PyBullet GUI crashed (OpenGL needs main thread on Windows)
-  - No physical radar model in the 3D scene
+Architecture
+────────────
+Main process / main thread : PyBullet GUI + physics loop (OpenGL owns main thread)
+Child process              : Matplotlib dashboard (has its own Tkinter main thread)
+IPC                        : multiprocessing.Queue
 
-AFTER:
-  - PyBullet GUI runs on main process / main thread (correct)
-  - Matplotlib dashboard runs in a separate child PROCESS (has its own
-    main thread so TkAgg/Tkinter is happy)
-  - Communication via multiprocessing.Queue (state → dash, ctrl ← dash)
-  - Physical radar station URDF loaded and spinning dish driven at 20 RPM
-  - PyBullet debug sliders for speed/pause control inside the 3D window
+Mission loop
+────────────
+  main()  ──►  console menu  ──►  _run_one_mission()
+                                       │
+                                       ▼
+                                   physics loop
+                                   keyboard events
+                                       │
+                                       ▼
+                               return mission_result
+                                       │
+                                       ▼
+                               _show_debrief()  ──►  R / M / Q
 
-Run: python main.py
+Keyboard controls (PyBullet window focus required)
+───────────────────────────────────────────────────
+  SPACE   Pause / resume
+  R       Restart same scenario
+  1-6     Sim speed  0.25× / 0.5× / 1× / 2× / 4× / 8×
+  C       Cycle camera modes
+  I       Toggle intruder 3-D trail
+  H       Print help to console
+  Q       Quit to menu
+
+Run:  python main.py
 """
 
 import math
 import os
+import random
+import sys
 import time
 import multiprocessing as mp
 
 import pybullet
 import pybullet_data
 
-from sim.physics import PhysicsWorld
-from sim.drone import Drone
-from sim.waypoints import WaypointNavigator
-from sensors.radar import RadarNode
+from sim.physics    import PhysicsWorld
+from sim.drone      import Drone, LoiteringMunition
+from sim.waypoints  import WaypointNavigator
+from sensors.radar  import RadarNode
 from comms.datalink import DataLink
 from guidance.intercept import PurePursuitGuidance
-from dome.killzone import DomeKillZone
+from dome.killzone  import DomeKillZone
+from scenarios      import SCENARIOS, get_waypoints_for_path
 
+# ── Global constants ──────────────────────────────────────────────────
 _TIMESTEP     = 1.0 / 240.0
 _MAX_SIM_TIME = 120.0
 _DOME_CENTER  = (0.0, 0.0, 0.0)
 _DOME_RADIUS  = 10.0
-_LOG_INTERVAL = 48
-_RADAR_RPM    = 20.0                          # dish rotation speed
+_LOG_INTERVAL = 48          # console log every 0.2 s sim time
+_RADAR_RPM    = 20.0
 _RADAR_OMEGA  = _RADAR_RPM / 60.0 * 2 * math.pi   # rad/s
 
+_SPEED_MAP = {49: 0.25, 50: 0.5, 51: 1.0, 52: 2.0, 53: 4.0, 54: 8.0}
+# ASCII codes: 1=49, 2=50, 3=51, 4=52, 5=53, 6=54
 
-# ---------------------------------------------------------------------------
-# Dashboard subprocess entry point  (must be top-level for Windows spawn)
-# ---------------------------------------------------------------------------
+_CAM_PRESETS = [
+    dict(distance=28, yaw=225, pitch=-35, target=[3,3,3]),   # 0 overview
+    None,                                                     # 1 chase intruder
+    None,                                                     # 2 chase interceptor
+    dict(distance=32, yaw=0, pitch=-89, target=[0,0,0]),     # 3 top-down
+]
+
+
+# ======================================================================
+# Dashboard subprocess entry point  (top-level for Windows spawn)
+# ======================================================================
 
 def _dashboard_worker(state_q: mp.Queue, ctrl_q: mp.Queue, dome_radius: float):
-    """
-    Runs in a child process — owns matplotlib/TkAgg on its own main thread.
-    Reads sim state from state_q, writes control signals to ctrl_q.
-    """
     import time as _time
     import matplotlib.pyplot as plt
     from viz.dashboard import Dashboard, SimControl
@@ -63,7 +90,6 @@ def _dashboard_worker(state_q: mp.Queue, ctrl_q: mp.Queue, dome_radius: float):
         return
 
     while True:
-        # Drain queue — only keep the freshest state
         state = None
         while True:
             try:
@@ -77,14 +103,13 @@ def _dashboard_worker(state_q: mp.Queue, ctrl_q: mp.Queue, dome_radius: float):
 
         if state:
             dash.update(state)
-            _time.sleep(0.015)   # cap CPU burn; flush_events inside update() handles Tk
+            _time.sleep(0.015)
         else:
             try:
-                plt.pause(0.05)  # keep window alive when idle
+                plt.pause(0.05)
             except Exception:
                 return
 
-        # Push control snapshot back to main process
         try:
             ctrl_q.put_nowait({
                 "paused" : ctrl.paused,
@@ -95,9 +120,9 @@ def _dashboard_worker(state_q: mp.Queue, ctrl_q: mp.Queue, dome_radius: float):
             pass
 
 
-# ---------------------------------------------------------------------------
+# ======================================================================
 # Helpers
-# ---------------------------------------------------------------------------
+# ======================================================================
 
 def _find_joint(body: int, name: str, client: int) -> int:
     for i in range(pybullet.getNumJoints(body, physicsClientId=client)):
@@ -107,14 +132,13 @@ def _find_joint(body: int, name: str, client: int) -> int:
     return -1
 
 
-def _load_radar_station(dome_radius: float, client: int) -> tuple[int, int]:
-    """Load radar_station.urdf, return (body_id, spin_joint_index)."""
+def _load_radar_station(dome_radius: float, client: int):
     urdf = os.path.normpath(
         os.path.join(os.path.dirname(__file__), "assets", "radar_station.urdf")
     )
     body = pybullet.loadURDF(
         urdf,
-        basePosition=[0.0, -dome_radius, 0.1],   # south perimeter, base sits on ground
+        basePosition=[0.0, -dome_radius, 0.1],
         useFixedBase=1,
         physicsClientId=client,
     )
@@ -122,88 +146,156 @@ def _load_radar_station(dome_radius: float, client: int) -> tuple[int, int]:
     return body, spin_idx
 
 
-def _perimeter_launch_pos(threat_pos: tuple, dome_radius: float) -> list:
+def _update_camera(client: int, mode: int, i_pos, int_pos):
+    preset = _CAM_PRESETS[mode]
+    if preset is not None:
+        pybullet.resetDebugVisualizerCamera(
+            cameraDistance    = preset["distance"],
+            cameraYaw         = preset["yaw"],
+            cameraPitch       = preset["pitch"],
+            cameraTargetPosition = preset["target"],
+            physicsClientId   = client,
+        )
+    elif mode == 1 and i_pos:
+        pybullet.resetDebugVisualizerCamera(5, 45, -15, list(i_pos), physicsClientId=client)
+    elif mode == 2 and int_pos:
+        pybullet.resetDebugVisualizerCamera(5, 45, -15, list(int_pos), physicsClientId=client)
+
+
+def _update_trail(new_pos, last_pos, trail_ids, max_len, color, client):
+    """Append one segment to a debug-line trail; prune oldest beyond max_len."""
+    if last_pos is not None:
+        try:
+            lid = pybullet.addUserDebugLine(
+                last_pos, list(new_pos), color,
+                lineWidth=1.8, physicsClientId=client,
+            )
+            trail_ids.append(lid)
+        except Exception:
+            pass
+        while len(trail_ids) > max_len:
+            try:
+                pybullet.removeUserDebugItem(trail_ids.pop(0), physicsClientId=client)
+            except Exception:
+                pass
+    return list(new_pos)
+
+
+def _clear_trail(trail_ids, client):
+    for lid in trail_ids:
+        try:
+            pybullet.removeUserDebugItem(lid, physicsClientId=client)
+        except Exception:
+            pass
+    trail_ids.clear()
+
+
+def _print_help():
+    print("""
+╔══════════════════════════════════════════╗
+║         SIM KEYBOARD CONTROLS           ║
+╠══════════════════════════════════════════╣
+║  SPACE   Pause / resume                 ║
+║  R       Restart same scenario          ║
+║  1       Speed 0.25× (slow-motion)      ║
+║  2       Speed 0.5×                     ║
+║  3       Speed 1× (normal)              ║
+║  4       Speed 2×                       ║
+║  5       Speed 4×                       ║
+║  6       Speed 8× (fast-forward)        ║
+║  C       Cycle camera mode              ║
+║  I       Toggle intruder 3-D trail      ║
+║  H       Print this help text           ║
+║  Q       Quit to main menu              ║
+╚══════════════════════════════════════════╝
+""")
+
+
+# ======================================================================
+# Single mission run
+# ======================================================================
+
+def _run_one_mission(
+    state_q:  mp.Queue,
+    ctrl_q:   mp.Queue,
+    scenario_key: str = "standard",
+) -> dict:
     """
-    Interceptor launch point: half dome radius, 90-deg offset from threat
-    bearing for good APN lateral separation.
+    Run one complete mission.  Returns a dict describing the result.
+    Mission ends when one of these conditions is met:
+      INTERCEPTED — interceptor closed to <5 m of intruder
+      FAILURE     — intruder reached dome centre unchallenged
+      TIMEOUT     — 120 s sim time elapsed
+      RESTART     — player pressed R
+      QUIT        — player pressed Q
+      ABORTED     — PyBullet window closed externally
     """
-    bearing        = math.atan2(threat_pos[1], threat_pos[0])
-    launch_bearing = bearing - math.pi / 2.0
-    r              = dome_radius * 0.5
-    return [r * math.cos(launch_bearing), r * math.sin(launch_bearing), 2.0]
+    scenario = SCENARIOS[scenario_key]
 
+    sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, "reconfigure") else None
+    print("=" * 62)
+    print(f"  MISSION  ▶  {scenario_key.upper()}  —  {scenario['description']}")
+    print("=" * 62)
 
-# ---------------------------------------------------------------------------
-# Main simulation (runs on main process / main thread — owns PyBullet GUI)
-# ---------------------------------------------------------------------------
-
-def _run_sim(state_q: mp.Queue, ctrl_q: mp.Queue, dash_proc_holder: list):
-    import sys
-    # Force line-buffered output (safe fallback if reconfigure unavailable)
+    # ── Tell dashboard to clear previous mission data ─────────────────
     try:
-        sys.stdout.reconfigure(line_buffering=True)
+        state_q.put_nowait({"type": "reset"})
     except Exception:
         pass
-    print("=" * 60, flush=True)
-    print("  ANTI-DRONE DOME SIMULATION — INITIALIZING", flush=True)
-    print("=" * 60, flush=True)
 
-    print("Connecting to PyBullet...", flush=True)
+    # ── PyBullet world ────────────────────────────────────────────────
     world = PhysicsWorld(gui=True)
     world.draw_dome(_DOME_CENTER, _DOME_RADIUS, color=[0, 1, 0])
-    print("PyBullet ready. Starting dashboard...", flush=True)
 
-    # Start dashboard AFTER PyBullet GUI is up — avoids the race where the
-    # child process imports pybullet while the parent is still connecting,
-    # which caused a segfault / empty scene on Windows.
-    dash_proc = mp.Process(
-        target=_dashboard_worker,
-        args=(state_q, ctrl_q, _DOME_RADIUS),
-        daemon=True,
-        name="dashboard",
-    )
-    dash_proc.start()
-    dash_proc_holder.append(dash_proc)
-    print("Dashboard started. Loading scene objects...", flush=True)
-
-    # ── Physical radar station ──────────────────────────────────────────
+    # Radar station
     radar_body, spin_joint = _load_radar_station(_DOME_RADIUS, world.client)
     if spin_joint >= 0:
         pybullet.setJointMotorControl2(
             radar_body, spin_joint,
             pybullet.VELOCITY_CONTROL,
-            targetVelocity=_RADAR_OMEGA,
-            force=5.0,
+            targetVelocity=_RADAR_OMEGA, force=5.0,
             physicsClientId=world.client,
         )
-
-    # Label above the station
     pybullet.addUserDebugText(
         "RADAR STATION", [0, -_DOME_RADIUS, 4.2],
         [0.2, 1.0, 0.2], textSize=1.2, physicsClientId=world.client,
     )
 
-    # ── HUD text IDs (updated each frame) ───────────────────────────────
-    _hud_status  = pybullet.addUserDebugText("STATUS: CLEAR",      [-14, -14, 12], [0,1,0],   textSize=2.0, physicsClientId=world.client)
-    _hud_intruder= pybullet.addUserDebugText("INTRUDER: ---",      [-14, -14, 10], [1,0.3,0], textSize=1.5, physicsClientId=world.client)
-    _hud_intercept=pybullet.addUserDebugText("INTERCEPTOR: ---",   [-14, -14,  8], [0,0.8,1], textSize=1.5, physicsClientId=world.client)
-    _hud_sep     = pybullet.addUserDebugText("SEP: ---",           [-14, -14,  6], [1,1,0],   textSize=1.5, physicsClientId=world.client)
+    # ── HUD text IDs ─────────────────────────────────────────────────
+    _hud_status  = pybullet.addUserDebugText("STATUS: CLEAR",   [-14,-14,12], [0,1,0],   textSize=2.0, physicsClientId=world.client)
+    _hud_intrudr = pybullet.addUserDebugText("INTRUDER: ---",   [-14,-14,10], [1,0.3,0], textSize=1.5, physicsClientId=world.client)
+    _hud_intercp = pybullet.addUserDebugText("INTERCEPTOR: ---",[-14,-14, 8], [0,0.8,1], textSize=1.5, physicsClientId=world.client)
+    _hud_sep     = pybullet.addUserDebugText("SEP: ---",        [-14,-14, 6], [1,1,0],   textSize=1.5, physicsClientId=world.client)
+    _hud_speed   = pybullet.addUserDebugText("SPEED: 1x",       [-14,-14, 4], [1,1,0],   textSize=1.3, physicsClientId=world.client)
 
-    # ── Drones ──────────────────────────────────────────────────────────
-    intruder = Drone("intruder", (15.0, 15.0, 8.0), world.client, color="red",
-                     max_h_force=25.0, max_speed=12.0)  # faster intruder
-    # Interceptor sits on a launch pad inside the dome (not on the radar station)
-    # No hover force applied until launch, so gravity holds it on the ground.
-    interceptor = Drone(
-        "interceptor", (3.0, -3.0, 0.3), world.client, color="blue",
-        max_h_force=70.0, max_v_force=70.0, max_speed=50.0, kp=20.0, kd=8.0,
+    # ── Interceptor URDF path ─────────────────────────────────────────
+    _int_urdf = os.path.normpath(
+        os.path.join(os.path.dirname(__file__), "assets", "interceptor.urdf")
     )
-    interceptor_launched = False
 
+    # ── Drones ───────────────────────────────────────────────────────
+    i_start  = scenario["intruder_start"]
+    int_start = scenario["interceptor_start"]
+
+    intruder = LoiteringMunition(
+        "intruder", i_start, world.client,
+        max_speed=scenario["intruder_speed"],
+    )
+    interceptor = Drone(
+        "interceptor", int_start, world.client,
+        color="multi",
+        max_h_force=70.0, max_v_force=70.0, max_speed=50.0,
+        kp=20.0, kd=8.0,
+        urdf=_int_urdf if os.path.isfile(_int_urdf) else None,
+    )
+
+    # Warm-up
     for _ in range(50):
         world.step()
 
-    nav     = WaypointNavigator()
+    # ── Sim objects ───────────────────────────────────────────────────
+    waypoints = get_waypoints_for_path(scenario["intruder_path"])
+    nav     = WaypointNavigator(waypoints=waypoints)
     radar   = RadarNode(
         station_pos      = (0.0, -_DOME_RADIUS, 3.0),
         protected_center = _DOME_CENTER,
@@ -216,29 +308,53 @@ def _run_sim(state_q: mp.Queue, ctrl_q: mp.Queue, dash_proc_holder: list):
     guidance    = PurePursuitGuidance()
     dome        = DomeKillZone(center=_DOME_CENTER, radius=_DOME_RADIUS)
 
-    sim_start        = time.time()
-    step             = 0
-    pending_events   = []
-    mission_result   = None
-    closest_approach = float("inf")
-    interceptor_target = None
-    _last_dome_status = "CLEAR"   # initial dome already drawn green above
+    # ── State variables ───────────────────────────────────────────────
+    sim_speed            = 1.0
+    paused               = False
+    camera_mode          = 0
+    show_trail           = True
+    interceptor_launched = False
+    interceptor_target   = None
+    closest_approach     = float("inf")
+    pending_events       = []
+    mission_result       = None
+    _last_dome_status    = "CLEAR"
+    detected_at_step     = None
+    response_delay_steps = int(scenario["interceptor_response_delay"] / _TIMESTEP)
+    step                 = 0
+    sim_start            = time.time()
 
-    # Control state read from dashboard process
-    ctrl = {"paused": False, "stopped": False, "speed_mult": 4.0}
+    # Trail state
+    i_trail_ids    = []
+    int_trail_ids  = []
+    i_last_pos     = None
+    int_last_pos   = None
+    icept_vec_id   = None
+    flash_shown    = False
 
-    print("SIMULATION STARTED — intruder begins attack run\n")
+    # Wind state
+    wind_force = [0.0, 0.0, 0.0]
+    wind_timer = 0
 
+    # Dashboard control cache
+    dash_ctrl = {"paused": False, "stopped": False, "speed": 1}
+
+    print("SIMULATION STARTED — press H in the PyBullet window for keyboard help\n")
+
+    # ================================================================
+    # Physics loop
+    # ================================================================
     while True:
-        # ── Read dashboard controls (non-blocking) ──────────────────────
+
+        # ── Dashboard control drain ──────────────────────────────────
         while True:
             try:
                 msg = ctrl_q.get_nowait()
-                ctrl.update(msg)
+                dash_ctrl.update(msg)
             except Exception:
                 break
 
-        # ── Check PyBullet GUI still alive (every 120 steps) ────────────
+        # ── Window alive check ───────────────────────────────────────
         if step % 120 == 0:
             try:
                 pybullet.getConnectionInfo(world.client)
@@ -246,11 +362,44 @@ def _run_sim(state_q: mp.Queue, ctrl_q: mp.Queue, dash_proc_holder: list):
                 mission_result = "ABORTED"
                 break
 
-        if ctrl["stopped"]:
+        if dash_ctrl.get("stopped"):
             mission_result = "ABORTED"
             break
 
-        if ctrl["paused"]:
+        # ── Keyboard events ───────────────────────────────────────────
+        try:
+            keys = pybullet.getKeyboardEvents(physicsClientId=world.client)
+        except Exception:
+            keys = {}
+
+        for key, kstate in keys.items():
+            if not (kstate & 4):   # KEY_WAS_TRIGGERED
+                continue
+            if key == 32:          # SPACE
+                paused = not paused
+            elif key in (82, 114): # R / r
+                mission_result = "RESTART"
+            elif key in (81, 113): # Q / q
+                mission_result = "QUIT"
+            elif key in (67, 99):  # C / c
+                camera_mode = (camera_mode + 1) % len(_CAM_PRESETS)
+                i_pos_now  = intruder.get_position()
+                int_pos_now = interceptor.get_position() if interceptor_launched else None
+                _update_camera(world.client, camera_mode, i_pos_now, int_pos_now)
+            elif key in (73, 105): # I / i
+                show_trail = not show_trail
+                if not show_trail:
+                    _clear_trail(i_trail_ids, world.client)
+                    _clear_trail(int_trail_ids, world.client)
+            elif key in (72, 104): # H / h
+                _print_help()
+            elif key in _SPEED_MAP:
+                sim_speed = _SPEED_MAP[key]
+
+        if mission_result:
+            break
+
+        if paused or dash_ctrl.get("paused"):
             time.sleep(0.05)
             continue
 
@@ -259,21 +408,77 @@ def _run_sim(state_q: mp.Queue, ctrl_q: mp.Queue, dash_proc_holder: list):
             mission_result = "TIMEOUT"
             break
 
-        # ── Intruder navigation — cache position to avoid duplicate IPC ─
-        i_pos = intruder.get_position()
-        nav.update(i_pos)
-        intruder.set_target(*nav.get_current_target())
-        intruder.update()
+        # ── Determine physics sub-steps this iteration ────────────────
+        inner_steps  = max(1, round(sim_speed))
+        slow_sleep   = max(0.0, _TIMESTEP * (1.0 / sim_speed - 1.0)) if sim_speed < 1 else 0.0
 
-        # ── Radar scan ──────────────────────────────────────────────────
-        radar_return = radar.scan(i_pos)
-
-        # Broadcast every 2 s of sim time — not every frame (was 240x/s)
-        if radar_return.get("detected") and step % 480 == 0:
-            broadcaster.send_track(radar_return)
-
-        # ── Dome status ─────────────────────────────────────────────────
+        # Compute guidance force once per outer loop (position changes slowly)
+        i_pos   = intruder.get_position()
         int_pos = interceptor.get_position() if interceptor_launched else None
+
+        radar_return    = radar.scan(i_pos)
+        guidance_track  = (radar_return if radar_return.get("detected")
+                           else radar.get_last_track())
+
+        # Wind update every ~2 sim seconds
+        if scenario.get("wind") and (step % 480 == 0):
+            wind_force = [
+                random.uniform(-0.5, 0.5),
+                random.uniform(-0.5, 0.5),
+                0.0,
+            ]
+
+        # Guidance force
+        g_force = (0.0, 0.0, 0.0)
+        if interceptor_launched and guidance_track:
+            t_pos = guidance_track.get("position_estimate")
+            if t_pos:
+                interceptor.set_target(*t_pos)
+            g_force = guidance.compute_guidance(interceptor.get_state(), guidance_track)
+
+        # ── Inner physics sub-steps ───────────────────────────────────
+        for _sub in range(inner_steps):
+            nav.update(intruder.get_position())
+            intruder.set_target(*nav.get_current_target())
+            intruder.update()
+
+            # Wind disturbance on intruder
+            if scenario.get("wind") and any(wind_force):
+                try:
+                    pybullet.applyExternalForce(
+                        intruder._body, -1, wind_force, list(intruder.get_position()),
+                        pybullet.WORLD_FRAME, physicsClientId=world.client,
+                    )
+                except Exception:
+                    pass
+
+            if interceptor_launched:
+                interceptor.update()
+                if any(abs(v) > 1e-6 for v in g_force):
+                    try:
+                        pybullet.applyExternalForce(
+                            interceptor._body, -1, list(g_force),
+                            list(interceptor.get_position()),
+                            pybullet.WORLD_FRAME, physicsClientId=world.client,
+                        )
+                    except Exception:
+                        mission_result = "ABORTED"
+                        break
+
+            world.step()
+            step += 1
+
+            if slow_sleep > 0:
+                time.sleep(slow_sleep)
+
+        if mission_result:
+            break
+
+        # ── Refresh positions after inner loop ────────────────────────
+        i_pos   = intruder.get_position()
+        int_pos = interceptor.get_position() if interceptor_launched else None
+
+        # ── Dome status ───────────────────────────────────────────────
         dome.update_status(
             intruder_position    = i_pos,
             intruder_detected    = radar_return.get("detected", False),
@@ -283,64 +488,67 @@ def _run_sim(state_q: mp.Queue, ctrl_q: mp.Queue, dash_proc_holder: list):
         status = dome.get_status()
 
         if status != _last_dome_status:
-            _dome_colors = {"CLEAR":[0,1,0],"TRACKING":[1,1,0],"BREACH":[1,0.5,0],"INTERCEPTED":[1,0,0]}
+            _dome_colors = {
+                "CLEAR"      : [0.0, 1.0, 0.0],
+                "TRACKING"   : [1.0, 1.0, 0.0],
+                "BREACH"     : [1.0, 0.5, 0.0],
+                "INTERCEPTED": [1.0, 0.0, 0.0],
+            }
             try:
-                world.draw_dome(_DOME_CENTER, _DOME_RADIUS, color=_dome_colors.get(status,[0,1,0]))
-            except pybullet.error:
+                world.draw_dome(
+                    _DOME_CENTER, _DOME_RADIUS,
+                    color=_dome_colors.get(status, [0, 1, 0]),
+                )
+            except Exception:
                 mission_result = "ABORTED"
                 break
             _last_dome_status = status
 
-        # ── Interceptor launch ──────────────────────────────────────────
-        if status in ("TRACKING", "BREACH") and not interceptor_launched:
-            launch_pos = list(interceptor.get_position())
-            # Kick toward intruder to immediately break ground contact and
-            # give APN a head start — horizontal toward threat + upward.
-            dx = i_pos[0] - launch_pos[0]
-            dy = i_pos[1] - launch_pos[1]
-            dist_h = max(math.sqrt(dx**2 + dy**2), 0.1)
-            kick = [18.0 * dx / dist_h, 18.0 * dy / dist_h, 8.0]
+        # ── Detection timestamp ───────────────────────────────────────
+        if status in ("TRACKING", "BREACH") and detected_at_step is None:
+            detected_at_step = step
+
+        # ── Interceptor launch (after response delay) ─────────────────
+        if (not interceptor_launched and detected_at_step is not None
+                and step >= detected_at_step + response_delay_steps):
+            lp = list(interceptor.get_position())
+            dx, dy = i_pos[0] - lp[0], i_pos[1] - lp[1]
+            dh = max(math.sqrt(dx**2 + dy**2), 0.1)
+            kick = [18.0 * dx / dh, 18.0 * dy / dh, 8.0]
             pybullet.resetBaseVelocity(
                 interceptor._body, kick, [0, 0, 0],
                 physicsClientId=world.client,
             )
             interceptor._prev_error = [0.0, 0.0, 0.0]
-            print(f"INTERCEPTOR: LAUNCH from pad "
-                  f"({launch_pos[0]:.1f}, {launch_pos[1]:.1f}, {launch_pos[2]:.1f}) — APN active")
             interceptor_launched = True
-            int_pos = interceptor.get_position()   # cache valid for this step
+            int_pos = interceptor.get_position()
             pending_events.append("Interceptor launched")
+            print(f"INTERCEPTOR: LAUNCH  delay={scenario['interceptor_response_delay']:.1f}s")
 
-        # ── APN guidance ────────────────────────────────────────────────
-        guidance_track = (radar_return if radar_return.get("detected")
-                          else radar.get_last_track())
-        if interceptor_launched:
-            if guidance_track:
-                # Sync PD target to intruder position so PD *assists* APN
-                # instead of fighting it (both point toward the intruder).
-                t_pos = guidance_track.get("position_estimate")
-                if t_pos:
-                    interceptor.set_target(*t_pos)
-            interceptor.update()
-            if guidance_track:
-                f = guidance.compute_guidance(interceptor.get_state(), guidance_track)
-                try:
-                    pybullet.applyExternalForce(
-                        interceptor._body, -1, list(f), list(int_pos),
-                        pybullet.WORLD_FRAME, physicsClientId=world.client,
-                    )
-                except pybullet.error:
-                    mission_result = "ABORTED"
-                    break
-                interceptor_target = guidance_track.get("position_estimate")
-
+        # ── Track closest approach ────────────────────────────────────
+        if interceptor_launched and int_pos:
             sep = math.sqrt(sum((int_pos[k]-i_pos[k])**2 for k in range(3)))
             if sep < closest_approach:
                 closest_approach = sep
 
-        # ── Terminal conditions ─────────────────────────────────────────
+        # ── Broadcast track every 2 sim-s ────────────────────────────
+        if radar_return.get("detected") and step % 480 == 0:
+            broadcaster.send_track(radar_return)
+
+        # ── Terminal conditions ───────────────────────────────────────
         if status == "INTERCEPTED":
+            if not flash_shown:
+                try:
+                    pybullet.addUserDebugText(
+                        "★ INTERCEPT! ★", list(i_pos),
+                        [1, 1, 0], textSize=3.0, lifeTime=4.0,
+                        physicsClientId=world.client,
+                    )
+                except Exception:
+                    pass
+                flash_shown = True
             mission_result = "INTERCEPTED"
+            time.sleep(1.5)   # linger so user sees the flash
             break
 
         horiz = math.sqrt(i_pos[0]**2 + i_pos[1]**2)
@@ -348,41 +556,112 @@ def _run_sim(state_q: mp.Queue, ctrl_q: mp.Queue, dash_proc_holder: list):
             mission_result = "FAILURE"
             break
 
-        # ── PyBullet HUD update ─────────────────────────────────────────
-        if step % 48 == 0:
-            status_colors = {"CLEAR":[0,1,0],"TRACKING":[1,1,0],"BREACH":[1,0.5,0],"INTERCEPTED":[1,0,0]}
-            sc = status_colors.get(status, [1,1,1])
+        # ── Camera update (every 24 steps ≈ 10 Hz) ────────────────────
+        if step % 24 == 0:
+            _update_camera(world.client, camera_mode, i_pos, int_pos)
+
+        # ── 3-D trail update (every 5 physics steps) ──────────────────
+        if show_trail and step % 5 == 0:
+            i_last_pos = _update_trail(
+                i_pos, i_last_pos, i_trail_ids, 30,
+                [0.9, 0.12, 0.08], world.client,
+            )
+            if interceptor_launched and int_pos:
+                int_last_pos = _update_trail(
+                    int_pos, int_last_pos, int_trail_ids, 30,
+                    [0.10, 0.55, 0.90], world.client,
+                )
+
+        # ── Intercept-vector line update (every 12 steps) ─────────────
+        if interceptor_launched and interceptor_target and step % 12 == 0:
+            int_pos_now = interceptor.get_position()
+            if icept_vec_id is not None:
+                try:
+                    pybullet.removeUserDebugItem(icept_vec_id, physicsClientId=world.client)
+                except Exception:
+                    pass
             try:
-                _hud_status   = pybullet.addUserDebugText(f"STATUS: {status}", [-14,-14,12], sc, textSize=2.0, replaceItemUniqueId=_hud_status, physicsClientId=world.client)
-                rng_str = f"{radar_return.get('range',0):.1f}m" if radar_return.get("detected") else "---"
-                _hud_intruder = pybullet.addUserDebugText(f"INTRUDER  ({i_pos[0]:.1f},{i_pos[1]:.1f},{i_pos[2]:.1f})  rng:{rng_str}", [-14,-14,10], [1,0.3,0], textSize=1.5, replaceItemUniqueId=_hud_intruder, physicsClientId=world.client)
-                if interceptor_launched:
-                    ip  = int_pos
-                    d   = math.sqrt(sum((ip[k]-i_pos[k])**2 for k in range(3)))
-                    tti = guidance.time_to_intercept(interceptor.get_state(), guidance_track) if guidance_track else float("inf")
-                    tti_str = f"{tti:.1f}s" if tti < 999 else "---"
-                    _hud_intercept = pybullet.addUserDebugText(f"INTERCEPTOR ({ip[0]:.1f},{ip[1]:.1f},{ip[2]:.1f})", [-14,-14,8], [0,0.8,1], textSize=1.5, replaceItemUniqueId=_hud_intercept, physicsClientId=world.client)
-                    _hud_sep       = pybullet.addUserDebugText(f"SEP: {d:.1f}m  TTI: {tti_str}", [-14,-14,6], [1,1,0], textSize=1.5, replaceItemUniqueId=_hud_sep, physicsClientId=world.client)
-                else:
-                    _hud_intercept = pybullet.addUserDebugText("INTERCEPTOR: on pad — awaiting launch", [-14,-14,8], [0,0.8,1], textSize=1.5, replaceItemUniqueId=_hud_intercept, physicsClientId=world.client)
+                icept_vec_id = pybullet.addUserDebugLine(
+                    list(int_pos_now), list(interceptor_target),
+                    [1.0, 0.80, 0.0], lineWidth=1.5,
+                    physicsClientId=world.client,
+                )
             except Exception:
-                pass  # never let HUD errors crash the sim
+                pass
 
-        # ── Console log ─────────────────────────────────────────────────
-        if step % _LOG_INTERVAL == 0:
-            rng = radar_return.get("range", 0.0) if radar_return.get("detected") else 0.0
-            sep_str = "--"
-            if interceptor_launched:
-                sep_str = f"{math.sqrt(sum((int_pos[k]-i_pos[k])**2 for k in range(3))):.1f}m"
-            print(f"T+{sim_time:5.1f}s | INTRUDER ({i_pos[0]:.1f},{i_pos[1]:.1f},{i_pos[2]:.1f})"
-                  f" | RADAR {rng:.1f}m | {status:10s} | INT {sep_str}")
+        if guidance_track:
+            interceptor_target = guidance_track.get("position_estimate")
 
-        # ── Push state to dashboard process ─────────────────────────────
-        int_v = interceptor.get_velocity() if interceptor_launched else (0,0,0)
+        # ── PyBullet HUD update (every 48 steps ≈ 5 Hz) ──────────────
+        if step % 48 == 0:
+            sc = {
+                "CLEAR": [0,1,0], "TRACKING": [1,1,0],
+                "BREACH": [1,0.5,0], "INTERCEPTED": [1,0,0],
+            }.get(status, [1,1,1])
+            paused_tag = " [PAUSED]" if (paused or dash_ctrl.get("paused")) else ""
+            try:
+                _hud_speed = pybullet.addUserDebugText(
+                    f"SPEED: {sim_speed:.2g}x{paused_tag}",
+                    [-14,-14,4], [1,1,0], textSize=1.3,
+                    replaceItemUniqueId=_hud_speed,
+                    physicsClientId=world.client,
+                )
+                _hud_status = pybullet.addUserDebugText(
+                    f"STATUS: {status}", [-14,-14,12], sc, textSize=2.0,
+                    replaceItemUniqueId=_hud_status,
+                    physicsClientId=world.client,
+                )
+                rng_str = f"{radar_return.get('range',0):.1f}m" if radar_return.get("detected") else "---"
+                _hud_intrudr = pybullet.addUserDebugText(
+                    f"INTRUDER  ({i_pos[0]:.1f},{i_pos[1]:.1f},{i_pos[2]:.1f})  rng:{rng_str}",
+                    [-14,-14,10], [1,0.3,0], textSize=1.5,
+                    replaceItemUniqueId=_hud_intrudr,
+                    physicsClientId=world.client,
+                )
+                if interceptor_launched and int_pos:
+                    d   = math.sqrt(sum((int_pos[k]-i_pos[k])**2 for k in range(3)))
+                    tti = guidance.time_to_intercept(interceptor.get_state(), guidance_track) \
+                          if guidance_track else float("inf")
+                    tti_s = f"{tti:.1f}s" if tti < 999 else "---"
+                    _hud_intercp = pybullet.addUserDebugText(
+                        f"INTERCEPTOR ({int_pos[0]:.1f},{int_pos[1]:.1f},{int_pos[2]:.1f})",
+                        [-14,-14,8], [0,0.8,1], textSize=1.5,
+                        replaceItemUniqueId=_hud_intercp,
+                        physicsClientId=world.client,
+                    )
+                    _hud_sep = pybullet.addUserDebugText(
+                        f"SEP: {d:.1f}m  TTI: {tti_s}",
+                        [-14,-14,6], [1,1,0], textSize=1.5,
+                        replaceItemUniqueId=_hud_sep,
+                        physicsClientId=world.client,
+                    )
+                else:
+                    _hud_intercp = pybullet.addUserDebugText(
+                        "INTERCEPTOR: on pad — awaiting launch",
+                        [-14,-14,8], [0,0.8,1], textSize=1.5,
+                        replaceItemUniqueId=_hud_intercp,
+                        physicsClientId=world.client,
+                    )
+            except Exception:
+                pass
+
+            # Console log
+            if step % _LOG_INTERVAL == 0:
+                rng  = radar_return.get("range", 0.0) if radar_return.get("detected") else 0.0
+                sep  = "--"
+                if interceptor_launched and int_pos:
+                    sep = f"{math.sqrt(sum((int_pos[k]-i_pos[k])**2 for k in range(3))):.1f}m"
+                print(
+                    f"T+{sim_time:5.1f}s  INTR ({i_pos[0]:.1f},{i_pos[1]:.1f},{i_pos[2]:.1f})"
+                    f"  RADAR {rng:.1f}m  {status:10s}  INT {sep}"
+                )
+
+        # ── Dashboard state push ──────────────────────────────────────
         i_v   = intruder.get_velocity()
+        int_v = interceptor.get_velocity() if interceptor_launched else (0, 0, 0)
         tti   = float("inf")
-        if interceptor_launched and radar_return.get("detected"):
-            tti = guidance.time_to_intercept(interceptor.get_state(), radar_return)
+        if interceptor_launched and radar_return.get("detected") and guidance_track:
+            tti = guidance.time_to_intercept(interceptor.get_state(), guidance_track)
 
         try:
             state_q.put_nowait({
@@ -398,31 +677,16 @@ def _run_sim(state_q: mp.Queue, ctrl_q: mp.Queue, dash_proc_holder: list):
                 "track_confidence"   : radar.track_confidence(),
                 "last_detection_time": radar.last_detection_time,
                 "events"             : pending_events,
+                "mission_time"       : sim_time,
+                "sim_speed"          : sim_speed,
             })
         except Exception:
-            pass   # queue full — dashboard is behind, skip frame
+            pass
         pending_events = []
 
-        # ── Physics step — no sleep, run at max CPU speed ────────────────
-        # Forces are applied once per loop iteration so physics must only
-        # step ONCE here. Removing sleep lets the CPU run freely (~1000+
-        # steps/sec = 4-8x real time naturally on modern hardware).
-        world.step()
-        step += 1
-
-    # ── Mission report ───────────────────────────────────────────────────
-    total = step * _TIMESTEP
-    print("\n" + "=" * 60)
-    print(f"  MISSION COMPLETE — {mission_result}")
-    print("=" * 60)
-    print(f"  Sim time:          {total:.1f} s")
-    fdt, bt, it = dome.first_detection_time, dome.breach_time, dome.intercept_time
-    print(f"  First detection:   {(fdt-sim_start):.1f} s" if fdt else "  First detection:   Never")
-    print(f"  Dome breach:       {(bt-sim_start):.1f} s"  if bt  else "  Dome breach:       None")
-    if it and mission_result == "INTERCEPTED":
-        print(f"  Time to intercept: {(it-sim_start):.1f} s")
-    print(f"  Closest approach:  {closest_approach:.1f} m")
-    print("=" * 60)
+    # ── Cleanup ───────────────────────────────────────────────────────
+    _clear_trail(i_trail_ids,   world.client)
+    _clear_trail(int_trail_ids, world.client)
 
     try:
         pybullet.disconnect(world.client)
@@ -430,33 +694,165 @@ def _run_sim(state_q: mp.Queue, ctrl_q: mp.Queue, dash_proc_holder: list):
         pass
     broadcaster.close()
 
+    total_sim = step * _TIMESTEP
+    return {
+        "result"         : mission_result,
+        "scenario"       : scenario_key,
+        "sim_time"       : total_sim,
+        "first_detection": dome.first_detection_time,
+        "breach_time"    : dome.breach_time,
+        "intercept_time" : dome.intercept_time,
+        "closest_approach": closest_approach,
+        "max_penetration": dome.max_penetration_depth(),
+        "sim_start"      : sim_start,
+    }
 
-# ---------------------------------------------------------------------------
+
+# ======================================================================
+# Console menu + debrief
+# ======================================================================
+
+def _show_menu() -> str:
+    """Print menu, return selected scenario key or 'quit'."""
+    items = list(SCENARIOS.items())
+    print()
+    print("╔══════════════════════════════════════════════════════════╗")
+    print("║       ANTI-DRONE DOME  —  MISSION SELECT                ║")
+    print("╠══════════════════════════════════════════════════════════╣")
+    for idx, (key, sc) in enumerate(items, start=1):
+        print(f"║  [{idx}]  {sc['description']:<50s}║")
+    print("╠══════════════════════════════════════════════════════════╣")
+    print("║  [Q]  Quit                                              ║")
+    print("╚══════════════════════════════════════════════════════════╝")
+    print()
+    while True:
+        try:
+            raw = input("Select [1–3 / Q]: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            return "quit"
+        if raw == "q":
+            return "quit"
+        try:
+            n = int(raw)
+            if 1 <= n <= len(items):
+                return items[n - 1][0]
+        except ValueError:
+            pass
+        print("  Invalid choice. Try again.")
+
+
+def _show_debrief(result: dict) -> str:
+    """Print mission debrief, return 'r' / 'm' / 'q'."""
+    res   = result["result"]
+    total = result["sim_time"]
+    sim0  = result["sim_start"]
+
+    def _rel(t):
+        return f"T+{t - sim0:.1f}s" if t else "N/A"
+
+    print()
+    print("╔══════════════════════════════════════════════════════════╗")
+    print("║                   MISSION DEBRIEF                      ║")
+    print("╠══════════════════════════════════════════════════════════╣")
+    print(f"║  Result        :  {res:<39s}║")
+    print(f"║  Duration      :  {total:.1f} s{' '*(39-len(f'{total:.1f} s'))}║")
+    fdt = result.get("first_detection")
+    print(f"║  First detect  :  {_rel(fdt):<39s}║")
+    bt = result.get("breach_time")
+    print(f"║  Dome breach   :  {_rel(bt):<39s}║")
+    it = result.get("intercept_time")
+    if it and res == "INTERCEPTED":
+        print(f"║  Intercept     :  {_rel(it):<39s}║")
+    ca = result.get("closest_approach", float("inf"))
+    if ca < 999:
+        print(f"║  Closest appr  :  {ca:.1f} m{' '*(37-len(f'{ca:.1f} m'))}║")
+    mp_ = result.get("max_penetration", 0.0)
+    if mp_ > 0:
+        print(f"║  Max penetrat  :  {mp_:.1f} m{' '*(37-len(f'{mp_:.1f} m'))}║")
+    print("╠══════════════════════════════════════════════════════════╣")
+    print("║  [R] Run again   [M] Main menu   [Q] Quit              ║")
+    print("╚══════════════════════════════════════════════════════════╝")
+    print()
+
+    while True:
+        try:
+            raw = input("Choice [R/M/Q]: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            return "q"
+        if raw in ("r", "m", "q"):
+            return raw
+        print("  Enter R, M, or Q.")
+
+
+# ======================================================================
 # Entry point
-# ---------------------------------------------------------------------------
+# ======================================================================
 
 def main():
     mp.freeze_support()
 
-    state_q         = mp.Queue(maxsize=2)
-    ctrl_q          = mp.Queue(maxsize=20)
-    dash_proc_holder = []   # filled inside _run_sim after PyBullet connects
+    state_q = mp.Queue(maxsize=2)
+    ctrl_q  = mp.Queue(maxsize=20)
+
+    # Start dashboard process once — survives across missions
+    dash_proc = mp.Process(
+        target=_dashboard_worker,
+        args=(state_q, ctrl_q, _DOME_RADIUS),
+        daemon=True,
+        name="dashboard",
+    )
+    dash_proc.start()
+
+    current_scenario = None   # None → go to menu
 
     try:
-        _run_sim(state_q, ctrl_q, dash_proc_holder)
+        while True:
+            if current_scenario is None:
+                current_scenario = _show_menu()
+
+            if current_scenario == "quit":
+                break
+
+            result = _run_one_mission(state_q, ctrl_q, current_scenario)
+
+            mr = result["result"]
+
+            if mr == "QUIT":
+                # Q in PyBullet → back to menu
+                current_scenario = None
+                continue
+
+            if mr == "RESTART":
+                continue  # re-run same scenario immediately
+
+            if mr == "ABORTED":
+                print("\n[SIM] Window closed — returning to menu.")
+                current_scenario = None
+                continue
+
+            # Normal end: show debrief
+            choice = _show_debrief(result)
+            if choice == "q":
+                break
+            elif choice == "r":
+                continue     # re-run same scenario
+            else:            # 'm'
+                current_scenario = None
+
+    except KeyboardInterrupt:
+        print("\n[SIM] Interrupted by user.")
     except Exception as e:
         import traceback
-        print(f"SIM CRASH: {e}", flush=True)
+        print(f"\n[SIM] Crash: {e}")
         traceback.print_exc()
     finally:
         try:
             state_q.put_nowait("QUIT")
         except Exception:
             pass
-        for dp in dash_proc_holder:
-            dp.join(timeout=4)
-            if dp.is_alive():
-                dp.terminate()
+        dash_proc.join(timeout=4)
+        if dash_proc.is_alive():
+            dash_proc.terminate()
 
 
 if __name__ == "__main__":

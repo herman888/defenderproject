@@ -1,0 +1,186 @@
+<?xml version="1.0"?>
+<!--
+  Loitering munition (Ukraine Lancet / Shahed inspired).
+  Fuselage axis is along +X.  LoiteringMunition.update() calls
+  resetBasePositionAndOrientation every frame so the nose always
+  points in the velocity direction.
+-->
+<robot name="loitering_munition">
+
+  <!-- ── Main fuselage: horizontal cylinder, axis along +X ────────────── -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0.04 0 0" rpy="0 0 0"/>
+      <mass value="1.2"/>
+      <inertia ixx="0.0022" ixy="0" ixz="0"
+               iyy="0.038"  iyz="0"
+               izz="0.038"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 1.5708 0"/>
+      <geometry>
+        <cylinder radius="0.06" length="0.60"/>
+      </geometry>
+      <material name="fuse_dark">
+        <color rgba="0.20 0.20 0.20 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 1.5708 0"/>
+      <geometry>
+        <cylinder radius="0.06" length="0.60"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ── Nose cone ────────────────────────────────────────────────────── -->
+  <link name="nose">
+    <inertial>
+      <mass value="0.04"/>
+      <inertia ixx="0.000008" ixy="0" ixz="0"
+               iyy="0.000008" iyz="0" izz="0.000008"/>
+    </inertial>
+    <visual>
+      <geometry><sphere radius="0.068"/></geometry>
+      <material name="nose_dark"><color rgba="0.14 0.14 0.14 1.0"/></material>
+    </visual>
+    <collision>
+      <geometry><sphere radius="0.068"/></geometry>
+    </collision>
+  </link>
+  <joint name="nose_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="nose"/>
+    <origin xyz="0.300 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ── Left wing (port) — swept back ~60° ───────────────────────────── -->
+  <link name="wing_left">
+    <inertial>
+      <mass value="0.10"/>
+      <inertia ixx="0.0002" ixy="0" ixz="0"
+               iyy="0.0010" iyz="0" izz="0.0010"/>
+    </inertial>
+    <visual>
+      <geometry><box size="0.38 0.13 0.011"/></geometry>
+      <material name="wing_gray"><color rgba="0.28 0.28 0.28 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="wing_left_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="wing_left"/>
+    <!-- centre slightly behind fuselage centre; 60° sweep around Z -->
+    <origin xyz="-0.06 0.19 -0.020" rpy="0 0 1.047"/>
+  </joint>
+
+  <!-- ── Right wing (starboard) ────────────────────────────────────────── -->
+  <link name="wing_right">
+    <inertial>
+      <mass value="0.10"/>
+      <inertia ixx="0.0002" ixy="0" ixz="0"
+               iyy="0.0010" iyz="0" izz="0.0010"/>
+    </inertial>
+    <visual>
+      <geometry><box size="0.38 0.13 0.011"/></geometry>
+      <material name="wing_gray"><color rgba="0.28 0.28 0.28 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="wing_right_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="wing_right"/>
+    <origin xyz="-0.06 -0.19 -0.020" rpy="0 0 -1.047"/>
+  </joint>
+
+  <!-- ── Tail fin (vertical) ──────────────────────────────────────────── -->
+  <link name="tail_vert">
+    <inertial>
+      <mass value="0.018"/>
+      <inertia ixx="0.000008" ixy="0" ixz="0"
+               iyy="0.000008" iyz="0" izz="0.000008"/>
+    </inertial>
+    <visual>
+      <geometry><box size="0.13 0.008 0.085"/></geometry>
+      <material name="fuse_dark"><color rgba="0.20 0.20 0.20 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="tail_vert_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="tail_vert"/>
+    <origin xyz="-0.270 0 0.048" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ── Tail fin (horizontal) ────────────────────────────────────────── -->
+  <link name="tail_horiz">
+    <inertial>
+      <mass value="0.018"/>
+      <inertia ixx="0.000008" ixy="0" ixz="0"
+               iyy="0.000008" iyz="0" izz="0.000008"/>
+    </inertial>
+    <visual>
+      <geometry><box size="0.13 0.085 0.008"/></geometry>
+      <material name="fuse_dark"><color rgba="0.20 0.20 0.20 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="tail_horiz_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="tail_horiz"/>
+    <origin xyz="-0.270 0 0.008" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ── Rotor cross-arm (horizontal, mounts both pushers) ────────────── -->
+  <link name="rotor_arm">
+    <inertial>
+      <mass value="0.030"/>
+      <inertia ixx="0.000050" ixy="0" ixz="0"
+               iyy="0.000002" iyz="0" izz="0.000050"/>
+    </inertial>
+    <visual>
+      <geometry><box size="0.015 0.220 0.015"/></geometry>
+      <material name="fuse_dark"><color rgba="0.20 0.20 0.20 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="rotor_arm_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="rotor_arm"/>
+    <origin xyz="0.055 0 0.095" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ── Left pusher rotor ────────────────────────────────────────────── -->
+  <link name="rotor_left">
+    <inertial>
+      <mass value="0.010"/>
+      <inertia ixx="0.000012" ixy="0" ixz="0"
+               iyy="0.000012" iyz="0" izz="0.000020"/>
+    </inertial>
+    <visual>
+      <geometry><cylinder radius="0.105" length="0.009"/></geometry>
+      <material name="rotor_red"><color rgba="0.65 0.12 0.12 0.88"/></material>
+    </visual>
+  </link>
+  <joint name="rotor_left_joint" type="continuous">
+    <parent link="rotor_arm"/>
+    <child link="rotor_left"/>
+    <origin xyz="0 0.095 0.012" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <!-- ── Right pusher rotor ────────────────────────────────────────────── -->
+  <link name="rotor_right">
+    <inertial>
+      <mass value="0.010"/>
+      <inertia ixx="0.000012" ixy="0" ixz="0"
+               iyy="0.000012" iyz="0" izz="0.000020"/>
+    </inertial>
+    <visual>
+      <geometry><cylinder radius="0.105" length="0.009"/></geometry>
+      <material name="rotor_red"><color rgba="0.65 0.12 0.12 0.88"/></material>
+    </visual>
+  </link>
+  <joint name="rotor_right_joint" type="continuous">
+    <parent link="rotor_arm"/>
+    <child link="rotor_right"/>
+    <origin xyz="0 -0.095 0.012" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+</robot>

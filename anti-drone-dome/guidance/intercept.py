@@ -27,6 +27,7 @@ AFTER:  Augmented Proportional Navigation with N=4.
         MAX_FORCE 60 N (vs 25 N before).
 """
 
+import math
 import numpy as np
 
 _N         = 4.0    # navigation constant
@@ -89,6 +90,24 @@ class PurePursuitGuidance:
             force = force / mag * _MAX_FORCE
 
         return tuple(force)
+
+    def lead_angle_deg(self, interceptor_state: dict, target_track: dict) -> float:
+        """Angle (degrees) between interceptor velocity and LOS to target.
+        Non-zero whenever the interceptor is not pointing straight at the target."""
+        if not target_track.get("detected"):
+            return 0.0
+        i_pos = np.array(interceptor_state["position"], dtype=float)
+        i_vel = np.array(interceptor_state["velocity"],  dtype=float)
+        t_pos = np.array(target_track["position_estimate"], dtype=float)
+        r_vec = t_pos - i_pos
+        rng   = float(np.linalg.norm(r_vec))
+        i_spd = float(np.linalg.norm(i_vel))
+        if rng < 0.01 or i_spd < 0.01:
+            return 0.0
+        r_hat = r_vec / rng
+        v_hat = i_vel / i_spd
+        cos_a = float(np.clip(np.dot(r_hat, v_hat), -1.0, 1.0))
+        return math.degrees(math.acos(cos_a))
 
     def time_to_intercept(self, interceptor_state: dict, target_track: dict) -> float:
         if not target_track.get("detected"):

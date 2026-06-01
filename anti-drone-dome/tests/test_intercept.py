@@ -30,10 +30,10 @@ def run_tests():
     results.append(("Force vector points toward target", toward_target,
                     f"force=({force[0]:.2f},{force[1]:.2f},{force[2]:.2f})"))
 
-    # Test 2: Force magnitude <= 25N
+    # Test 2: Force magnitude <= 60N (APN guidance, upgraded from 25N)
     mag = math.sqrt(sum(f**2 for f in force))
-    within_limit = mag <= 25.0
-    results.append(("Force magnitude <= 25N", within_limit, f"mag={mag:.2f}"))
+    within_limit = mag <= 60.0
+    results.append(("Force magnitude <= 60N", within_limit, f"mag={mag:.2f}"))
 
     # Test 3: TTI is positive and reasonable
     tti = guidance.time_to_intercept(interceptor, target)

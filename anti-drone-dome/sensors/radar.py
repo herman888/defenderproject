@@ -109,25 +109,27 @@ class RadarNode:
         self._locked     = False   # True once track is confirmed — skips probabilistic gate
         self._miss_count = 0       # consecutive misses while locked
         self.last_detection_time: float | None = None
+        self._track_history: list = []   # list of (x,y,z) detected positions
 
     # ------------------------------------------------------------------
-    def _in_beam(self, t: np.ndarray) -> tuple[bool, float, float]:
-        """Return (in_beam, range_m, elevation_rad)."""
+    def _in_beam(self, t: np.ndarray) -> tuple[bool, float, float, float]:
+        """Return (in_beam, range_m, elevation_rad, bearing_deg)."""
         delta = t - self.station_pos
         rng   = float(np.linalg.norm(delta))
         if rng < 0.1 or rng > self.max_range:
-            return False, rng, 0.0
+            return False, rng, 0.0, 0.0
 
-        horiz = math.sqrt(delta[0]**2 + delta[1]**2)
-        elev  = math.atan2(delta[2], horiz)
+        horiz   = math.sqrt(delta[0]**2 + delta[1]**2)
+        elev    = math.atan2(delta[2], horiz)
+        bearing = math.degrees(math.atan2(delta[1], delta[0])) % 360.0
 
         if elev < 0.0 or elev > self._elev_max:
-            return False, rng, elev   # below horizon or above 60-deg cone
+            return False, rng, elev, bearing   # outside elevation cone
 
-        if t[2] < 0.5:                # ground-hugging blind spot
-            return False, rng, elev
+        if t[2] < 0.5:                         # ground-hugging blind spot
+            return False, rng, elev, bearing
 
-        return True, rng, elev
+        return True, rng, elev, bearing
 
     def _doppler_ok(self, t: np.ndarray) -> bool:
         """Radial velocity must clear the clutter fence.
@@ -164,7 +166,7 @@ class RadarNode:
         self._seq += 1
         t = np.array(true_pos, dtype=float)
 
-        in_beam, rng, elev = self._in_beam(t)
+        in_beam, rng, elev, bearing_deg = self._in_beam(t)
 
         # ── LOCKED track — just update Kalman, no probability roll ──────
         if self._locked:
@@ -184,11 +186,15 @@ class RadarNode:
             meas = t + np.random.normal(0.0, self._noise_std, 3)
             self._tracker.step(meas)
             self.last_detection_time = time.time()
+            self._track_history.append(self._tracker.pos)
+            if len(self._track_history) > 200:
+                self._track_history.pop(0)
             snr = 30.0 - 40.0 * math.log10(max(rng, 1.0) / 5.0)
             return {
                 "detected"          : True,
                 "seq"               : self._seq,
                 "range"             : rng,
+                "bearing_deg"       : bearing_deg,
                 "elevation_deg"     : math.degrees(elev),
                 "snr"               : float(snr),
                 "locked"            : True,
@@ -222,18 +228,17 @@ class RadarNode:
         if self._tracker is None:
             self._tracker = KalmanTracker(meas, self._noise_std)
             if self._first:
-                bearing = math.degrees(math.atan2(
-                    t[1] - self.station_pos[1],
-                    t[0] - self.station_pos[0],
-                ))
                 print(f"RADAR: Track acquired — range {rng:.1f} m  "
-                      f"bearing {bearing:.1f} deg  elev {math.degrees(elev):.1f} deg")
+                      f"bearing {bearing_deg:.1f} deg  elev {math.degrees(elev):.1f} deg")
                 self._first = False
         else:
             self._tracker.step(meas)
 
         self._hits = min(self._hits + 1, 30)
         self.last_detection_time = time.time()
+        self._track_history.append(self._tracker.pos)
+        if len(self._track_history) > 200:
+            self._track_history.pop(0)
 
         # Promote to locked track once confidence is high
         if self._hits >= 15 and not self._locked:
@@ -246,12 +251,17 @@ class RadarNode:
             "detected"          : True,
             "seq"               : self._seq,
             "range"             : rng,
+            "bearing_deg"       : bearing_deg,
             "elevation_deg"     : math.degrees(elev),
             "snr"               : float(snr),
             "position_estimate" : self._tracker.pos,
             "velocity"          : self._tracker.vel,
             "acceleration"      : self._tracker.acc,
         }
+
+    def get_track_history(self) -> list:
+        """Return list of (x,y,z) detected positions in detection order."""
+        return list(self._track_history)
 
     def track_confidence(self) -> float:
         return min(1.0, self._hits / 15.0)
