@@ -111,11 +111,16 @@ def _dashboard_worker(state_q: mp.Queue, ctrl_q: mp.Queue, dome_radius: float):
                 return
 
         try:
-            ctrl_q.put_nowait({
+            ctrl_msg = {
                 "paused" : ctrl.paused,
                 "stopped": ctrl.stopped,
                 "speed"  : ctrl.speed,
-            })
+            }
+            if ctrl.selected_mission is not None:
+                ctrl_msg["selected_mission"] = ctrl.selected_mission
+                ctrl_msg["initial_speed"]    = ctrl.selected_speed
+                ctrl.selected_mission = None   # consume — send only once
+            ctrl_q.put_nowait(ctrl_msg)
         except Exception:
             pass
 
@@ -455,8 +460,11 @@ def _run_one_mission(
                     pass
 
             if interceptor_launched:
-                interceptor.update()
                 if any(abs(v) > 1e-6 for v in g_force):
+                    # APN guidance active: orient body toward thrust vector only.
+                    # PD controller is bypassed to prevent double gravity compensation
+                    # and competing force vectors that cause the interceptor to miss.
+                    interceptor.set_orientation_from_thrust(list(g_force))
                     try:
                         pybullet.applyExternalForce(
                             interceptor._body, -1, list(g_force),
@@ -466,6 +474,9 @@ def _run_one_mission(
                     except Exception:
                         mission_result = "ABORTED"
                         break
+                else:
+                    # No guidance signal yet — PD hover at launch position
+                    interceptor.update()
 
             world.step()
             step += 1
@@ -859,6 +870,50 @@ def _show_debrief(result: dict) -> str:
 # Entry point
 # ======================================================================
 
+def _wait_for_mission(state_q: mp.Queue, ctrl_q: mp.Queue, dash_proc) -> tuple:
+    """
+    Block until the dashboard sends a mission selection or the user quits.
+    Returns (scenario_key, initial_speed) or ('quit', 1.0).
+    """
+    # Signal dashboard to clear radar and re-arm mission buttons
+    try:
+        state_q.put_nowait({"type": "show_menu"})
+    except Exception:
+        pass
+
+    print()
+    print("╔══════════════════════════════════════════════════════════╗")
+    print("║         SELECT A MISSION IN THE DASHBOARD WINDOW        ║")
+    print("║                                                          ║")
+    print("║   ■ STANDARD  — direct approach, standard conditions    ║")
+    print("║   ► FAST LOW  — high-speed low-altitude intruder        ║")
+    print("║   ◎ SPIRAL    — spiralling descent attack pattern       ║")
+    print("║                                                          ║")
+    print("║   Choose speed with the speed buttons, then click       ║")
+    print("║   a scenario to launch.  Press Ctrl+C to quit.          ║")
+    print("╚══════════════════════════════════════════════════════════╝")
+    print()
+
+    while True:
+        if not dash_proc.is_alive():
+            print("[SIM] Dashboard window closed — quitting.")
+            return ("quit", 1.0)
+
+        # Drain ctrl_q looking for a mission selection
+        while True:
+            try:
+                msg = ctrl_q.get_nowait()
+            except Exception:
+                break
+            if msg.get("selected_mission"):
+                key   = msg["selected_mission"]
+                speed = float(msg.get("initial_speed", 1.0))
+                print(f"[SIM] Mission selected: {key.upper()}  speed={speed}×")
+                return (key, speed)
+
+        time.sleep(0.10)
+
+
 def main():
     mp.freeze_support()
 
@@ -876,15 +931,15 @@ def main():
 
     _print_controls()
 
-    current_scenario = None   # None → go to menu
+    current_scenario = None
     chosen_speed     = 1.0
 
     try:
         while True:
             if current_scenario is None:
-                current_scenario = _show_menu()
-                if current_scenario != "quit":
-                    chosen_speed = _ask_speed()
+                current_scenario, chosen_speed = _wait_for_mission(
+                    state_q, ctrl_q, dash_proc
+                )
 
             if current_scenario == "quit":
                 break
@@ -895,25 +950,24 @@ def main():
             mr = result["result"]
 
             if mr == "QUIT":
-                # Q in PyBullet → back to menu
-                current_scenario = None
+                current_scenario = None   # Q in PyBullet → back to dashboard menu
                 continue
 
             if mr == "RESTART":
-                continue  # re-run same scenario immediately
+                continue   # re-run same scenario
 
             if mr == "ABORTED":
-                print("\n[SIM] Window closed — returning to menu.")
+                print("\n[SIM] Window closed — returning to mission select.")
                 current_scenario = None
                 continue
 
-            # Normal end: show debrief
+            # Normal end — show debrief in console
             choice = _show_debrief(result)
             if choice == "q":
                 break
             elif choice == "r":
-                continue     # re-run same scenario
-            else:            # 'm'
+                continue        # re-run same scenario
+            else:               # 'm' — back to dashboard mission select
                 current_scenario = None
 
     except KeyboardInterrupt:

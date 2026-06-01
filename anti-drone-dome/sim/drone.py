@@ -223,6 +223,35 @@ class Drone:
                 physicsClientId=self._client,
             )
 
+    def set_orientation_from_thrust(self, thrust_vec: list):
+        """Tilt body to match the APN thrust direction and spin rotors.
+        Does NOT apply any force — guidance force is applied externally."""
+        MAX_TILT = math.radians(40)
+        pos, _ = pybullet.getBasePositionAndOrientation(self._body, physicsClientId=self._client)
+        vel, _ = pybullet.getBaseVelocity(self._body, physicsClientId=self._client)
+        f   = np.array(thrust_vec, dtype=float)
+        mag = float(np.linalg.norm(f))
+        if mag < 1e-6:
+            self._spin_rotors()
+            return
+        up = f / mag
+        if up[2] < math.cos(MAX_TILT):
+            xy = float(np.linalg.norm(up[:2]))
+            if xy > 1e-8:
+                up = np.array([
+                    up[0] / xy * math.sin(MAX_TILT),
+                    up[1] / xy * math.sin(MAX_TILT),
+                    math.cos(MAX_TILT),
+                ])
+        orn = self._align_z_to_vec(up)
+        pybullet.resetBasePositionAndOrientation(
+            self._body, list(pos), list(orn), physicsClientId=self._client
+        )
+        pybullet.resetBaseVelocity(
+            self._body, list(vel), [0.0, 0.0, 0.0], physicsClientId=self._client
+        )
+        self._spin_rotors()
+
     # ------------------------------------------------------------------
     def get_position(self) -> tuple:
         pos, _ = pybullet.getBasePositionAndOrientation(self._body, physicsClientId=self._client)
