@@ -1,5 +1,5 @@
 """
-Drone: URDF loader + PD hover controller + rotor spin.
+Drone: VTOL quadrotor — tilts body toward thrust direction, applies force along body-Z.
 LoiteringMunition: horizontal-fuselage forward-flyer, nose always tracks velocity.
 """
 
@@ -109,45 +109,110 @@ class Drone:
         return joints
 
     # ------------------------------------------------------------------
+    @staticmethod
+    def _align_z_to_vec(v):
+        """Quaternion (xyzw) that rotates body +Z to align with world vector v."""
+        v = np.asarray(v, dtype=float)
+        n = float(np.linalg.norm(v))
+        if n < 1e-6:
+            return (0.0, 0.0, 0.0, 1.0)
+        v = v / n
+        z = np.array([0.0, 0.0, 1.0])
+        dot = float(np.clip(np.dot(z, v), -1.0, 1.0))
+        if dot > 0.9999:
+            return (0.0, 0.0, 0.0, 1.0)
+        if dot < -0.9999:
+            return (1.0, 0.0, 0.0, 0.0)   # 180° around X
+        axis = np.cross(z, v)
+        axis /= np.linalg.norm(axis)
+        half = math.acos(dot) / 2.0
+        s    = math.sin(half)
+        return (axis[0]*s, axis[1]*s, axis[2]*s, math.cos(half))
+
+    # ------------------------------------------------------------------
     def set_target(self, x: float, y: float, z: float):
         self._target = [x, y, z]
 
     def update(self):
         pos, _ = pybullet.getBasePositionAndOrientation(self._body, physicsClientId=self._client)
         vel, _ = pybullet.getBaseVelocity(self._body, physicsClientId=self._client)
-        fx, fy, fz = self._compute_forces(pos, vel)
+        force  = self._compute_vtol(pos, vel)
         pybullet.applyExternalForce(
-            self._body, -1, [fx, fy, fz], pos, pybullet.WORLD_FRAME,
+            self._body, -1, force, list(pos), pybullet.WORLD_FRAME,
             physicsClientId=self._client,
         )
         self._spin_rotors()
 
-    def _compute_forces(self, pos, vel):
+    def _compute_vtol(self, pos, vel):
+        """
+        VTOL flight model.
+
+        1. PD position controller → desired world-frame force vector.
+        2. Normalise to get desired body-up (= thrust direction).
+        3. Clamp tilt to MAX_TILT so it never flips upside-down.
+        4. Kinematically set body orientation so the mesh visually banks.
+        5. Apply thrust magnitude along that tilted direction + drag.
+
+        Using kinematic orientation (resetBasePositionAndOrientation) avoids
+        inertia-scaling instability while still producing the correct tilted
+        visual and the physically correct thrust direction.
+        """
+        MAX_TILT   = math.radians(40)        # max lean from vertical
+        G_COMP     = 9.81 * 1.5             # gravity compensation constant
+
         err   = [self._target[i] - pos[i] for i in range(3)]
         d_err = [(err[i] - self._prev_error[i]) / _TIMESTEP for i in range(3)]
-        self._prev_error = err
+        self._prev_error = err[:]
 
+        # Desired world-frame force (same PD as before)
         fx = self._kp * err[0] + self._kd * d_err[0]
         fy = self._kp * err[1] + self._kd * d_err[1]
-        fz = self._kp * err[2] + self._kd * d_err[2] + 9.81 * 1.5
+        fz = self._kp * err[2] + self._kd * d_err[2] + G_COMP
 
-        h_mag = math.sqrt(fx*fx + fy*fy)
-        if h_mag > self._max_h:
-            fx = fx / h_mag * self._max_h
-            fy = fy / h_mag * self._max_h
-        fz = max(-self._max_v, min(self._max_v + 9.81*1.5, fz))
+        f_des = np.array([fx, fy, fz])
+        f_mag = float(np.linalg.norm(f_des))
 
-        speed = math.sqrt(sum(v*v for v in vel))
+        # Desired body-up direction
+        if f_mag > 1e-6:
+            desired_up = f_des / f_mag
+        else:
+            desired_up = np.array([0.0, 0.0, 1.0])
+
+        # Clamp tilt angle
+        if desired_up[2] < math.cos(MAX_TILT):
+            xy_n = float(np.linalg.norm(desired_up[:2]))
+            if xy_n > 1e-8:
+                desired_up = np.array([
+                    desired_up[0] / xy_n * math.sin(MAX_TILT),
+                    desired_up[1] / xy_n * math.sin(MAX_TILT),
+                    math.cos(MAX_TILT),
+                ])
+
+        # Kinematically tilt body so mesh visually banks into the manoeuvre
+        orn_new = self._align_z_to_vec(desired_up)
+        pybullet.resetBasePositionAndOrientation(
+            self._body, list(pos), list(orn_new), physicsClientId=self._client
+        )
+        pybullet.resetBaseVelocity(
+            self._body, list(vel), [0.0, 0.0, 0.0], physicsClientId=self._client
+        )
+
+        # Cap total force magnitude
+        MAX_F = math.sqrt(self._max_h**2 + (self._max_v + G_COMP)**2)
+        f_mag = min(f_mag, MAX_F)
+
+        # Thrust along tilted body-Z + aerodynamic drag
+        vel_np = np.array(vel)
+        speed  = float(np.linalg.norm(vel_np))
         if speed > self._max_spd:
-            scale = self._max_spd / speed
+            vel_np = vel_np * (self._max_spd / speed)
             pybullet.resetBaseVelocity(
-                self._body,
-                [v * scale for v in vel],
-                [0, 0, 0],
-                physicsClientId=self._client,
+                self._body, vel_np.tolist(), [0.0, 0.0, 0.0], physicsClientId=self._client
             )
 
-        return fx, fy, fz
+        thrust = desired_up * f_mag
+        drag   = -0.15 * vel_np
+        return (thrust + drag).tolist()
 
     def _spin_rotors(self):
         for i, joint in enumerate(self._rotor_joints):
