@@ -56,6 +56,7 @@ class DefenderPolicy:
         intruder_vel: np.ndarray,
         hold_xyz: np.ndarray,
         sim_time: float,
+        threat_active: bool = True,
     ) -> tuple[np.ndarray, list[str]]:
         """Return (N, 3) setpoints and a human-readable role per drone."""
         positions = np.asarray(positions, dtype=float).reshape(-1, 3)
@@ -75,6 +76,23 @@ class DefenderPolicy:
             roles[a] = "VIP (hold)"
 
         defenders = list(range(A, n))
+
+        if not threat_active:
+            #### Patrol only until red team launches ###############################
+            cen = np.mean(hold_xyz, axis=0)
+            z_ref = float(np.median(hold_xyz[:, 2])) + self.cfg.cruise_z_offset
+            self._escort_phase = self.cfg.escort_omega_rad_s * sim_time
+            n_def = len(defenders)
+            for k, d in enumerate(defenders):
+                ang = self._escort_phase + (2.0 * np.pi * k) / max(1, n_def)
+                off = self.cfg.escort_radius_m * np.array(
+                    [np.cos(ang), np.sin(ang), 0.06], dtype=float
+                )
+                targets[d] = cen + off
+                targets[d][2] = float(np.clip(z_ref, self.cfg.min_target_z, self.cfg.max_target_z))
+                roles[d] = "defend (patrol — launch attack)"
+            return targets, roles
+
         ip = intruder_pos.copy()
         iv = intruder_vel.copy()
 

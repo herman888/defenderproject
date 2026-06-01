@@ -44,6 +44,23 @@ class GuiCameraController:
         drone_centroid_xyz: Optional[np.ndarray] = None,
     ) -> None:
         """Call once per control step after ``env.render()`` while GUI is active."""
+        try:
+            if hasattr(p, "isConnected") and not p.isConnected(self.client):
+                return
+        except Exception:
+            return
+        try:
+            self._step_impl(dt, drone_centroid_xyz=drone_centroid_xyz)
+        except Exception:
+            #### Never let optional camera controls kill the simulation loop #####
+            return
+
+    def _step_impl(
+        self,
+        dt: float,
+        *,
+        drone_centroid_xyz: Optional[np.ndarray] = None,
+    ) -> None:
         if not self._printed_help:
             print(
                 "[INFO] PyBullet camera: mouse-drag to orbit (built-in). "
@@ -70,7 +87,11 @@ class GuiCameraController:
         key_step_deg = 48.0 * dt
         key_step_dist = 0.45 * dt
 
-        keys = p.getKeyboardEvents(physicsClientId=self.client)
+        #### Some PyBullet builds only support getKeyboardEvents() with no client id #
+        try:
+            keys = p.getKeyboardEvents(physicsClientId=self.client)
+        except TypeError:
+            keys = p.getKeyboardEvents()
         if ord("j") in keys and (keys[ord("j")] & p.KEY_IS_DOWN):
             dyaw -= key_step_deg
         if ord("l") in keys and (keys[ord("l")] & p.KEY_IS_DOWN):

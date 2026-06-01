@@ -1,16 +1,14 @@
-"""Defender scenario: VIP drones hold station while teammates intercept / block a kinematic intruder.
+"""Defender scenario: VIPs + defender (left), central building, red-team attack via **PyBullet Params**.
 
-Run from the ``gym-pybullet-drones`` directory::
+Run::
 
-    python gym_pybullet_drones/examples/defender_pid.py --gui true --radar_hud false
+    python3 gym_pybullet_drones/examples/defender_pid.py --gui true --radar_hud false
 
-Requires at least one defender: ``num_drones > num_assets`` (default 4 drones, 2 VIPs).
+In the **PyBullet** window, open the **Params** / user-parameters panel (sliders on the side).
+Set **Red ATTACK type** (0 = Rocket, 1 = Swarm, 2 = Dive), then drag **Red FIRE** to **1**
+and back toward **0** to launch. Blue drones patrol until then.
 
-The red sphere is a **kinematic intruder** (teleported each step; no drone–intruder
-collision). Roles are printed periodically; use ``--verbose_roles true`` for every step.
-
-**Camera (GUI):** click the 3D view, then **J/L** yaw, **I/K** pitch, **U/O** zoom;
-``--camera_orbit true`` auto-rotates; ``--camera_follow true`` tracks the swarm centroid.
+**Camera:** click the 3D view, then J/L/I/K/U/O; optional ``--camera_orbit`` / ``--camera_follow``.
 """
 from __future__ import annotations
 
@@ -27,24 +25,26 @@ from gym_pybullet_drones.control.DSLPIDControl import DSLPIDControl
 from gym_pybullet_drones.utils.Logger import Logger
 from gym_pybullet_drones.utils.utils import sync, str2bool
 from gym_pybullet_drones.utils.gui_camera import GuiCameraController
-from gym_pybullet_drones.defender import DefenderPolicy, DefenderPolicyConfig, KinematicIntruder
+from gym_pybullet_drones.defender import DefenderPolicy, DefenderPolicyConfig
+from gym_pybullet_drones.defender.attack_ui import AttackDebugUi
+from gym_pybullet_drones.defender.threat_fleet import ThreatFleet
+from gym_pybullet_drones.defender.scenario_props import load_command_building
 
 
 def build_initial_positions(num_drones: int, num_assets: int) -> tuple[np.ndarray, np.ndarray]:
-    """Place VIPs on a short line; defenders start farther back."""
+    """VIPs and defenders on the **left** only (open space / building center-right)."""
     if num_drones <= num_assets:
         raise ValueError("num_drones must exceed num_assets (need at least one defender)")
-    spacing = 0.16
     H = 0.12
     rows = []
+    spacing = 0.14
+    base_x = -0.38
     for a in range(num_assets):
-        x = (a - (num_assets - 1) / 2.0) * spacing if num_assets > 1 else 0.0
+        x = base_x + a * spacing
         rows.append([x, -0.32, H + 0.02 * a])
     n_def = num_drones - num_assets
     for k in range(n_def):
-        t = k / max(1, n_def - 1)
-        # Screen *ahead* of VIPs (toward typical intruder approach from +y / +x)
-        rows.append([-0.28 + 0.56 * t, -0.06, H + 0.05 + 0.02 * k])
+        rows.append([-0.44 + 0.12 * k, -0.1, H + 0.06 + 0.02 * k])
     xyz = np.array(rows, dtype=float)
     rpys = np.zeros((num_drones, 3), dtype=float)
     return xyz, rpys
@@ -52,7 +52,7 @@ def build_initial_positions(num_drones: int, num_assets: int) -> tuple[np.ndarra
 
 def run(
     drone: DroneModel = DroneModel.CF2X,
-    num_drones: int = 4,
+    num_drones: int = 3,
     num_assets: int = 2,
     physics: Physics = Physics.PYB,
     gui: bool = True,
@@ -68,11 +68,11 @@ def run(
     radar_hud: bool = False,
     verbose_render: bool = False,
     realtime_sync: bool = False,
-    intruder_speed: float = 0.11,
     verbose_roles: bool = False,
     camera_orbit: bool = False,
     camera_orbit_speed: float = 14.0,
     camera_follow: bool = False,
+    attack_ui: bool = True,
 ):
     if num_assets < 1:
         raise ValueError("num_assets must be >= 1")
@@ -81,6 +81,7 @@ def run(
 
     INIT_XYZS, INIT_RPYS = build_initial_positions(num_drones, num_assets)
     hold_xyz = INIT_XYZS[:num_assets].copy()
+    vip_centroid0 = np.mean(hold_xyz, axis=0)
 
     env = CtrlAviary(
         drone_model=drone,
@@ -99,6 +100,13 @@ def run(
         verbose_render=verbose_render,
     )
     PYB_CLIENT = env.getPyBulletClient()
+
+    building_id: int | None = None
+    try:
+        building_id = load_command_building(PYB_CLIENT, env.DRONE_IDS)
+    except Exception as ex:
+        print(f"[WARNING] Could not load central building URDF: {ex}")
+
     cam = None
     if gui:
         cam = GuiCameraController(
@@ -108,12 +116,16 @@ def run(
             follow_drones=camera_follow,
         )
 
-    intruder = KinematicIntruder(
-        client=PYB_CLIENT,
-        start_xyz=[0.92, 0.38, 0.22],
-        drone_ids=env.DRONE_IDS,
-        speed_m_s=intruder_speed,
-    )
+    attack_panel: AttackDebugUi | None = None
+    if gui and attack_ui:
+        attack_panel = AttackDebugUi(PYB_CLIENT)
+        print(
+            "[INFO] In the PyBullet **Params** panel: set **Red ATTACK type** (0=R,1=S,2=D), "
+            "then drag **Red FIRE** to 1 and back to 0 to launch."
+        )
+    fleet = ThreatFleet(PYB_CLIENT, env.DRONE_IDS)
+    if not gui or not attack_ui:
+        fleet.spawn("rocket", vip_centroid0)
 
     logger = Logger(
         logging_freq_hz=control_freq_hz,
@@ -136,8 +148,7 @@ def run(
 
     if duration_sec <= 0 and gui:
         print(
-            "[INFO] Unlimited defender run (duration_sec=0, gui=True). "
-            "Stop: Ctrl+C, close PyBullet, or radar Stop if enabled."
+            "[INFO] Unlimited defender run. Stop: Ctrl+C, close PyBullet, or radar Stop."
         )
 
     action = np.zeros((num_drones, 4))
@@ -149,9 +160,37 @@ def run(
 
     try:
         while i < max_steps:
+            if gui and hasattr(p, "isConnected") and not p.isConnected(PYB_CLIENT):
+                print("[INFO] PyBullet disconnected; exiting.")
+                break
+
+            if attack_panel is not None:
+                try:
+                    launch = attack_panel.poll_launch()
+                except Exception:
+                    launch = None
+                if launch is not None:
+                    try:
+                        c = np.mean(env.pos[:num_assets], axis=0)
+                        fleet.spawn(launch, c)
+                        print(f"[INFO] Red team launched: {launch}")
+                    except Exception as ex:
+                        print(f"[WARNING] Red team spawn failed: {ex}")
+
             if hud is not None and hud.stop_requested:
                 break
             while hud is not None and hud.paused and not hud.stop_requested:
+                if attack_panel is not None:
+                    try:
+                        launch = attack_panel.poll_launch()
+                    except Exception:
+                        launch = None
+                    if launch is not None:
+                        try:
+                            fleet.spawn(launch, np.mean(hold_xyz, axis=0))
+                            print(f"[INFO] Red team launched (while paused): {launch}")
+                        except Exception as ex:
+                            print(f"[WARNING] Red team spawn failed: {ex}")
                 now = time.monotonic()
                 if now - _radar_pause_last >= (1.0 / 6.0):
                     hud.update(env.pos)
@@ -165,22 +204,34 @@ def run(
                 print("[INFO] PyBullet disconnected; exiting.")
                 break
 
-            ipos, ivel = intruder.step(env.pos[:num_assets], env.CTRL_TIMESTEP)
+            try:
+                ipos, ivel = fleet.step(env.pos[:num_assets], env.CTRL_TIMESTEP)
+            except Exception as ex:
+                print(f"[WARNING] Threat step failed: {ex}")
+                ipos, ivel = np.zeros(3), np.zeros(3)
             sim_t += env.CTRL_TIMESTEP
+            threat_on = fleet.is_active()
             targets, roles = policy.compute_targets(
-                env.pos, ipos, ivel, hold_xyz, sim_time=sim_t
+                env.pos,
+                ipos,
+                ivel,
+                hold_xyz,
+                sim_time=sim_t,
+                threat_active=threat_on,
             )
 
-            for a in range(num_assets):
-                dva = float(np.linalg.norm(env.pos[a] - ipos))
-                min_vip_clearance = min(min_vip_clearance, dva)
+            if threat_on:
+                mc = fleet.min_clearance_vips(env.pos[:num_assets])
+                min_vip_clearance = min(min_vip_clearance, mc)
+
+            aim = fleet.closest_to(env.pos[0]) if threat_on else np.zeros(3)
 
             for j in range(num_drones):
                 tp = targets[j]
                 rpy = INIT_RPYS[j, :].copy()
-                if j >= num_assets:
-                    dx = float(ipos[0] - env.pos[j, 0])
-                    dy = float(ipos[1] - env.pos[j, 1])
+                if j >= num_assets and threat_on:
+                    dx = float(aim[0] - env.pos[j, 0])
+                    dy = float(aim[1] - env.pos[j, 1])
                     rpy[2] = math.atan2(dy, dx)
                 action[j, :], _, _ = ctrl[j].computeControlFromState(
                     control_timestep=env.CTRL_TIMESTEP,
@@ -191,9 +242,9 @@ def run(
 
             for j in range(num_drones):
                 rpy = INIT_RPYS[j, :].copy()
-                if j >= num_assets:
-                    dx = float(ipos[0] - env.pos[j, 0])
-                    dy = float(ipos[1] - env.pos[j, 1])
+                if j >= num_assets and threat_on:
+                    dx = float(aim[0] - env.pos[j, 0])
+                    dy = float(aim[1] - env.pos[j, 1])
                     rpy[2] = math.atan2(dy, dx)
                 ctrl_vec = np.hstack([targets[j], rpy, np.zeros(6)])
                 logger.log(
@@ -210,27 +261,49 @@ def run(
             if gui and cam is not None:
                 cen = None
                 if camera_follow:
-                    cen = (np.sum(env.pos, axis=0) + ipos) / float(num_drones + 1)
+                    if threat_on:
+                        cen = (np.sum(env.pos, axis=0) + ipos * len(fleet.agents)) / float(
+                            num_drones + len(fleet.agents)
+                        )
+                    else:
+                        cen = np.mean(env.pos, axis=0)
                 cam.step(env.CTRL_TIMESTEP, drone_centroid_xyz=cen)
             if gui and realtime_sync:
                 sync(i, START, env.CTRL_TIMESTEP)
             i += 1
     finally:
-        intruder.remove()
-        env.close()
+        try:
+            client_ok = p.isConnected(PYB_CLIENT)
+        except Exception:
+            client_ok = False
+        if client_ok:
+            try:
+                fleet.clear()
+            except Exception:
+                pass
+            if building_id is not None:
+                try:
+                    p.removeBody(building_id, physicsClientId=PYB_CLIENT)
+                except Exception:
+                    pass
+        try:
+            env.close()
+        except Exception:
+            pass
 
     logger.save()
     logger.save_as_csv("defender_pid")
-    print(f"[INFO] Closest intruder approach to any VIP (min horizontal 3D norm): {min_vip_clearance:.3f} m")
+    if min_vip_clearance < float("inf"):
+        print(f"[INFO] Closest red threat approach to any VIP (min 3D norm): {min_vip_clearance:.3f} m")
     if plot:
         logger.plot()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Defender demo: VIP hold + intercept/block/escort vs intruder")
+    parser = argparse.ArgumentParser(description="Defender demo + Red team ATTACK UI")
     parser.add_argument("--drone", type=DroneModel, default=DroneModel.CF2X, choices=DroneModel, metavar="")
-    parser.add_argument("--num_drones", type=int, default=4, metavar="")
-    parser.add_argument("--num_assets", type=int, default=2, help="First K drones are VIPs that hold station", metavar="")
+    parser.add_argument("--num_drones", type=int, default=3, metavar="")
+    parser.add_argument("--num_assets", type=int, default=2, metavar="")
     parser.add_argument("--physics", type=Physics, default=Physics.PYB, choices=Physics, metavar="")
     parser.add_argument("--gui", type=str2bool, default=True, metavar="")
     parser.add_argument("--record_video", type=str2bool, default=False, metavar="")
@@ -245,10 +318,16 @@ if __name__ == "__main__":
     parser.add_argument("--radar_hud", type=str2bool, default=False, metavar="")
     parser.add_argument("--verbose_render", type=str2bool, default=False, metavar="")
     parser.add_argument("--realtime_sync", type=str2bool, default=False, metavar="")
-    parser.add_argument("--intruder_speed", type=float, default=0.11, metavar="")
     parser.add_argument("--verbose_roles", type=str2bool, default=False, metavar="")
     parser.add_argument("--camera_orbit", type=str2bool, default=False, metavar="")
     parser.add_argument("--camera_orbit_speed", type=float, default=14.0, metavar="")
     parser.add_argument("--camera_follow", type=str2bool, default=False, metavar="")
+    parser.add_argument(
+        "--attack_ui",
+        type=str2bool,
+        default=True,
+        metavar="",
+        help="PyBullet Params sliders for red attack (default: True). False = auto rocket at start.",
+    )
     ARGS = parser.parse_args()
     run(**vars(ARGS))

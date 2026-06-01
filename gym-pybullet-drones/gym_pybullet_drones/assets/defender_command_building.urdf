@@ -1,0 +1,152 @@
+<?xml version="1.0"?>
+<!-- Stylized modern command building: concrete + glass curtain wall + roof (single fixed body). -->
+<robot name="defender_command_building">
+  <material name="concrete"><color rgba="0.58 0.58 0.62 1"/></material>
+  <material name="concrete_dark"><color rgba="0.4 0.41 0.44 1"/></material>
+  <material name="glass"><color rgba="0.12 0.18 0.32 0.9"/></material>
+  <material name="glass_lit"><color rgba="0.22 0.32 0.48 0.85"/></material>
+  <material name="trim"><color rgba="0.78 0.78 0.82 1"/></material>
+  <material name="roof"><color rgba="0.32 0.33 0.36 1"/></material>
+  <material name="metal"><color rgba="0.45 0.48 0.52 1"/></material>
+
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0 0 0.28" rpy="0 0 0"/>
+      <mass value="800"/>
+      <inertia ixx="80" ixy="0" ixz="0" iyy="80" iyz="0" izz="80"/>
+    </inertial>
+
+    <!-- Single collision: outer shell (matches visuals closely; drones filtered out in code). -->
+    <collision>
+      <origin xyz="0 0 0.29" rpy="0 0 0"/>
+      <geometry><box size="0.40 0.32 0.58"/></geometry>
+    </collision>
+
+    <!-- Podium / darker base -->
+    <visual>
+      <origin xyz="0 0 0.045" rpy="0 0 0"/>
+      <geometry><box size="0.38 0.30 0.09"/></geometry>
+      <material name="concrete_dark"/>
+    </visual>
+
+    <!-- Main curtain-wall volume -->
+    <visual>
+      <origin xyz="0 0 0.31" rpy="0 0 0"/>
+      <geometry><box size="0.34 0.28 0.46"/></geometry>
+      <material name="concrete"/>
+    </visual>
+
+    <!-- Corner quoins (vertical accents) -->
+    <visual>
+      <origin xyz="0.165 0.125 0.31" rpy="0 0 0"/>
+      <geometry><box size="0.04 0.04 0.48"/></geometry>
+      <material name="trim"/>
+    </visual>
+    <visual>
+      <origin xyz="-0.165 0.125 0.31" rpy="0 0 0"/>
+      <geometry><box size="0.04 0.04 0.48"/></geometry>
+      <material name="trim"/>
+    </visual>
+    <visual>
+      <origin xyz="0.165 -0.125 0.31" rpy="0 0 0"/>
+      <geometry><box size="0.04 0.04 0.48"/></geometry>
+      <material name="trim"/>
+    </visual>
+    <visual>
+      <origin xyz="-0.165 -0.125 0.31" rpy="0 0 0"/>
+      <geometry><box size="0.04 0.04 0.48"/></geometry>
+      <material name="trim"/>
+    </visual>
+
+    <!-- Spandrels (horizontal concrete between window rows) -->
+    <visual>
+      <origin xyz="0 0.142 0.14" rpy="0 0 0"/>
+      <geometry><box size="0.30 0.02 0.018"/></geometry>
+      <material name="concrete_dark"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0.142 0.22" rpy="0 0 0"/>
+      <geometry><box size="0.30 0.02 0.018"/></geometry>
+      <material name="concrete_dark"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0.142 0.30" rpy="0 0 0"/>
+      <geometry><box size="0.30 0.02 0.018"/></geometry>
+      <material name="concrete_dark"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0.142 0.38" rpy="0 0 0"/>
+      <geometry><box size="0.30 0.02 0.018"/></geometry>
+      <material name="concrete_dark"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0.142 0.46" rpy="0 0 0"/>
+      <geometry><box size="0.30 0.02 0.018"/></geometry>
+      <material name="concrete_dark"/>
+    </visual>
+
+    <!-- Glass curtain wall (front +Y face) -->
+    <visual>
+      <origin xyz="0 0.145 0.18" rpy="0 0 0"/>
+      <geometry><box size="0.26 0.012 0.10"/></geometry>
+      <material name="glass"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0.145 0.26" rpy="0 0 0"/>
+      <geometry><box size="0.26 0.012 0.10"/></geometry>
+      <material name="glass_lit"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0.145 0.34" rpy="0 0 0"/>
+      <geometry><box size="0.26 0.012 0.10"/></geometry>
+      <material name="glass"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0.145 0.42" rpy="0 0 0"/>
+      <geometry><box size="0.26 0.012 0.08"/></geometry>
+      <material name="glass_lit"/>
+    </visual>
+
+    <!-- Side walls (lighter concrete, inset) -->
+    <visual>
+      <origin xyz="0.175 0 0.31" rpy="0 0 0"/>
+      <geometry><box size="0.02 0.24 0.44"/></geometry>
+      <material name="concrete"/>
+    </visual>
+    <visual>
+      <origin xyz="-0.175 0 0.31" rpy="0 0 0"/>
+      <geometry><box size="0.02 0.24 0.44"/></geometry>
+      <material name="concrete"/>
+    </visual>
+    <!-- Rear wall -->
+    <visual>
+      <origin xyz="0 -0.145 0.31" rpy="0 0 0"/>
+      <geometry><box size="0.34 0.015 0.44"/></geometry>
+      <material name="concrete"/>
+    </visual>
+
+    <!-- Roof slab + parapet -->
+    <visual>
+      <origin xyz="0 0 0.555" rpy="0 0 0"/>
+      <geometry><box size="0.40 0.32 0.05"/></geometry>
+      <material name="roof"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.585" rpy="0 0 0"/>
+      <geometry><box size="0.42 0.34 0.024"/></geometry>
+      <material name="trim"/>
+    </visual>
+
+    <!-- Rooftop mechanical (AC / lift bulkhead) -->
+    <visual>
+      <origin xyz="0.09 0.08 0.6" rpy="0 0 0"/>
+      <geometry><box size="0.11 0.09 0.055"/></geometry>
+      <material name="metal"/>
+    </visual>
+    <visual>
+      <origin xyz="-0.11 -0.05 0.595" rpy="0 0 0"/>
+      <geometry><box size="0.07 0.06 0.04"/></geometry>
+      <material name="concrete_dark"/>
+    </visual>
+  </link>
+</robot>

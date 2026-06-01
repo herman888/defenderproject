@@ -50,6 +50,8 @@ See [DEFENDER.md](DEFENDER.md).
 python3 gym_pybullet_drones/examples/defender_pid.py --gui true --radar_hud false
 ```
 
+Use the **Params** sliders in the PyBullet GUI: **Red ATTACK type** (0/1/2) and **Red FIRE** (slide to 1, back to 0 to launch).
+
 ### Downwash effect example
 
 ```sh

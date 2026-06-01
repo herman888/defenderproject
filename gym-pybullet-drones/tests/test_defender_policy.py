@@ -20,7 +20,7 @@ def test_defender_roles_and_shapes():
     hold = pos[:2].copy()
     ip = np.array([0.5, 0.0, 0.2])
     iv = np.array([-0.1, 0.0, 0.0])
-    targets, roles = pol.compute_targets(pos, ip, iv, hold, sim_time=0.5)
+    targets, roles = pol.compute_targets(pos, ip, iv, hold, sim_time=0.5, threat_active=True)
     assert targets.shape == (n, 3)
     assert len(roles) == n
     assert roles[0] == "VIP (hold)"
@@ -41,5 +41,19 @@ def test_single_defender_intercept_only():
     hold = pos[:2].copy()
     ip = np.array([0.4, 0.2, 0.2])
     iv = np.zeros(3)
-    targets, roles = pol.compute_targets(pos, ip, iv, hold, sim_time=0.0)
+    targets, roles = pol.compute_targets(pos, ip, iv, hold, sim_time=0.0, threat_active=True)
     assert roles[2] == "defend (intercept)"
+
+
+def test_patrol_when_no_threat():
+    cfg = DefenderPolicyConfig(num_assets=2)
+    pol = DefenderPolicy(cfg)
+    n = 3
+    pos = np.ones((n, 3)) * 0.1
+    hold = np.array([[0, 0, 0.12], [0.1, 0, 0.12]], dtype=float)
+    targets, roles = pol.compute_targets(
+        pos, np.zeros(3), np.zeros(3), hold, sim_time=0.0, threat_active=False
+    )
+    assert "patrol" in roles[2]
+    assert targets.shape == (n, 3)
+
