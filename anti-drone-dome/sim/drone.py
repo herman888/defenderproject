@@ -54,10 +54,10 @@ class Drone:
         self._kp     = kp
         self._kd     = kd
 
-        # URDF selection
+        # URDF selection — default to research-grade cf2x quadrotor model
         if urdf is None:
             urdf = os.path.normpath(
-                os.path.join(os.path.dirname(__file__), "..", "assets", "drone.urdf")
+                os.path.join(os.path.dirname(__file__), "..", "assets", "interceptor.urdf")
             )
         try:
             self._body = pybullet.loadURDF(
@@ -220,6 +220,7 @@ class LoiteringMunition:
             self._body = pybullet.loadURDF(
                 urdf_path,
                 basePosition=list(start_position),
+                globalScaling=3.0,
                 physicsClientId=self._client,
             )
         except Exception:
@@ -228,6 +229,14 @@ class LoiteringMunition:
                 basePosition=list(start_position),
                 physicsClientId=self._client,
             )
+
+        # Tint all links red so the intruder is visually distinct
+        n = pybullet.getNumJoints(self._body, physicsClientId=self._client)
+        pybullet.changeVisualShape(self._body, -1, rgbaColor=[0.9, 0.1, 0.1, 1.0],
+                                   physicsClientId=self._client)
+        for i in range(n):
+            pybullet.changeVisualShape(self._body, i, rgbaColor=[0.9, 0.1, 0.1, 1.0],
+                                       physicsClientId=self._client)
 
         self._rotor_joints = self._find_rotor_joints()
 
