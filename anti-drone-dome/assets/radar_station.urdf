@@ -1,0 +1,129 @@
+<?xml version="1.0"?>
+<!--
+  Pulse-Doppler radar station: concrete foundation + steel mast (3 m) +
+  rotating AESA panel dish. Spin joint drives the dish at ~20 RPM.
+  Load with useFixedBase=1 and basePosition=[0, -dome_radius, 0].
+-->
+<robot name="radar_station">
+
+  <!-- Concrete foundation -->
+  <link name="base">
+    <inertial>
+      <mass value="500.0"/>
+      <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.45" length="0.20"/></geometry>
+      <material name="concrete"><color rgba="0.55 0.55 0.50 1.0"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.45" length="0.20"/></geometry>
+    </collision>
+  </link>
+
+  <!-- Steel mast -->
+  <link name="mast">
+    <inertial>
+      <mass value="30.0"/>
+      <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.055" length="3.00"/></geometry>
+      <material name="steel"><color rgba="0.30 0.30 0.30 1.0"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.055" length="3.00"/></geometry>
+    </collision>
+  </link>
+  <joint name="mast_joint" type="fixed">
+    <parent link="base"/>
+    <child link="mast"/>
+    <!-- base top is at z=+0.10; mast centre is 1.50 m above that -->
+    <origin xyz="0 0 1.60" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Rotating turntable (spin joint — driven by motor in sim) -->
+  <link name="turntable">
+    <inertial>
+      <mass value="5.0"/>
+      <inertia ixx="0.05" ixy="0" ixz="0" iyy="0.05" iyz="0" izz="0.08"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.18" length="0.12"/></geometry>
+      <material name="dark"><color rgba="0.18 0.18 0.18 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="spin_joint" type="continuous">
+    <parent link="mast"/>
+    <child link="turntable"/>
+    <!-- top of mast is +1.50 from mast centre -->
+    <origin xyz="0 0 1.56" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <dynamics damping="0.1" friction="0.05"/>
+  </joint>
+
+  <!-- Horizontal support arm -->
+  <link name="arm">
+    <inertial>
+      <mass value="3.0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.05" iyz="0" izz="0.05"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.60 0.06 0.06"/></geometry>
+      <material name="dark"><color rgba="0.20 0.20 0.20 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="arm_joint" type="fixed">
+    <parent link="turntable"/>
+    <child link="arm"/>
+    <origin xyz="0.30 0 0.09" rpy="0 0 0"/>
+  </joint>
+
+  <!-- AESA radar panel (the dish face) -->
+  <link name="dish">
+    <inertial>
+      <mass value="8.0"/>
+      <inertia ixx="0.1" ixy="0" ixz="0" iyy="0.3" iyz="0" izz="0.3"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.10 0.90 0.55"/></geometry>
+      <material name="panel"><color rgba="0.10 0.75 0.20 1.0"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.10 0.90 0.55"/></geometry>
+    </collision>
+  </link>
+  <joint name="dish_joint" type="fixed">
+    <parent link="arm"/>
+    <!-- offset forward from arm tip, tilted 15 deg upward (nose-up) -->
+    <child link="dish"/>
+    <origin xyz="0.30 0 0.28" rpy="0 -0.26 0"/>
+  </joint>
+
+  <!-- IFF transponder stub on top -->
+  <link name="iff_antenna">
+    <inertial>
+      <mass value="0.5"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.015" length="0.40"/></geometry>
+      <material name="white"><color rgba="0.90 0.90 0.90 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="iff_joint" type="fixed">
+    <parent link="turntable"/>
+    <child link="iff_antenna"/>
+    <origin xyz="0 0 0.26" rpy="0 0 0"/>
+  </joint>
+
+</robot>

@@ -136,6 +136,14 @@ class Dashboard:
 
     # ------------------------------------------------------------------
     def update(self, sim_state: dict):
+        # 5 Hz cap — prevents flickering and lag from redrawing too fast
+        now = time.time()
+        if not hasattr(self, "_last_draw"):
+            self._last_draw = 0.0
+        if now - self._last_draw < 0.20:
+            return
+        self._last_draw = now
+
         status          = sim_state.get("dome_status", "CLEAR")
         intruder_pos    = sim_state.get("intruder_pos")
         interceptor_pos = sim_state.get("interceptor_pos")

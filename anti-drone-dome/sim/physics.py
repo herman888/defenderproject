@@ -25,16 +25,16 @@ class PhysicsWorld:
 
         if self._gui:
             pybullet.resetDebugVisualizerCamera(
-                cameraDistance=35,
-                cameraYaw=45,
-                cameraPitch=-25,
-                cameraTargetPosition=[5, 5, 4],
+                cameraDistance=30,
+                cameraYaw=225,        # looking from SW toward NE (threat comes from NE)
+                cameraPitch=-35,      # angled down so ground + drones are visible
+                cameraTargetPosition=[3, 3, 3],
                 physicsClientId=self.client,
             )
             pybullet.configureDebugVisualizer(
                 pybullet.COV_ENABLE_RGB_BUFFER_PREVIEW, 0, physicsClientId=self.client
             )
-            self._draw_grid()
+            # skip grid in GUI mode — plane.urdf checkered texture is sufficient
 
     def _draw_grid(self):
         half = 10
@@ -55,9 +55,9 @@ class PhysicsWorld:
         self._dome_lines.clear()
 
         cx, cy, cz = center
-        lat_steps = 8
-        lon_steps = 16
-        pts_per_ring = 64
+        lat_steps = 4       # was 8  — fewer rings, much faster in GUI mode
+        lon_steps = 8       # was 16
+        pts_per_ring = 24   # was 64 — total lines: ~120 vs ~700 before
 
         # Latitude rings (upper hemisphere only)
         for lat_i in range(lat_steps + 1):

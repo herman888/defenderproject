@@ -103,9 +103,11 @@ class RadarNode:
         self._noise_std       = noise_std
 
         self._tracker: KalmanTracker | None = None
-        self._hits   = 0
-        self._seq    = 0
-        self._first  = True
+        self._hits       = 0
+        self._seq        = 0
+        self._first      = True
+        self._locked     = False   # True once track is confirmed — skips probabilistic gate
+        self._miss_count = 0       # consecutive misses while locked
         self.last_detection_time: float | None = None
 
     # ------------------------------------------------------------------
@@ -152,19 +154,55 @@ class RadarNode:
     # ------------------------------------------------------------------
     def scan(self, true_pos: tuple) -> dict:
         """
-        One radar frame. Returns dict with Kalman position/velocity/acceleration.
-        All consumers should use dict["velocity"] and dict["acceleration"] —
-        do NOT call get_track_velocity() (removed).
+        One radar frame.
+
+        SEARCHING mode: probabilistic Swerling-I detection + Doppler gate.
+        LOCKED mode   : once hits >= 15, skip probabilistic gate — just update
+                        Kalman every frame (like a real tracker in lock).
+                        Loses lock after 30 consecutive beam misses.
         """
         self._seq += 1
         t = np.array(true_pos, dtype=float)
 
         in_beam, rng, elev = self._in_beam(t)
+
+        # ── LOCKED track — just update Kalman, no probability roll ──────
+        if self._locked:
+            if not in_beam:
+                self._miss_count += 1
+                if self._miss_count > 30:         # lost track
+                    self._locked     = False
+                    self._hits       = 0
+                    self._miss_count = 0
+                    print("RADAR: Track lost")
+                # Return coasted prediction while beam is blocked
+                if self._tracker:
+                    self._tracker.step(np.array(self._tracker.pos))  # coast
+                return {"detected": False, "seq": self._seq}
+
+            self._miss_count = 0
+            meas = t + np.random.normal(0.0, self._noise_std, 3)
+            self._tracker.step(meas)
+            self.last_detection_time = time.time()
+            snr = 30.0 - 40.0 * math.log10(max(rng, 1.0) / 5.0)
+            return {
+                "detected"          : True,
+                "seq"               : self._seq,
+                "range"             : rng,
+                "elevation_deg"     : math.degrees(elev),
+                "snr"               : float(snr),
+                "locked"            : True,
+                "position_estimate" : self._tracker.pos,
+                "velocity"          : self._tracker.vel,
+                "acceleration"      : self._tracker.acc,
+            }
+
+        # ── SEARCHING mode — probabilistic acquisition ───────────────────
         if not in_beam:
             self._hits = max(0, self._hits - 2)
             return {"detected": False, "seq": self._seq}
 
-        # Swerling-I style range-dependent probability of detection
+        # Swerling-I range-dependent probability of detection
         if rng <= 5.0:
             p_det = 0.99
         elif rng <= 18.0:
@@ -196,6 +234,11 @@ class RadarNode:
 
         self._hits = min(self._hits + 1, 30)
         self.last_detection_time = time.time()
+
+        # Promote to locked track once confidence is high
+        if self._hits >= 15 and not self._locked:
+            self._locked = True
+            print("RADAR: Track LOCKED")
 
         snr = 30.0 - 40.0 * math.log10(max(rng, 1.0) / 5.0)
 
