@@ -41,6 +41,7 @@ class Drone:
         kp:          float = 10.0,
         kd:          float = 5.0,
         urdf: str    = None,
+        global_scaling: float = 1.0,
     ):
         self._id_str    = drone_id
         self._client    = physics_client
@@ -63,6 +64,7 @@ class Drone:
             self._body = pybullet.loadURDF(
                 urdf,
                 basePosition=list(start_position),
+                globalScaling=global_scaling,
                 physicsClientId=self._client,
             )
         except Exception:

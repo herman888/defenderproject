@@ -219,6 +219,7 @@ def _run_one_mission(
     state_q:  mp.Queue,
     ctrl_q:   mp.Queue,
     scenario_key: str = "standard",
+    initial_speed: float = 1.0,
 ) -> dict:
     """
     Run one complete mission.  Returns a dict describing the result.
@@ -283,10 +284,11 @@ def _run_one_mission(
     )
     interceptor = Drone(
         "interceptor", int_start, world.client,
-        color="multi",
+        color="blue",
         max_h_force=70.0, max_v_force=70.0, max_speed=50.0,
         kp=20.0, kd=8.0,
         urdf=_int_urdf if os.path.isfile(_int_urdf) else None,
+        global_scaling=3.0,
     )
 
     # Warm-up
@@ -309,7 +311,7 @@ def _run_one_mission(
     dome        = DomeKillZone(center=_DOME_CENTER, radius=_DOME_RADIUS)
 
     # ── State variables ───────────────────────────────────────────────
-    sim_speed            = 1.0
+    sim_speed            = initial_speed
     paused               = False
     camera_mode          = 0
     show_trail           = True
@@ -712,6 +714,75 @@ def _run_one_mission(
 # Console menu + debrief
 # ======================================================================
 
+def _print_controls():
+    print("""
+╔══════════════════════════════════════════════════════════╗
+║            ANTI-DRONE DOME  —  CONTROLS                 ║
+╠══════════════════════════════════════════════════════════╣
+║  KEYBOARD  (click the PyBullet 3-D window first)        ║
+╠══════════════════════════════════════════════════════════╣
+║  SPACE     Pause / resume simulation                    ║
+║  R         Restart same scenario from beginning         ║
+║  1         Sim speed  0.25×  (slow-motion)              ║
+║  2         Sim speed  0.5×                              ║
+║  3         Sim speed  1×     (real-time)                ║
+║  4         Sim speed  2×                                ║
+║  5         Sim speed  4×                                ║
+║  6         Sim speed  8×     (fast-forward)             ║
+║  C         Cycle camera: overview / intruder /          ║
+║             interceptor / top-down                      ║
+║  I         Toggle intruder 3-D trail on / off           ║
+║  H         Print this help again in console             ║
+║  Q         Quit to main menu                            ║
+╠══════════════════════════════════════════════════════════╣
+║  DASHBOARD window (matplotlib)                          ║
+╠══════════════════════════════════════════════════════════╣
+║  || PAUSE  Pause / resume                               ║
+║  [] STOP   Abort mission                                ║
+║  >> SPEED  Cycle dashboard speed display                ║
+╚══════════════════════════════════════════════════════════╝
+""")
+
+
+_SPEED_OPTIONS = [
+    (0.25, "0.25×  slow-motion — every detail visible"),
+    (0.5,  "0.5×   half speed"),
+    (1.0,  "1×     real-time"),
+    (2.0,  "2×     double speed"),
+    (4.0,  "4×     fast (recommended for testing)"),
+    (8.0,  "8×     maximum speed"),
+]
+
+
+def _ask_speed() -> float:
+    """Ask player for initial sim speed; return the chosen multiplier."""
+    print()
+    print("╔══════════════════════════════════════════════════════════╗")
+    print("║              SELECT SIMULATION SPEED                    ║")
+    print("╠══════════════════════════════════════════════════════════╣")
+    for idx, (mult, desc) in enumerate(_SPEED_OPTIONS, start=1):
+        marker = "◄ default" if mult == 1.0 else ""
+        print(f"║  [{idx}]  {desc:<44s}{marker:<9s}║")
+    print("╚══════════════════════════════════════════════════════════╝")
+    print()
+    while True:
+        try:
+            raw = input("Speed [1–6, Enter=1×]: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return 1.0
+        if raw == "":
+            return 1.0
+        try:
+            n = int(raw)
+            if 1 <= n <= len(_SPEED_OPTIONS):
+                chosen = _SPEED_OPTIONS[n - 1][0]
+                print(f"  → Starting at {_SPEED_OPTIONS[n-1][1].split()[0]} speed.\n")
+                return chosen
+        except ValueError:
+            pass
+        print("  Enter a number 1–6 or press Enter for default.")
+
+
 def _show_menu() -> str:
     """Print menu, return selected scenario key or 'quit'."""
     items = list(SCENARIOS.items())
@@ -803,17 +874,23 @@ def main():
     )
     dash_proc.start()
 
+    _print_controls()
+
     current_scenario = None   # None → go to menu
+    chosen_speed     = 1.0
 
     try:
         while True:
             if current_scenario is None:
                 current_scenario = _show_menu()
+                if current_scenario != "quit":
+                    chosen_speed = _ask_speed()
 
             if current_scenario == "quit":
                 break
 
-            result = _run_one_mission(state_q, ctrl_q, current_scenario)
+            result = _run_one_mission(state_q, ctrl_q, current_scenario,
+                                      initial_speed=chosen_speed)
 
             mr = result["result"]
 
