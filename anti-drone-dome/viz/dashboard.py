@@ -2,17 +2,21 @@
 Real-time matplotlib dashboard — military-grade aesthetic.
 
 Design language:
-  Background  #080c10  (near-black blue-black)
-  Primary     #00ff88  (military green)
-  Warning     #ffaa00  (amber)
-  Danger      #ff2200  (red)
-  Info        #00ccff  (cyan)
+  Background  #080c10  near-black blue-black
+  Primary     #00ff88  military green
+  Warning     #ffaa00  amber
+  Danger      #ff2200  red
+  Info        #00ccff  cyan
   Font        monospace throughout
 
 Layout (3 rows):
-  Row 0  Radar top-down (X/Y)  |  Altitude side view (X/Z)
-  Row 1  Mission Select: [STANDARD] [FAST LOW] [SPIRAL]  |  Speed: [0.25x]…[8x]
-  Row 2  Controls: [|| PAUSE]  [[] STOP]
+  Row 0  Radar top-down (X/Y axes + bidirectional cardinals)  |  Altitude (X/Z)
+  Row 1  Mission Select: scenario buttons  |  Speed buttons
+         Pad Select: [NEAR] [MID] [FAR]    |  (description label)
+  Row 2  Controls: [|| PAUSE]  [↺ RESET]  [◼ ABORT]
+
+All view ranges and range rings scale with dome_radius so the dashboard looks
+correct whether the dome is 10 m or 200 m.
 """
 
 import math
@@ -25,7 +29,7 @@ import matplotlib.patches as mpatches
 from matplotlib.widgets import Button
 
 # ── Colour palette ─────────────────────────────────────────────────────
-_BG       = (0.031, 0.047, 0.063)   # #080c10
+_BG       = (0.031, 0.047, 0.063)
 _RADAR_BG = (0.020, 0.031, 0.051)
 _GREEN    = "#00ff88"
 _AMBER    = "#ffaa00"
@@ -46,14 +50,13 @@ _STATUS_FG = {
     "INTERCEPTED": _RED,
 }
 
-_SCENARIOS = {
+_SCENARIO_LABELS = {
     "standard": "■ STANDARD",
     "fast_low": "► FAST LOW",
     "spiral":   "◎ SPIRAL",
 }
 
 _SPEEDS = [
-    (0.25, "0.25×"),
     (0.5,  "0.5×"),
     (1.0,  "1×"),
     (2.0,  "2×"),
@@ -61,19 +64,28 @@ _SPEEDS = [
     (8.0,  "8×"),
 ]
 
+_PADS = [
+    ("near", "NEAR  50m"),
+    ("mid",  "MID  180m"),
+    ("far",  "FAR  380m"),
+]
+
 
 class SimControl:
     def __init__(self):
         self.paused           = False
-        self.stopped          = False
-        self.speed            = 1          # legacy (unused by sim — kept for compat)
-        self.selected_mission = None       # set when user clicks a scenario button
-        self.selected_speed   = 1.0        # initial sim speed sent with mission
+        self.stopped          = False      # ABORT → ends mission
+        self.restart          = False      # RESET → restart same mission
+        self.speed            = 1          # legacy integer (unused by sim physics)
+        self.selected_mission = None       # set by scenario button
+        self.selected_speed   = 1.0        # initial sim speed
+        self.selected_pad     = "mid"      # pad distance key
 
 
 class Dashboard:
-    def __init__(self, dome_radius: float = 10.0, sim_control: SimControl = None):
+    def __init__(self, dome_radius: float = 200.0, sim_control: SimControl = None):
         self._dome_radius = dome_radius
+        self._view        = dome_radius * 4.0   # radar view half-extent
         self._ctrl        = sim_control
         self._event_log   = []
         self._intruder_trail        = []
@@ -84,20 +96,20 @@ class Dashboard:
         self._last_draw    = 0.0
         self._blink_state  = False
         self._last_blink   = 0.0
-        self._active_speed_btn = None   # Button currently highlighted as selected speed
 
         plt.ion()
         self._fig = plt.figure(figsize=(16, 9))
         self._fig.patch.set_facecolor(_BG)
         self._fig.suptitle(
-            "ANTI-DRONE DEFENSE SYSTEM  |  ACTIVE  ●",
+            "ANTI-DRONE DEFENSE SYSTEM  |  STANDBY  ○",
             color=_GREEN, fontsize=13, fontweight="bold", fontfamily="monospace",
         )
 
+        # 3-row layout: [radar/side] [mission+pad select] [controls]
         gs = self._fig.add_gridspec(
             3, 2,
-            height_ratios=[7, 1.8, 0.9],
-            hspace=0.50, wspace=0.28,
+            height_ratios=[6.8, 2.3, 0.9],
+            hspace=0.48, wspace=0.28,
             left=0.06, right=0.97, top=0.92, bottom=0.04,
         )
         self._ax_radar = self._fig.add_subplot(gs[0, 0])
@@ -110,109 +122,103 @@ class Dashboard:
         self._init_artists()
         plt.pause(0.01)
 
-    # ──────────────────────────────────────────────────────────────────
+    # ── Axis setup ─────────────────────────────────────────────────────
     def _setup_radar_ax(self):
-        ax = self._ax_radar
+        ax  = self._ax_radar
+        v   = self._view
+        R   = self._dome_radius
         ax.set_facecolor(_RADAR_BG)
-        ax.set_xlim(-22, 22)
-        ax.set_ylim(-22, 22)
+        ax.set_xlim(-v, v)
+        ax.set_ylim(-v, v)
         ax.set_aspect("equal")
-        ax.set_title(
-            "RADAR  —  TOP DOWN",
-            color=_GREEN, fontfamily="monospace", fontsize=10,
-        )
+        ax.set_title("RADAR  —  TOP DOWN", color=_GREEN,
+                     fontfamily="monospace", fontsize=10)
 
-        # Axis labels encode both coordinate and cardinal direction
-        ax.set_xlabel(
-            "◄ W (−X)  ·  X position (m)  ·  E (+X) ►",
-            color="#557755", fontsize=7, fontfamily="monospace", labelpad=3,
-        )
-        ax.set_ylabel(
-            "▼ S (−Y)  ·  Y (m)  ·  N (+Y) ▲",
-            color="#557755", fontsize=7, fontfamily="monospace", labelpad=3,
-        )
+        # Axis labels encode coordinate axis AND cardinal direction
+        ax.set_xlabel("◄ W (−X)  ·  X position (m)  ·  E (+X) ►",
+                      color="#557755", fontsize=7, fontfamily="monospace", labelpad=3)
+        ax.set_ylabel("▼ S (−Y)  ·  Y position (m)  ·  N (+Y) ▲",
+                      color="#557755", fontsize=7, fontfamily="monospace", labelpad=3)
 
-        # Tick marks at regular intervals
-        ticks = [-20, -10, 0, 10, 20]
+        # Tick marks at dome-scaled intervals
+        step  = R if R >= 50 else 5
+        ticks = list(range(int(-v), int(v) + 1, int(step)))
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
         ax.tick_params(axis="both", colors="#334433", labelsize=6, labelcolor="#557755")
         for spine in ax.spines.values():
             spine.set_color("#223322")
 
-        # Crosshair axes through origin
+        # Crosshair and dot-grid
         ax.axhline(0, color="#1e2e1e", linewidth=0.6, zorder=0)
         ax.axvline(0, color="#1e2e1e", linewidth=0.6, zorder=0)
+        ax.grid(True, color="#0e170e", linewidth=0.3, linestyle=":", alpha=0.9, zorder=0)
 
-        # Subtle dot-grid
-        ax.grid(True, color="#111a11", linewidth=0.3, linestyle=":", alpha=0.9, zorder=0)
+        # Range rings: 0.25R, 0.5R, R (dome boundary), 2R, 3R
+        ring_specs = [
+            (R * 0.25, "#1d2d1d", 0.6),
+            (R * 0.5,  "#223322", 0.7),
+            (R,        _GREEN,    1.8),   # dome boundary — highlighted
+            (R * 1.5,  "#223322", 0.7),
+            (R * 2.0,  "#1d2d1d", 0.6),
+            (R * 3.0,  "#1a281a", 0.5),
+        ]
+        for r, col, lw in ring_specs:
+            if r > v * 0.98:
+                continue
+            ax.add_patch(plt.Circle((0, 0), r, color=col, fill=False,
+                                    linewidth=lw, linestyle="--", zorder=1))
+            lbl_col = _GREEN if r == R else "#2e4a2e"
+            suffix  = " ◄ DOME" if r == R else ""
+            ax.text(r * 0.707, r * 0.707, f"{r:.0f}m{suffix}",
+                    color=lbl_col, fontsize=6, fontfamily="monospace", zorder=2)
 
-        # Range rings with distance labels
-        for r, col, lw in [
-            (5,  "#223322", 0.7),
-            (10, _GREEN,    1.5),   # dome boundary
-            (15, "#223322", 0.7),
-            (20, "#223322", 0.7),
-        ]:
-            ax.add_patch(plt.Circle(
-                (0, 0), r, color=col, fill=False, linewidth=lw, linestyle="--", zorder=1,
-            ))
-            label_col = _GREEN if r == 10 else "#3a5a3a"
-            ax.text(
-                r * 0.707, r * 0.707, f"{r}m",
-                color=label_col, fontsize=6, fontfamily="monospace", zorder=2,
-            )
-
-        # Bidirectional cardinal compass labels (inside plot at ±21)
-        _card = dict(fontfamily="monospace", fontsize=8, fontweight="bold",
-                     ha="center", va="center", zorder=3)
-        ax.text( 0,   21.0, "N ▲",  color="#446644", **_card)
-        ax.text( 0,  -21.0, "▼ S",  color="#446644", **_card)
-        ax.text( 21.0, 0,   "E ►",  color="#446644", ha="left",  va="center",
-                 fontfamily="monospace", fontsize=8, fontweight="bold", zorder=3)
-        ax.text(-21.0, 0,   "◄ W",  color="#446644", ha="right", va="center",
-                 fontfamily="monospace", fontsize=8, fontweight="bold", zorder=3)
+        # Bidirectional cardinal compass labels
+        _c = dict(fontfamily="monospace", fontsize=8, fontweight="bold",
+                  ha="center", va="center", zorder=3)
+        ax.text( 0,  v * 0.96, "N ▲",  color="#446644", **_c)
+        ax.text( 0, -v * 0.96, "▼ S",  color="#446644", **_c)
+        ax.text( v * 0.96, 0,  "E ►",  color="#446644",
+                 ha="left",  va="center", **{k: v2 for k, v2 in _c.items()
+                                              if k not in ("ha", "va")})
+        ax.text(-v * 0.96, 0,  "◄ W",  color="#446644",
+                 ha="right", va="center", **{k: v2 for k, v2 in _c.items()
+                                              if k not in ("ha", "va")})
 
     def _setup_side_ax(self):
         ax = self._ax_side
+        R  = self._dome_radius
         ax.set_facecolor(_RADAR_BG)
-        ax.set_xlim(-22, 22)
-        ax.set_ylim(-1, 18)
-        ax.set_title(
-            "ALTITUDE VIEW  (X / Z)",
-            color=_CYAN, fontfamily="monospace", fontsize=10,
-        )
-        ax.set_xlabel(
-            "◄ W (−X)  ·  X position (m)  ·  E (+X) ►",
-            color="#446655", fontsize=7, fontfamily="monospace", labelpad=3,
-        )
-        ax.set_ylabel("Altitude Z (m)", color="#446655", fontsize=7, fontfamily="monospace")
+        ax.set_xlim(-self._view, self._view)
+        ax.set_ylim(-R * 0.05, R * 1.8)
+        ax.set_title("ALTITUDE VIEW  (X / Z)", color=_CYAN,
+                     fontfamily="monospace", fontsize=10)
+        ax.set_xlabel("◄ W (−X)  ·  X position (m)  ·  E (+X) ►",
+                      color="#446655", fontsize=7, fontfamily="monospace", labelpad=3)
+        ax.set_ylabel("Altitude Z (m)", color="#446655",
+                      fontsize=7, fontfamily="monospace")
         ax.tick_params(colors="#334433", labelsize=6, labelcolor="#557755")
         for spine in ax.spines.values():
             spine.set_color("#223322")
-        ax.grid(True, color="#111a11", linewidth=0.3, linestyle=":", alpha=0.7)
-        for r in [5, 10]:
-            ax.add_patch(plt.Circle(
-                (0, 0), r, color="#223322", fill=False, linewidth=0.7, linestyle="--"
-            ))
+        ax.grid(True, color="#0e170e", linewidth=0.3, linestyle=":", alpha=0.7)
+        ax.add_patch(plt.Circle((0, 0), R, color="#223322",
+                                fill=False, linewidth=0.7, linestyle="--"))
         ax.axhline(0, color="#334433", linewidth=0.8)
-        ax.text(0, -0.5, "GROUND", color="#446644",
+        ax.text(0, -R * 0.03, "GROUND", color="#446644",
                 fontsize=7, ha="center", fontfamily="monospace")
 
-    # ──────────────────────────────────────────────────────────────────
+    # ── Mission / pad select panel ──────────────────────────────────────
     def _setup_mission_panel(self, gs):
-        """Mission select row: scenario buttons (left) + speed buttons (right)."""
         mission_row = gs[1, :]
-        # 10 columns: 3 scenarios | 1 gap | 6 speeds
-        mgs = mission_row.subgridspec(1, 10, wspace=0.10)
+        # 2 sub-rows: [scenario+speed] and [pad select]
+        mgs = mission_row.subgridspec(2, 10, wspace=0.10, hspace=0.35)
 
-        _scn_cols  = {"standard": 0, "fast_low": 1, "spiral": 2}
-        _scn_color = (0.04, 0.14, 0.06)
-        _scn_hover = (0.08, 0.26, 0.10)
+        # ── Sub-row 0: Scenario buttons (cols 0-2) + Speed buttons (cols 4-8)
+        _scn_color = (0.03, 0.12, 0.05)
+        _scn_hover = (0.07, 0.23, 0.10)
         self._mission_btns = {}
-        for key, col in _scn_cols.items():
-            ax = self._fig.add_subplot(mgs[0, col])
-            label = _SCENARIOS[key]
+        for i, (key, label) in enumerate(_SCENARIO_LABELS.items()):
+            ax  = self._fig.add_subplot(mgs[0, i])
             btn = Button(ax, label, color=_scn_color, hovercolor=_scn_hover)
             btn.label.set_color(_GREEN)
             btn.label.set_fontfamily("monospace")
@@ -220,10 +226,9 @@ class Dashboard:
             btn.on_clicked(lambda _, k=key: self._on_mission(k))
             self._mission_btns[key] = btn
 
-        # Speed buttons (columns 4–9; col 3 is gap)
-        _spd_base  = (0.06, 0.08, 0.20)
-        _spd_sel   = (0.18, 0.22, 0.50)
-        _spd_hover = (0.12, 0.14, 0.36)
+        _spd_base  = (0.05, 0.07, 0.18)
+        _spd_sel   = (0.16, 0.20, 0.48)
+        _spd_hover = (0.10, 0.12, 0.32)
         self._speed_btns = {}
         for i, (spd, lbl) in enumerate(_SPEEDS):
             ax  = self._fig.add_subplot(mgs[0, 4 + i])
@@ -234,160 +239,198 @@ class Dashboard:
             btn.label.set_fontsize(8)
             btn.on_clicked(lambda _, s=spd: self._on_speed_select(s))
             self._speed_btns[spd] = btn
-            if spd == 1.0:
-                self._active_speed_btn = btn   # 1× selected by default
 
-        # Row label overlays (text axes behind buttons)
-        ax_lbl_l = self._fig.add_axes([0.06, 0.0, 0.01, 0.01])   # invisible
-        ax_lbl_l.set_visible(False)
+        # ── Sub-row 1: Pad buttons (cols 0-2) + description (cols 3-9)
+        _pad_base  = (0.08, 0.06, 0.15)
+        _pad_sel   = (0.25, 0.15, 0.40)
+        _pad_hover = (0.15, 0.10, 0.28)
+        self._pad_btns = {}
+        for i, (key, lbl) in enumerate(_PADS):
+            ax  = self._fig.add_subplot(mgs[1, i])
+            col = _pad_sel if key == "mid" else _pad_base
+            btn = Button(ax, lbl, color=col, hovercolor=_pad_hover)
+            btn.label.set_color("#bb88ff")
+            btn.label.set_fontfamily("monospace")
+            btn.label.set_fontsize(7)
+            btn.on_clicked(lambda _, k=key: self._on_pad_select(k))
+            self._pad_btns[key] = btn
+
+        # Description label (right side of sub-row 1)
+        ax_desc = self._fig.add_subplot(mgs[1, 3:])
+        ax_desc.set_facecolor(_BG)
+        for spine in ax_desc.spines.values():
+            spine.set_visible(False)
+        ax_desc.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+        self._pad_desc_text = ax_desc.text(
+            0.03, 0.50,
+            "PAD: interceptor launch site distance from dome edge.\n"
+            "NEAR=easy intercept  MID=balanced  FAR=long-range challenge",
+            transform=ax_desc.transAxes,
+            color="#6a7a6a", fontsize=7, fontfamily="monospace", va="center",
+        )
 
     def _setup_controls(self, gs):
-        """Bottom control row: Pause + Stop."""
         ctrl_row = gs[2, :]
-        cgs = ctrl_row.subgridspec(1, 2, wspace=0.30)
+        cgs = ctrl_row.subgridspec(1, 3, wspace=0.25)
 
-        ax_pause = self._fig.add_subplot(cgs[0, 0])
-        ax_stop  = self._fig.add_subplot(cgs[0, 1])
+        ax_pause  = self._fig.add_subplot(cgs[0, 0])
+        ax_reset  = self._fig.add_subplot(cgs[0, 1])
+        ax_abort  = self._fig.add_subplot(cgs[0, 2])
 
-        self._btn_pause = Button(ax_pause, "|| PAUSE", color=(0.06, 0.16, 0.06), hovercolor=(0.12, 0.30, 0.12))
-        self._btn_stop  = Button(ax_stop,  "[] STOP",  color=(0.20, 0.05, 0.05), hovercolor=(0.40, 0.08, 0.08))
+        self._btn_pause = Button(ax_pause, "|| PAUSE",   color=(0.05, 0.14, 0.05), hovercolor=(0.10, 0.26, 0.10))
+        self._btn_reset = Button(ax_reset, "↺  RESET",   color=(0.10, 0.08, 0.02), hovercolor=(0.22, 0.16, 0.04))
+        self._btn_abort = Button(ax_abort, "◼  ABORT",   color=(0.18, 0.04, 0.04), hovercolor=(0.36, 0.07, 0.07))
 
-        for btn in (self._btn_pause, self._btn_stop):
+        for btn in (self._btn_pause, self._btn_reset, self._btn_abort):
             btn.label.set_color("white")
             btn.label.set_fontfamily("monospace")
             btn.label.set_fontsize(9)
 
         self._btn_pause.on_clicked(self._on_pause)
-        self._btn_stop.on_clicked(self._on_stop)
+        self._btn_reset.on_clicked(self._on_reset)
+        self._btn_abort.on_clicked(self._on_abort)
 
-    # ──────────────────────────────────────────────────────────────────
+    # ── Button callbacks ───────────────────────────────────────────────
     def _on_pause(self, _):
         if not self._ctrl:
             return
         self._ctrl.paused = not self._ctrl.paused
         self._btn_pause.label.set_text(">  RESUME" if self._ctrl.paused else "|| PAUSE")
-        self._btn_pause.ax.set_facecolor((0.35, 0.08, 0.08) if self._ctrl.paused else (0.06, 0.16, 0.06))
+        self._btn_pause.ax.set_facecolor(
+            (0.32, 0.08, 0.08) if self._ctrl.paused else (0.05, 0.14, 0.05))
         self._fig.canvas.draw_idle()
 
-    def _on_stop(self, _):
+    def _on_reset(self, _):
+        if not self._ctrl:
+            return
+        self._ctrl.restart = True
+        self._btn_reset.ax.set_facecolor((0.40, 0.28, 0.04))
+        self._fig.canvas.draw_idle()
+
+    def _on_abort(self, _):
         if not self._ctrl:
             return
         self._ctrl.stopped = True
-        self._btn_stop.label.set_text("[] STOPPED")
-        self._btn_stop.ax.set_facecolor((0.50, 0.00, 0.00))
+        self._btn_abort.label.set_text("◼  ABORTED")
+        self._btn_abort.ax.set_facecolor((0.48, 0.00, 0.00))
         self._fig.canvas.draw_idle()
 
     def _on_mission(self, key: str):
         if not self._ctrl:
             return
         self._ctrl.selected_mission = key
-        # Brief visual flash on the clicked button
-        btn = self._mission_btns[key]
-        btn.ax.set_facecolor((0.10, 0.40, 0.15))
+        # Flash the clicked button green as confirmation
+        for k, btn in self._mission_btns.items():
+            btn.ax.set_facecolor((0.10, 0.38, 0.14) if k == key else (0.03, 0.12, 0.05))
         self._fig.canvas.draw_idle()
 
     def _on_speed_select(self, speed: float):
         if not self._ctrl:
             return
         self._ctrl.selected_speed = speed
-        # Update button highlights
         for spd, btn in self._speed_btns.items():
-            btn.ax.set_facecolor((0.18, 0.22, 0.50) if spd == speed else (0.06, 0.08, 0.20))
+            btn.ax.set_facecolor((0.16, 0.20, 0.48) if spd == speed else (0.05, 0.07, 0.18))
         self._fig.canvas.draw_idle()
 
-    # ──────────────────────────────────────────────────────────────────
+    def _on_pad_select(self, key: str):
+        if not self._ctrl:
+            return
+        self._ctrl.selected_pad = key
+        for k, btn in self._pad_btns.items():
+            btn.ax.set_facecolor((0.25, 0.15, 0.40) if k == key else (0.08, 0.06, 0.15))
+        self._fig.canvas.draw_idle()
+
+    # ── Artists ─────────────────────────────────────────────────────────
     def _init_artists(self):
         ax = self._ax_radar
+        R  = self._dome_radius
 
-        # Dome circle
+        # Dome boundary circle
         self._dome_circle = mpatches.Circle(
-            (0, 0), self._dome_radius,
-            color=_GREEN, fill=False, linewidth=2, zorder=4,
-        )
+            (0, 0), R, color=_GREEN, fill=False, linewidth=2, zorder=4)
         ax.add_patch(self._dome_circle)
 
         # Phosphor sweep: 6 fan lines with alpha decay
         self._sweep_fans = []
         for i in range(6):
-            alpha = max(0.08, 0.75 - i * 0.13)
-            g_val = max(0.20, 0.70 - i * 0.09)
-            line, = ax.plot([], [], color=(0, g_val, 0.10),
-                            linewidth=max(0.8, 2.0 - i * 0.25), alpha=alpha, zorder=3)
+            alpha = max(0.06, 0.70 - i * 0.12)
+            g_val = max(0.18, 0.65 - i * 0.09)
+            line, = ax.plot([], [], color=(0, g_val, 0.08),
+                            linewidth=max(0.7, 1.8 - i * 0.22), alpha=alpha, zorder=3)
             self._sweep_fans.append(line)
 
-        # Radar station marker + label
-        self._radar_marker, = ax.plot([], [], "gs", markersize=8, zorder=5)
-        self._radar_label   = ax.text(
-            0, 0, "RADAR", color=_GREEN, fontsize=6,
-            fontfamily="monospace", visible=False, zorder=5,
-        )
+        # Radar station
+        self._radar_marker, = ax.plot([], [], "gs", markersize=7, zorder=5)
+        self._radar_label   = ax.text(0, 0, "RADAR", color=_GREEN, fontsize=6,
+                                       fontfamily="monospace", visible=False, zorder=5)
 
-        # Intruder: red diamond trail + dot
+        # Intruder: red diamond trail + marker
         self._intruder_trail_r, = ax.plot([], [], color="#cc1100", alpha=0.55, linewidth=1.5, zorder=5)
-        self._intruder_dot_r,   = ax.plot([], [], "D", color=_RED, markersize=11, zorder=6)
-        self._intruder_label_r  = ax.text(
-            0, 0, "INTRUDER", color=_RED,
-            fontsize=7, fontfamily="monospace", visible=False, zorder=6,
-        )
+        self._intruder_dot_r,   = ax.plot([], [], "D", color=_RED, markersize=10, zorder=6)
+        self._intruder_label_r  = ax.text(0, 0, "INTRUDER", color=_RED,
+                                           fontsize=7, fontfamily="monospace",
+                                           visible=False, zorder=6)
 
         # Interceptor: cyan triangle trail + marker
         self._intercept_trail_r, = ax.plot([], [], color="#009999", alpha=0.55, linewidth=1.5, zorder=5)
-        self._intercept_dot_r,   = ax.plot([], [], "^", color=_CYAN, markersize=12, zorder=6)
-        self._intercept_label_r  = ax.text(
-            0, 0, "INTERCEPTOR", color=_CYAN,
-            fontsize=7, fontfamily="monospace", visible=False, zorder=6,
-        )
+        self._intercept_dot_r,   = ax.plot([], [], "^", color=_CYAN, markersize=11, zorder=6)
+        self._intercept_label_r  = ax.text(0, 0, "INTERCEPTOR", color=_CYAN,
+                                            fontsize=7, fontfamily="monospace",
+                                            visible=False, zorder=6)
 
-        # Prediction line + X marker
-        self._pred_line, = ax.plot(
-            [], [], color=_AMBER, linewidth=1.2, linestyle="--", alpha=0.85, zorder=5,
-        )
-        self._pred_dot, = ax.plot([], [], "x", color=_AMBER, markersize=12, mew=2, zorder=6)
+        # Prediction line + cross marker
+        self._pred_line, = ax.plot([], [], color=_AMBER, linewidth=1.2,
+                                    linestyle="--", alpha=0.85, zorder=5)
+        self._pred_dot,  = ax.plot([], [], "x", color=_AMBER, markersize=12, mew=2, zorder=6)
 
-        # Status box (top-right)
+        # Status box (top-right corner)
         self._status_text = ax.text(
-            22, 22, "STATUS: CLEAR",
-            color=_GREEN, fontsize=11, ha="right", va="top",
+            self._view * 0.97, self._view * 0.97, "STATUS: STANDBY",
+            color=_GREEN, fontsize=10, ha="right", va="top",
             fontweight="bold", fontfamily="monospace", zorder=7,
-            bbox=dict(
-                facecolor=_STATUS_BG["CLEAR"], alpha=0.92,
-                edgecolor=_GREEN, pad=5,
-            ),
+            bbox=dict(facecolor=_STATUS_BG["CLEAR"], alpha=0.92,
+                      edgecolor=_GREEN, pad=5),
         )
 
         # Paused overlay
         self._paused_text = ax.text(
             0, 0, "── PAUSED ──",
             color=_AMBER, fontsize=17, ha="center", va="center",
-            fontweight="bold", fontfamily="monospace", zorder=8,
+            fontweight="bold", fontfamily="monospace", zorder=9,
             bbox=dict(facecolor="black", alpha=0.75, edgecolor=_AMBER),
+            visible=False,
+        )
+
+        # Debrief overlay — shown after mission ends
+        self._debrief_text = ax.text(
+            0, 0, "",
+            color=_GREEN, fontsize=11, ha="center", va="center",
+            fontweight="bold", fontfamily="monospace", linespacing=1.6,
+            zorder=10,
+            bbox=dict(facecolor=(0.02, 0.08, 0.03), alpha=0.96,
+                      edgecolor=_GREEN, pad=14, boxstyle="round,pad=0.6"),
             visible=False,
         )
 
         # ── Side view ──────────────────────────────────────────────────
         ax = self._ax_side
-        theta = np.linspace(0, math.pi, 60)
+        theta = np.linspace(0, math.pi, 80)
         self._dome_arc,  = ax.plot(
-            self._dome_radius * np.cos(theta),
-            self._dome_radius * np.sin(theta),
-            color=_GREEN, linewidth=2, alpha=0.8,
-        )
+            R * np.cos(theta), R * np.sin(theta),
+            color=_GREEN, linewidth=2, alpha=0.8)
         self._dome_base, = ax.plot(
-            [-self._dome_radius, self._dome_radius], [0, 0],
-            color=_GREEN, linewidth=2, alpha=0.8,
-        )
+            [-R, R], [0, 0], color=_GREEN, linewidth=2, alpha=0.8)
 
         self._intruder_trail_s,  = ax.plot([], [], color="#cc1100", alpha=0.55, linewidth=1.5)
-        self._intruder_dot_s,    = ax.plot([], [], "D", color=_RED, markersize=11)
+        self._intruder_dot_s,    = ax.plot([], [], "D", color=_RED, markersize=10)
         self._intruder_label_s   = ax.text(0, 0, "", color=_RED,
                                             fontsize=7, fontfamily="monospace", visible=False)
 
         self._intercept_trail_s, = ax.plot([], [], color="#009999", alpha=0.55, linewidth=1.5)
-        self._intercept_dot_s,   = ax.plot([], [], "^", color=_CYAN, markersize=12)
+        self._intercept_dot_s,   = ax.plot([], [], "^", color=_CYAN, markersize=11)
         self._intercept_label_s  = ax.text(0, 0, "", color=_CYAN,
                                             fontsize=7, fontfamily="monospace", visible=False)
 
-        # Info text (military monospace)
         self._info_text = ax.text(
             0.02, 0.98, "",
             transform=ax.transAxes,
@@ -396,24 +439,60 @@ class Dashboard:
             bbox=dict(facecolor=_RADAR_BG, alpha=0.90, edgecolor="#334433", pad=5),
         )
 
-    # ──────────────────────────────────────────────────────────────────
+    # ── State update ────────────────────────────────────────────────────
+    def _clear_trails(self):
+        self._intruder_trail.clear()
+        self._interceptor_trail.clear()
+        self._intruder_alt_trail.clear()
+        self._interceptor_alt_trail.clear()
+        self._event_log.clear()
+
+    def _reset_buttons(self):
+        """Re-arm all control buttons to their default colours."""
+        self._ctrl.stopped = False
+        self._ctrl.restart = False
+        self._btn_abort.label.set_text("◼  ABORT")
+        self._btn_abort.ax.set_facecolor((0.18, 0.04, 0.04))
+        self._btn_reset.ax.set_facecolor((0.10, 0.08, 0.02))
+        self._btn_pause.label.set_text("|| PAUSE")
+        self._btn_pause.ax.set_facecolor((0.05, 0.14, 0.05))
+        self._ctrl.paused = False
+        # Re-arm scenario buttons
+        for btn in self._mission_btns.values():
+            btn.ax.set_facecolor((0.03, 0.12, 0.05))
+
     def update(self, sim_state: dict):
-        # Handle mission reset / menu signal — clear trails only
-        if sim_state.get("type") in ("reset", "show_menu"):
-            self._intruder_trail.clear()
-            self._interceptor_trail.clear()
-            self._intruder_alt_trail.clear()
-            self._interceptor_alt_trail.clear()
-            self._event_log.clear()
-            # Re-arm mission buttons (undo green flash)
-            for btn in self._mission_btns.values():
-                btn.ax.set_facecolor((0.04, 0.14, 0.06))
+        msg_type = sim_state.get("type")
+
+        # ── Mission start: clear everything and re-arm buttons ─────────
+        if msg_type == "mission_start":
+            self._clear_trails()
+            self._debrief_text.set_visible(False)
+            self._reset_buttons()
             try:
                 self._fig.canvas.draw_idle()
             except Exception:
                 pass
             return
 
+        # ── Show menu / reset after mission: clear trails, hide debrief ─
+        if msg_type in ("reset", "show_menu"):
+            self._clear_trails()
+            self._debrief_text.set_visible(False)
+            for btn in self._mission_btns.values():
+                btn.ax.set_facecolor((0.03, 0.12, 0.05))
+            try:
+                self._fig.canvas.draw_idle()
+            except Exception:
+                pass
+            return
+
+        # ── Debrief: show result overlay ───────────────────────────────
+        if msg_type == "debrief":
+            self._show_debrief(sim_state)
+            return
+
+        # ── Throttle normal updates to ~5 Hz ──────────────────────────
         now = time.time()
         if now - self._last_draw < 0.20:
             return
@@ -442,101 +521,96 @@ class Dashboard:
 
         for ev in events:
             ts = time.strftime("%H:%M:%S")
-            if "detect" in ev.lower() or "radar" in ev.lower() or "launch" in ev.lower():
-                self._event_log.append(f"[{ts}] + {ev}")
-            elif "breach" in ev.lower():
-                self._event_log.append(f"[{ts}] ! {ev}")
-            else:
-                self._event_log.append(f"[{ts}]   {ev}")
+            prefix = "+ " if any(w in ev.lower() for w in ("detect", "radar", "launch")) \
+                     else "! " if "breach" in ev.lower() else "  "
+            self._event_log.append(f"[{ts}] {prefix}{ev}")
         self._event_log = self._event_log[-6:]
 
         dome_fg = _STATUS_FG.get(status, _GREEN)
         dome_bg = _STATUS_BG.get(status, _STATUS_BG["CLEAR"])
 
-        # ── Dome colour ────────────────────────────────────────────────
         self._dome_circle.set_color(dome_fg)
         self._dome_arc.set_color(dome_fg)
         self._dome_base.set_color(dome_fg)
 
-        # ── Phosphor sweep ────────────────────────────────────────────
-        self._radar_angle = (self._radar_angle + 18) % 360
-        rs = sim_state.get("radar_station", [0, -self._dome_radius, 3])
+        # Phosphor sweep
+        self._radar_angle = (self._radar_angle + 15) % 360
+        rs = sim_state.get("radar_station", [0, -self._dome_radius, 10])
+        sweep_len = self._view * 1.02
         for i, fan in enumerate(self._sweep_fans):
-            angle = (self._radar_angle - i * 12) % 360
+            angle = (self._radar_angle - i * 10) % 360
             rad   = math.radians(angle)
             fan.set_data(
-                [rs[0], rs[0] + 22 * math.cos(rad)],
-                [rs[1], rs[1] + 22 * math.sin(rad)],
+                [rs[0], rs[0] + sweep_len * math.cos(rad)],
+                [rs[1], rs[1] + sweep_len * math.sin(rad)],
             )
-
         self._radar_marker.set_data([rs[0]], [rs[1]])
-        self._radar_label.set_position((rs[0] + 0.5, rs[1] + 0.5))
+        self._radar_label.set_position((rs[0] + self._dome_radius * 0.05,
+                                        rs[1] + self._dome_radius * 0.05))
         self._radar_label.set_visible(True)
 
-        # ── Intruder (radar view) ──────────────────────────────────────
+        # Intruder
         if intruder_pos:
             self._intruder_trail.append(intruder_pos[:2])
-            self._intruder_trail = self._intruder_trail[-50:]
+            self._intruder_trail = self._intruder_trail[-60:]
             self._intruder_trail_r.set_data(
                 [p[0] for p in self._intruder_trail],
-                [p[1] for p in self._intruder_trail],
-            )
+                [p[1] for p in self._intruder_trail])
             self._intruder_dot_r.set_data([intruder_pos[0]], [intruder_pos[1]])
-            self._intruder_label_r.set_position((intruder_pos[0] + 0.6, intruder_pos[1] + 0.6))
+            off = self._dome_radius * 0.04
+            self._intruder_label_r.set_position((intruder_pos[0] + off, intruder_pos[1] + off))
             self._intruder_label_r.set_visible(True)
         else:
             self._intruder_trail_r.set_data([], [])
             self._intruder_dot_r.set_data([], [])
             self._intruder_label_r.set_visible(False)
 
-        # ── Interceptor (radar view) ───────────────────────────────────
+        # Interceptor
         if interceptor_pos:
             self._interceptor_trail.append(interceptor_pos[:2])
-            self._interceptor_trail = self._interceptor_trail[-50:]
+            self._interceptor_trail = self._interceptor_trail[-60:]
             self._intercept_trail_r.set_data(
                 [p[0] for p in self._interceptor_trail],
-                [p[1] for p in self._interceptor_trail],
-            )
+                [p[1] for p in self._interceptor_trail])
             self._intercept_dot_r.set_data([interceptor_pos[0]], [interceptor_pos[1]])
-            self._intercept_label_r.set_position((interceptor_pos[0] + 0.6, interceptor_pos[1] + 0.6))
+            off = self._dome_radius * 0.04
+            self._intercept_label_r.set_position((interceptor_pos[0] + off, interceptor_pos[1] + off))
             self._intercept_label_r.set_visible(True)
         else:
             self._intercept_trail_r.set_data([], [])
             self._intercept_dot_r.set_data([], [])
             self._intercept_label_r.set_visible(False)
 
-        # ── Prediction line (interceptor → current target) ─────────────
+        # Prediction line
         if interceptor_pos and predicted_ic:
             self._pred_line.set_data(
                 [interceptor_pos[0], predicted_ic[0]],
-                [interceptor_pos[1], predicted_ic[1]],
-            )
+                [interceptor_pos[1], predicted_ic[1]])
             self._pred_dot.set_data([predicted_ic[0]], [predicted_ic[1]])
         else:
             self._pred_line.set_data([], [])
             self._pred_dot.set_data([], [])
 
-        # ── Status box ────────────────────────────────────────────────
+        # Status box
         self._status_text.set_text(f"STATUS: {status}")
         self._status_text.set_color(dome_fg)
         bb = self._status_text.get_bbox_patch()
         bb.set_facecolor(dome_bg)
         bb.set_edgecolor(dome_fg)
 
-        # ── Paused overlay ────────────────────────────────────────────
         self._paused_text.set_visible(bool(self._ctrl and self._ctrl.paused))
 
-        # ── Side view ─────────────────────────────────────────────────
+        # Side / altitude view
         if intruder_pos:
             self._intruder_alt_trail.append((intruder_pos[0], intruder_pos[2]))
-            self._intruder_alt_trail = self._intruder_alt_trail[-50:]
+            self._intruder_alt_trail = self._intruder_alt_trail[-60:]
             self._intruder_trail_s.set_data(
                 [p[0] for p in self._intruder_alt_trail],
-                [p[1] for p in self._intruder_alt_trail],
-            )
+                [p[1] for p in self._intruder_alt_trail])
             self._intruder_dot_s.set_data([intruder_pos[0]], [intruder_pos[2]])
-            self._intruder_label_s.set_text(f"INTR\n{intruder_pos[2]:.1f}m")
-            self._intruder_label_s.set_position((intruder_pos[0] + 0.3, intruder_pos[2] + 0.3))
+            self._intruder_label_s.set_text(f"INTR {intruder_pos[2]:.0f}m")
+            off = self._dome_radius * 0.03
+            self._intruder_label_s.set_position((intruder_pos[0] + off, intruder_pos[2] + off))
             self._intruder_label_s.set_visible(True)
         else:
             self._intruder_trail_s.set_data([], [])
@@ -545,61 +619,110 @@ class Dashboard:
 
         if interceptor_pos:
             self._interceptor_alt_trail.append((interceptor_pos[0], interceptor_pos[2]))
-            self._interceptor_alt_trail = self._interceptor_alt_trail[-50:]
+            self._interceptor_alt_trail = self._interceptor_alt_trail[-60:]
             self._intercept_trail_s.set_data(
                 [p[0] for p in self._interceptor_alt_trail],
-                [p[1] for p in self._interceptor_alt_trail],
-            )
+                [p[1] for p in self._interceptor_alt_trail])
             self._intercept_dot_s.set_data([interceptor_pos[0]], [interceptor_pos[2]])
-            self._intercept_label_s.set_text(f"INT\n{interceptor_pos[2]:.1f}m")
-            self._intercept_label_s.set_position((interceptor_pos[0] + 0.3, interceptor_pos[2] + 0.3))
+            self._intercept_label_s.set_text(f"INT {interceptor_pos[2]:.0f}m")
+            off = self._dome_radius * 0.03
+            self._intercept_label_s.set_position((interceptor_pos[0] + off, interceptor_pos[2] + off))
             self._intercept_label_s.set_visible(True)
         else:
             self._intercept_trail_s.set_data([], [])
             self._intercept_dot_s.set_data([], [])
             self._intercept_label_s.set_visible(False)
 
-        # ── Info text ─────────────────────────────────────────────────
-        lines = []
-        sim_time  = sim_state.get("mission_time", 0.0)
-        sim_speed = sim_state.get("sim_speed", 1.0)
+        # Info text (altitude panel)
+        lines      = []
+        sim_time   = sim_state.get("mission_time", 0.0)
+        sim_speed  = sim_state.get("sim_speed", 1.0)
 
         if intruder_pos:
             dist  = math.sqrt(sum(v**2 for v in intruder_pos))
             speed = sim_state.get("intruder_speed", 0.0)
-            lines.append(f"INTRUDER  rng:{dist:.1f}m alt:{intruder_pos[2]:.1f}m  {speed:.1f}m/s")
+            lines.append(f"INTRUDER  rng:{dist:.0f}m alt:{intruder_pos[2]:.0f}m  {speed:.0f}m/s")
 
         if interceptor_pos and intruder_pos:
             sep  = math.sqrt(sum((interceptor_pos[i] - intruder_pos[i])**2 for i in range(3)))
             tti  = sim_state.get("tti", float("inf"))
             ispd = sim_state.get("interceptor_speed", 0.0)
             tti_s = f"{tti:.1f}s" if tti < 999 else "---"
-            lines.append(f"INTERCEPT sep:{sep:.1f}m  TTI:{tti_s}  {ispd:.1f}m/s")
+            lines.append(f"INTERCEPT sep:{sep:.0f}m  TTI:{tti_s}  {ispd:.0f}m/s")
 
         if radar_return.get("detected"):
             conf = sim_state.get("track_confidence", 0.0)
             lines.append(f"RADAR  conf:{conf*100:.0f}%  snr:{radar_return.get('snr',0):.1f}dB")
 
-        # Threat level bar
         if intruder_pos:
-            threat = max(0.0, 1.0 - math.sqrt(sum(v**2 for v in intruder_pos)) / (2 * self._dome_radius))
+            threat = max(0.0, 1.0 - math.sqrt(sum(v**2 for v in intruder_pos))
+                         / (2 * self._dome_radius))
             filled = int(threat * 20)
             bar    = "█" * filled + "░" * (20 - filled)
             lines.append(f"THREAT [{bar}] {threat*100:.0f}%")
 
-        # Mission time bar
-        MAX_TIME = 120.0
-        t_frac = min(1.0, sim_time / MAX_TIME)
-        t_fill = int(t_frac * 20)
+        MAX_TIME = 240.0
+        t_fill = int(min(1.0, sim_time / MAX_TIME) * 20)
         t_bar  = "█" * t_fill + "░" * (20 - t_fill)
-        spd_str = f"{sim_speed:.2g}x"
-        lines.append(f"TIME  [{t_bar}] {sim_time:.0f}s  {spd_str}")
+        lines.append(f"TIME  [{t_bar}] {sim_time:.0f}s  {sim_speed:.2g}×")
 
         if self._event_log:
             lines.append("")
             lines += self._event_log
 
         self._info_text.set_text("\n".join(lines))
+
+        try:
+            self._fig.canvas.draw_idle()
+            self._fig.canvas.flush_events()
+        except Exception:
+            pass
+
+    def _show_debrief(self, state: dict):
+        result   = state.get("result", "---")
+        sim_time = state.get("sim_time", 0.0)
+        closest  = state.get("closest_approach", float("inf"))
+
+        _result_col = {
+            "INTERCEPTED": _GREEN,
+            "FAILURE":     _RED,
+            "TIMEOUT":     _AMBER,
+            "ABORTED":     "#888888",
+        }
+        _result_icon = {
+            "INTERCEPTED": "★  INTERCEPTED  ★",
+            "FAILURE":     "✗  BREACH — FAILURE  ✗",
+            "TIMEOUT":     "⏱  TIME EXPIRED  ⏱",
+            "ABORTED":     "■  MISSION ABORTED  ■",
+        }
+        col  = _result_col.get(result, "white")
+        icon = _result_icon.get(result, f"■  {result}  ■")
+
+        lines = [icon, ""]
+        lines.append(f"Duration:      {sim_time:.0f} s")
+        if closest < 9999:
+            lines.append(f"Closest appr:  {closest:.1f} m")
+        lines += [
+            "",
+            "─" * 30,
+            "Click a scenario to continue",
+            "■ STANDARD   ► FAST LOW   ◎ SPIRAL",
+        ]
+
+        self._debrief_text.set_text("\n".join(lines))
+        self._debrief_text.set_color(col)
+        bb = self._debrief_text.get_bbox_patch()
+        bb.set_edgecolor(col)
+        self._debrief_text.set_visible(True)
+
+        # Update title to reflect result
+        try:
+            self._fig.suptitle(
+                f"ANTI-DRONE DEFENSE SYSTEM  |  {result}",
+                color=col, fontsize=13, fontweight="bold", fontfamily="monospace",
+            )
+        except Exception:
+            pass
 
         try:
             self._fig.canvas.draw_idle()

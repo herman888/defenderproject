@@ -443,13 +443,13 @@ class LoiteringMunition:
         lift  = 0.5 * _RHO * _CL * _A_W * v_fwd * v_fwd
         fz   += lift
 
-        # Cap forces
+        # Cap forces (scaled for 200 m dome / 50-90 m/s flight)
         h_mag = math.sqrt(fx*fx + fy*fy)
-        MAX_H = 22.0
+        MAX_H = 160.0
         if h_mag > MAX_H:
             fx = fx / h_mag * MAX_H
             fy = fy / h_mag * MAX_H
-        fz = max(-18.0, min(28.0, fz))
+        fz = max(-60.0, min(90.0, fz))
 
         # Speed cap via velocity clamp
         if speed > self._max_spd:
@@ -464,8 +464,8 @@ class LoiteringMunition:
         return fx, fy, fz
 
     def _spin_rotors(self, fwd_speed: float):
-        # Rotor RPM proportional to forward speed (min 15, max 40 rad/s)
-        rpm = max(15.0, min(40.0, 15.0 + fwd_speed * 2.0))
+        # Rotor RPM proportional to forward speed
+        rpm = max(15.0, min(80.0, 15.0 + fwd_speed * 0.8))
         for i, joint in enumerate(self._rotor_joints):
             pybullet.setJointMotorControl2(
                 self._body, joint, pybullet.VELOCITY_CONTROL,

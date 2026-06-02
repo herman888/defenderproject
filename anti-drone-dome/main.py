@@ -1,5 +1,5 @@
 """
-Anti-Drone Dome Simulation — V2 main entry point.
+Anti-Drone Dome Simulation — V3 main entry point.
 
 Architecture
 ────────────
@@ -9,27 +9,27 @@ IPC                        : multiprocessing.Queue
 
 Mission loop
 ────────────
-  main()  ──►  console menu  ──►  _run_one_mission()
-                                       │
-                                       ▼
-                                   physics loop
-                                   keyboard events
-                                       │
-                                       ▼
-                               return mission_result
-                                       │
-                                       ▼
-                               _show_debrief()  ──►  R / M / Q
+  main()  ──►  _wait_for_mission()  ←─── dashboard mission-select buttons
+                       │
+                       ▼
+               _run_one_mission()
+                       │
+                       ▼
+               dashboard debrief overlay  ←─── click scenario to continue
 
-Keyboard controls (PyBullet window focus required)
-───────────────────────────────────────────────────
+All mission selection, speed choice, pad-distance selection, pause/reset/abort,
+and post-mission debrief are handled entirely in the dashboard window.
+No blocking console prompts.
+
+Keyboard controls (PyBullet 3-D window focus required)
+──────────────────────────────────────────────────────
   SPACE   Pause / resume
   R       Restart same scenario
-  1-6     Sim speed  0.25× / 0.5× / 1× / 2× / 4× / 8×
+  1–6     Sim speed  0.25× / 0.5× / 1× / 2× / 4× / 8×
   C       Cycle camera modes
   I       Toggle intruder 3-D trail
   H       Print help to console
-  Q       Quit to menu
+  Q       Return to mission select
 
 Run:  python main.py
 """
@@ -51,25 +51,27 @@ from sensors.radar  import RadarNode
 from comms.datalink import DataLink
 from guidance.intercept import PurePursuitGuidance
 from dome.killzone  import DomeKillZone
-from scenarios      import SCENARIOS, get_waypoints_for_path
+from scenarios      import SCENARIOS, PAD_OFFSETS, get_waypoints_for_path
 
 # ── Global constants ──────────────────────────────────────────────────
 _TIMESTEP     = 1.0 / 240.0
-_MAX_SIM_TIME = 120.0
+_MAX_SIM_TIME = 240.0          # 4-minute max mission
 _DOME_CENTER  = (0.0, 0.0, 0.0)
-_DOME_RADIUS  = 10.0
-_LOG_INTERVAL = 48          # console log every 0.2 s sim time
-_RADAR_RPM    = 20.0
+_DOME_RADIUS  = 200.0          # metres — realistic engagement range
+_LOG_INTERVAL = 240            # console log every ~1 s sim time
+_RADAR_RPM    = 12.0
 _RADAR_OMEGA  = _RADAR_RPM / 60.0 * 2 * math.pi   # rad/s
 
 _SPEED_MAP = {49: 0.25, 50: 0.5, 51: 1.0, 52: 2.0, 53: 4.0, 54: 8.0}
 # ASCII codes: 1=49, 2=50, 3=51, 4=52, 5=53, 6=54
 
+_R = _DOME_RADIUS   # shorthand for position calculations below
+
 _CAM_PRESETS = [
-    dict(distance=28, yaw=225, pitch=-35, target=[3,3,3]),   # 0 overview
-    None,                                                     # 1 chase intruder
-    None,                                                     # 2 chase interceptor
-    dict(distance=32, yaw=0, pitch=-89, target=[0,0,0]),     # 3 top-down
+    dict(distance=_R * 5,   yaw=225, pitch=-32, target=[0, 0, _R * 0.2]),  # 0 overview
+    None,                                                                    # 1 chase intruder
+    None,                                                                    # 2 chase interceptor
+    dict(distance=_R * 5.5, yaw=0,   pitch=-89, target=[0, 0, 0]),         # 3 top-down
 ]
 
 
@@ -114,12 +116,15 @@ def _dashboard_worker(state_q: mp.Queue, ctrl_q: mp.Queue, dome_radius: float):
             ctrl_msg = {
                 "paused" : ctrl.paused,
                 "stopped": ctrl.stopped,
-                "speed"  : ctrl.speed,
             }
+            if ctrl.restart:
+                ctrl_msg["restart"] = True
+                ctrl.restart = False           # consume once
             if ctrl.selected_mission is not None:
                 ctrl_msg["selected_mission"] = ctrl.selected_mission
                 ctrl_msg["initial_speed"]    = ctrl.selected_speed
-                ctrl.selected_mission = None   # consume — send only once
+                ctrl_msg["selected_pad"]     = ctrl.selected_pad
+                ctrl.selected_mission = None   # consume once
             ctrl_q.put_nowait(ctrl_msg)
         except Exception:
             pass
@@ -221,31 +226,36 @@ def _print_help():
 # ======================================================================
 
 def _run_one_mission(
-    state_q:  mp.Queue,
-    ctrl_q:   mp.Queue,
-    scenario_key: str = "standard",
+    state_q:      mp.Queue,
+    ctrl_q:       mp.Queue,
+    scenario_key: str   = "standard",
     initial_speed: float = 1.0,
+    pad_key:      str   = "mid",
 ) -> dict:
     """
-    Run one complete mission.  Returns a dict describing the result.
-    Mission ends when one of these conditions is met:
-      INTERCEPTED — interceptor closed to <5 m of intruder
+    Run one complete mission.  Returns a result dict.
+    Termination conditions:
+      INTERCEPTED — interceptor closed within intercept_radius of intruder
       FAILURE     — intruder reached dome centre unchallenged
-      TIMEOUT     — 120 s sim time elapsed
-      RESTART     — player pressed R
-      QUIT        — player pressed Q
-      ABORTED     — PyBullet window closed externally
+      TIMEOUT     — _MAX_SIM_TIME sim seconds elapsed
+      RESTART     — R key or dashboard RESET button
+      QUIT        — Q key
+      ABORTED     — dashboard ABORT / PyBullet window closed
     """
-    scenario = SCENARIOS[scenario_key]
+    scenario   = SCENARIOS[scenario_key]
+    pad_offset = PAD_OFFSETS.get(pad_key, PAD_OFFSETS["mid"])
+    int_start  = (0.0, -(_DOME_RADIUS + pad_offset), 5.0)
 
     sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, "reconfigure") else None
-    print("=" * 62)
+    print("=" * 66)
     print(f"  MISSION  ▶  {scenario_key.upper()}  —  {scenario['description']}")
-    print("=" * 62)
+    print(f"  PAD: {pad_key.upper()} ({_DOME_RADIUS + pad_offset:.0f} m south)  "
+          f"SPEED: {initial_speed}×")
+    print("=" * 66)
 
-    # ── Tell dashboard to clear previous mission data ─────────────────
+    # Signal dashboard: new mission starting — clear trails, re-arm buttons
     try:
-        state_q.put_nowait({"type": "reset"})
+        state_q.put_nowait({"type": "mission_start"})
     except Exception:
         pass
 
@@ -253,7 +263,7 @@ def _run_one_mission(
     world = PhysicsWorld(gui=True)
     world.draw_dome(_DOME_CENTER, _DOME_RADIUS, color=[0, 1, 0])
 
-    # Radar station
+    # Radar station (10 m mast at south dome perimeter)
     radar_body, spin_joint = _load_radar_station(_DOME_RADIUS, world.client)
     if spin_joint >= 0:
         pybullet.setJointMotorControl2(
@@ -263,16 +273,18 @@ def _run_one_mission(
             physicsClientId=world.client,
         )
     pybullet.addUserDebugText(
-        "RADAR STATION", [0, -_DOME_RADIUS, 4.2],
+        "RADAR STATION",
+        [0, -_DOME_RADIUS, _DOME_RADIUS * 0.12],
         [0.2, 1.0, 0.2], textSize=1.2, physicsClientId=world.client,
     )
 
-    # ── HUD text IDs ─────────────────────────────────────────────────
-    _hud_status  = pybullet.addUserDebugText("STATUS: CLEAR",   [-14,-14,12], [0,1,0],   textSize=2.0, physicsClientId=world.client)
-    _hud_intrudr = pybullet.addUserDebugText("INTRUDER: ---",   [-14,-14,10], [1,0.3,0], textSize=1.5, physicsClientId=world.client)
-    _hud_intercp = pybullet.addUserDebugText("INTERCEPTOR: ---",[-14,-14, 8], [0,0.8,1], textSize=1.5, physicsClientId=world.client)
-    _hud_sep     = pybullet.addUserDebugText("SEP: ---",        [-14,-14, 6], [1,1,0],   textSize=1.5, physicsClientId=world.client)
-    _hud_speed   = pybullet.addUserDebugText("SPEED: 1x",       [-14,-14, 4], [1,1,0],   textSize=1.3, physicsClientId=world.client)
+    # ── PyBullet HUD text IDs (positions scaled to dome size) ─────────
+    _hx, _hy = -_DOME_RADIUS * 1.4, -_DOME_RADIUS * 1.4
+    _hud_status  = pybullet.addUserDebugText("STATUS: CLEAR",    [_hx, _hy, _DOME_RADIUS*0.65], [0,1,0],   textSize=2.0, physicsClientId=world.client)
+    _hud_intrudr = pybullet.addUserDebugText("INTRUDER: ---",    [_hx, _hy, _DOME_RADIUS*0.55], [1,0.3,0], textSize=1.5, physicsClientId=world.client)
+    _hud_intercp = pybullet.addUserDebugText("INTERCEPTOR: ---", [_hx, _hy, _DOME_RADIUS*0.45], [0,0.8,1], textSize=1.5, physicsClientId=world.client)
+    _hud_sep     = pybullet.addUserDebugText("SEP: ---",         [_hx, _hy, _DOME_RADIUS*0.35], [1,1,0],   textSize=1.5, physicsClientId=world.client)
+    _hud_speed   = pybullet.addUserDebugText("SPEED: 1×",        [_hx, _hy, _DOME_RADIUS*0.25], [1,1,0],   textSize=1.3, physicsClientId=world.client)
 
     # ── Interceptor URDF path ─────────────────────────────────────────
     _int_urdf = os.path.normpath(
@@ -280,8 +292,7 @@ def _run_one_mission(
     )
 
     # ── Drones ───────────────────────────────────────────────────────
-    i_start  = scenario["intruder_start"]
-    int_start = scenario["interceptor_start"]
+    i_start = scenario["intruder_start"]
 
     intruder = LoiteringMunition(
         "intruder", i_start, world.client,
@@ -290,8 +301,8 @@ def _run_one_mission(
     interceptor = Drone(
         "interceptor", int_start, world.client,
         color="blue",
-        max_h_force=70.0, max_v_force=70.0, max_speed=50.0,
-        kp=20.0, kd=8.0,
+        max_h_force=280.0, max_v_force=280.0, max_speed=150.0,
+        kp=5.0, kd=2.5,
         urdf=_int_urdf if os.path.isfile(_int_urdf) else None,
         global_scaling=3.0,
     )
@@ -304,12 +315,12 @@ def _run_one_mission(
     waypoints = get_waypoints_for_path(scenario["intruder_path"])
     nav     = WaypointNavigator(waypoints=waypoints)
     radar   = RadarNode(
-        station_pos      = (0.0, -_DOME_RADIUS, 3.0),
+        station_pos      = (0.0, -_DOME_RADIUS, 10.0),   # 10 m mast
         protected_center = _DOME_CENTER,
-        max_range        = 38.0,
-        elev_max_deg     = 60.0,
-        min_vel          = 0.5,
-        noise_std        = 0.15,
+        max_range        = 1500.0,
+        elev_max_deg     = 75.0,
+        min_vel          = 1.5,
+        noise_std        = 0.4,
     )
     broadcaster = DataLink(role="broadcast", port=14550)
     guidance    = PurePursuitGuidance()
@@ -371,6 +382,11 @@ def _run_one_mission(
 
         if dash_ctrl.get("stopped"):
             mission_result = "ABORTED"
+            break
+
+        if dash_ctrl.get("restart"):
+            dash_ctrl["restart"] = False
+            mission_result = "RESTART"
             break
 
         # ── Keyboard events ───────────────────────────────────────────
@@ -496,7 +512,7 @@ def _run_one_mission(
             intruder_position    = i_pos,
             intruder_detected    = radar_return.get("detected", False),
             interceptor_position = int_pos,
-            intercept_radius     = 5.0,
+            intercept_radius     = 12.0,   # scaled for 200 m dome
         )
         status = dome.get_status()
 
@@ -722,148 +738,28 @@ def _run_one_mission(
 
 
 # ======================================================================
-# Console menu + debrief
+# Controls banner (console only — all UX is in the dashboard)
 # ======================================================================
 
 def _print_controls():
     print("""
 ╔══════════════════════════════════════════════════════════╗
-║            ANTI-DRONE DOME  —  CONTROLS                 ║
+║         ANTI-DRONE DOME  V3  —  KEYBOARD CONTROLS       ║
 ╠══════════════════════════════════════════════════════════╣
-║  KEYBOARD  (click the PyBullet 3-D window first)        ║
+║  PyBullet 3-D window must have focus for keys to work   ║
 ╠══════════════════════════════════════════════════════════╣
-║  SPACE     Pause / resume simulation                    ║
-║  R         Restart same scenario from beginning         ║
-║  1         Sim speed  0.25×  (slow-motion)              ║
-║  2         Sim speed  0.5×                              ║
-║  3         Sim speed  1×     (real-time)                ║
-║  4         Sim speed  2×                                ║
-║  5         Sim speed  4×                                ║
-║  6         Sim speed  8×     (fast-forward)             ║
-║  C         Cycle camera: overview / intruder /          ║
-║             interceptor / top-down                      ║
-║  I         Toggle intruder 3-D trail on / off           ║
-║  H         Print this help again in console             ║
-║  Q         Quit to main menu                            ║
+║  SPACE   Pause / resume                                 ║
+║  R       Restart same scenario                          ║
+║  1–6     Sim speed  0.25× / 0.5× / 1× / 2× / 4× / 8×  ║
+║  C       Cycle camera  (overview/chase/top-down)        ║
+║  I       Toggle 3-D trail                               ║
+║  H       Print this help                                ║
+║  Q       Return to mission select                       ║
 ╠══════════════════════════════════════════════════════════╣
-║  DASHBOARD window (matplotlib)                          ║
-╠══════════════════════════════════════════════════════════╣
-║  || PAUSE  Pause / resume                               ║
-║  [] STOP   Abort mission                                ║
-║  >> SPEED  Cycle dashboard speed display                ║
+║  All mission select, pad, speed, pause, reset, abort    ║
+║  and debrief are handled in the DASHBOARD window.       ║
 ╚══════════════════════════════════════════════════════════╝
 """)
-
-
-_SPEED_OPTIONS = [
-    (0.25, "0.25×  slow-motion — every detail visible"),
-    (0.5,  "0.5×   half speed"),
-    (1.0,  "1×     real-time"),
-    (2.0,  "2×     double speed"),
-    (4.0,  "4×     fast (recommended for testing)"),
-    (8.0,  "8×     maximum speed"),
-]
-
-
-def _ask_speed() -> float:
-    """Ask player for initial sim speed; return the chosen multiplier."""
-    print()
-    print("╔══════════════════════════════════════════════════════════╗")
-    print("║              SELECT SIMULATION SPEED                    ║")
-    print("╠══════════════════════════════════════════════════════════╣")
-    for idx, (mult, desc) in enumerate(_SPEED_OPTIONS, start=1):
-        marker = "◄ default" if mult == 1.0 else ""
-        print(f"║  [{idx}]  {desc:<44s}{marker:<9s}║")
-    print("╚══════════════════════════════════════════════════════════╝")
-    print()
-    while True:
-        try:
-            raw = input("Speed [1–6, Enter=1×]: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            return 1.0
-        if raw == "":
-            return 1.0
-        try:
-            n = int(raw)
-            if 1 <= n <= len(_SPEED_OPTIONS):
-                chosen = _SPEED_OPTIONS[n - 1][0]
-                print(f"  → Starting at {_SPEED_OPTIONS[n-1][1].split()[0]} speed.\n")
-                return chosen
-        except ValueError:
-            pass
-        print("  Enter a number 1–6 or press Enter for default.")
-
-
-def _show_menu() -> str:
-    """Print menu, return selected scenario key or 'quit'."""
-    items = list(SCENARIOS.items())
-    print()
-    print("╔══════════════════════════════════════════════════════════╗")
-    print("║       ANTI-DRONE DOME  —  MISSION SELECT                ║")
-    print("╠══════════════════════════════════════════════════════════╣")
-    for idx, (key, sc) in enumerate(items, start=1):
-        print(f"║  [{idx}]  {sc['description']:<50s}║")
-    print("╠══════════════════════════════════════════════════════════╣")
-    print("║  [Q]  Quit                                              ║")
-    print("╚══════════════════════════════════════════════════════════╝")
-    print()
-    while True:
-        try:
-            raw = input("Select [1–3 / Q]: ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            return "quit"
-        if raw == "q":
-            return "quit"
-        try:
-            n = int(raw)
-            if 1 <= n <= len(items):
-                return items[n - 1][0]
-        except ValueError:
-            pass
-        print("  Invalid choice. Try again.")
-
-
-def _show_debrief(result: dict) -> str:
-    """Print mission debrief, return 'r' / 'm' / 'q'."""
-    res   = result["result"]
-    total = result["sim_time"]
-    sim0  = result["sim_start"]
-
-    def _rel(t):
-        return f"T+{t - sim0:.1f}s" if t else "N/A"
-
-    print()
-    print("╔══════════════════════════════════════════════════════════╗")
-    print("║                   MISSION DEBRIEF                      ║")
-    print("╠══════════════════════════════════════════════════════════╣")
-    print(f"║  Result        :  {res:<39s}║")
-    print(f"║  Duration      :  {total:.1f} s{' '*(39-len(f'{total:.1f} s'))}║")
-    fdt = result.get("first_detection")
-    print(f"║  First detect  :  {_rel(fdt):<39s}║")
-    bt = result.get("breach_time")
-    print(f"║  Dome breach   :  {_rel(bt):<39s}║")
-    it = result.get("intercept_time")
-    if it and res == "INTERCEPTED":
-        print(f"║  Intercept     :  {_rel(it):<39s}║")
-    ca = result.get("closest_approach", float("inf"))
-    if ca < 999:
-        print(f"║  Closest appr  :  {ca:.1f} m{' '*(37-len(f'{ca:.1f} m'))}║")
-    mp_ = result.get("max_penetration", 0.0)
-    if mp_ > 0:
-        print(f"║  Max penetrat  :  {mp_:.1f} m{' '*(37-len(f'{mp_:.1f} m'))}║")
-    print("╠══════════════════════════════════════════════════════════╣")
-    print("║  [R] Run again   [M] Main menu   [Q] Quit              ║")
-    print("╚══════════════════════════════════════════════════════════╝")
-    print()
-
-    while True:
-        try:
-            raw = input("Choice [R/M/Q]: ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            return "q"
-        if raw in ("r", "m", "q"):
-            return raw
-        print("  Enter R, M, or Q.")
 
 
 # ======================================================================
@@ -872,44 +768,32 @@ def _show_debrief(result: dict) -> str:
 
 def _wait_for_mission(state_q: mp.Queue, ctrl_q: mp.Queue, dash_proc) -> tuple:
     """
-    Block until the dashboard sends a mission selection or the user quits.
-    Returns (scenario_key, initial_speed) or ('quit', 1.0).
+    Poll until the dashboard sends a mission selection.
+    Returns (scenario_key, initial_speed, pad_key) or ('quit', 1.0, 'mid').
     """
-    # Signal dashboard to clear radar and re-arm mission buttons
     try:
         state_q.put_nowait({"type": "show_menu"})
     except Exception:
         pass
 
-    print()
-    print("╔══════════════════════════════════════════════════════════╗")
-    print("║         SELECT A MISSION IN THE DASHBOARD WINDOW        ║")
-    print("║                                                          ║")
-    print("║   ■ STANDARD  — direct approach, standard conditions    ║")
-    print("║   ► FAST LOW  — high-speed low-altitude intruder        ║")
-    print("║   ◎ SPIRAL    — spiralling descent attack pattern       ║")
-    print("║                                                          ║")
-    print("║   Choose speed with the speed buttons, then click       ║")
-    print("║   a scenario to launch.  Press Ctrl+C to quit.          ║")
-    print("╚══════════════════════════════════════════════════════════╝")
-    print()
+    print("\n[SIM] Waiting for mission selection in the Dashboard window …")
 
     while True:
         if not dash_proc.is_alive():
-            print("[SIM] Dashboard window closed — quitting.")
-            return ("quit", 1.0)
+            print("[SIM] Dashboard closed — quitting.")
+            return ("quit", 1.0, "mid")
 
-        # Drain ctrl_q looking for a mission selection
         while True:
             try:
                 msg = ctrl_q.get_nowait()
             except Exception:
                 break
-            if msg.get("selected_mission"):
-                key   = msg["selected_mission"]
+            key = msg.get("selected_mission")
+            if key:
                 speed = float(msg.get("initial_speed", 1.0))
-                print(f"[SIM] Mission selected: {key.upper()}  speed={speed}×")
-                return (key, speed)
+                pad   = msg.get("selected_pad", "mid")
+                print(f"[SIM] ▶ {key.upper()}  pad={pad.upper()}  speed={speed}×")
+                return (key, speed, pad)
 
         time.sleep(0.10)
 
@@ -920,7 +804,6 @@ def main():
     state_q = mp.Queue(maxsize=2)
     ctrl_q  = mp.Queue(maxsize=20)
 
-    # Start dashboard process once — survives across missions
     dash_proc = mp.Process(
         target=_dashboard_worker,
         args=(state_q, ctrl_q, _DOME_RADIUS),
@@ -933,42 +816,52 @@ def main():
 
     current_scenario = None
     chosen_speed     = 1.0
+    chosen_pad       = "mid"
 
     try:
         while True:
             if current_scenario is None:
-                current_scenario, chosen_speed = _wait_for_mission(
+                current_scenario, chosen_speed, chosen_pad = _wait_for_mission(
                     state_q, ctrl_q, dash_proc
                 )
 
             if current_scenario == "quit":
                 break
 
-            result = _run_one_mission(state_q, ctrl_q, current_scenario,
-                                      initial_speed=chosen_speed)
-
+            result = _run_one_mission(
+                state_q, ctrl_q,
+                scenario_key  = current_scenario,
+                initial_speed = chosen_speed,
+                pad_key       = chosen_pad,
+            )
             mr = result["result"]
 
             if mr == "QUIT":
-                current_scenario = None   # Q in PyBullet → back to dashboard menu
+                current_scenario = None
                 continue
 
             if mr == "RESTART":
-                continue   # re-run same scenario
+                continue
 
             if mr == "ABORTED":
-                print("\n[SIM] Window closed — returning to mission select.")
                 current_scenario = None
                 continue
 
-            # Normal end — show debrief in console
-            choice = _show_debrief(result)
-            if choice == "q":
-                break
-            elif choice == "r":
-                continue        # re-run same scenario
-            else:               # 'm' — back to dashboard mission select
-                current_scenario = None
+            # Mission ended — send debrief to dashboard, then wait for next selection
+            try:
+                state_q.put_nowait({
+                    "type":             "debrief",
+                    "result":           mr,
+                    "sim_time":         result["sim_time"],
+                    "closest_approach": result.get("closest_approach", float("inf")),
+                    "scenario":         current_scenario,
+                })
+            except Exception:
+                pass
+
+            current_scenario, chosen_speed, chosen_pad = _wait_for_mission(
+                state_q, ctrl_q, dash_proc
+            )
 
     except KeyboardInterrupt:
         print("\n[SIM] Interrupted by user.")
