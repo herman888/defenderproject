@@ -147,6 +147,22 @@ ATTACK_PATTERNS = {
     },
 }
 
+# ── Swarm scenario data (multi-drone — logic TODO in main.py) ─────────────
+
+SWARM_SCENARIOS = {
+    "swarm_2": {
+        "description": "Dual FPV attack — simultaneous approach from NE and NW",
+        "intruder_type": "fpv_attack",
+        "pattern": "direct",
+        # TODO: implement multi-drone logic in main.py before enabling
+        "second_intruder": {
+            "type": "fpv_attack",
+            "start": (-550, 550, 120),
+            "pattern": "direct",
+        },
+    },
+}
+
 # ── Operator-selectable interceptor pad offsets (m south of dome edge) ────
 
 PAD_OFFSETS = {

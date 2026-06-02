@@ -1,6 +1,7 @@
 """
 PyBullet world setup: dark military ground, tactical grid, range rings,
 protected-asset markers, dome wireframe, performance flags.
+All dimensions scaled for a 200 m dome radius.
 """
 
 import math
@@ -9,10 +10,10 @@ import pybullet_data
 
 _TIMESTEP = 1.0 / 240.0
 
-# Grid params
-_GRID_HALF  = 30    # metres in each direction
-_GRID_STEP  = 10    # grid spacing (m) — fewer lines than 5 m for faster debug draw
-_GRID_MAJOR = 25    # thick lines every 25 m
+# Grid params — scaled for 200 m dome
+_GRID_HALF  = 800   # grid extends ±800 m
+_GRID_STEP  = 50    # minor grid spacing (m)
+_GRID_MAJOR = 200   # major grid every 200 m (matches dome boundary)
 
 
 class PhysicsWorld:
@@ -35,7 +36,6 @@ class PhysicsWorld:
         pybullet.setRealTimeSimulation(0, physicsClientId=self.client)
 
         if self._gui:
-            # Disable expensive rendering features for maximum throughput
             pybullet.configureDebugVisualizer(
                 pybullet.COV_ENABLE_SHADOWS, 0, physicsClientId=self.client
             )
@@ -46,19 +46,22 @@ class PhysicsWorld:
             pybullet.configureDebugVisualizer(
                 pybullet.COV_ENABLE_RGB_BUFFER_PREVIEW, 0, physicsClientId=self.client
             )
+            pybullet.configureDebugVisualizer(
+                pybullet.COV_ENABLE_TINY_RENDERER, 0, physicsClientId=self.client
+            )
 
-        # ── Custom dark ground (replaces checkerboard plane.urdf) ──────
+        # ── Dark military terrain — no checkerboard ────────────────────
         ground_col = pybullet.createCollisionShape(
-            pybullet.GEOM_BOX, halfExtents=[60, 60, 0.10],
+            pybullet.GEOM_BOX, halfExtents=[1500, 1500, 0.5],
             physicsClientId=self.client,
         )
         ground_vis = pybullet.createVisualShape(
-            pybullet.GEOM_BOX, halfExtents=[60, 60, 0.10],
-            rgbaColor=[0.13, 0.16, 0.13, 1.0],
+            pybullet.GEOM_BOX, halfExtents=[1500, 1500, 0.5],
+            rgbaColor=[0.12, 0.15, 0.12, 1.0],
             physicsClientId=self.client,
         )
         pybullet.createMultiBody(
-            0, ground_col, ground_vis, [0, 0, -0.10],
+            0, ground_col, ground_vis, [0, 0, -0.5],
             physicsClientId=self.client,
         )
 
@@ -66,6 +69,7 @@ class PhysicsWorld:
             self._draw_grid()
             self._draw_range_rings()
             self._draw_protected_assets()
+            self._draw_radar_station()
             self._setup_camera()
 
     # ------------------------------------------------------------------
@@ -73,7 +77,7 @@ class PhysicsWorld:
         c = self.client
         for i in range(-_GRID_HALF, _GRID_HALF + 1, _GRID_STEP):
             thick = (i % _GRID_MAJOR == 0)
-            col   = [0.30, 0.36, 0.30] if thick else [0.19, 0.24, 0.19]
+            col   = [0.28, 0.35, 0.28] if thick else [0.18, 0.22, 0.18]
             lw    = 2.0 if thick else 1.0
             # N–S line
             self._grid_lines.append(
@@ -90,30 +94,32 @@ class PhysicsWorld:
                 )
             )
 
-        # Cardinal direction labels
-        edge = _GRID_HALF + 3
+        # Cardinal labels just outside dome boundary
         for label, pos in [
-            ("N",  [0,  edge, 0.3]),
-            ("S",  [0, -edge, 0.3]),
-            ("E",  [ edge, 0, 0.3]),
-            ("W",  [-edge, 0, 0.3]),
+            ("N",  [0,   250, 2.0]),
+            ("S",  [0,  -250, 2.0]),
+            ("E",  [ 250, 0,  2.0]),
+            ("W",  [-250, 0,  2.0]),
         ]:
             pybullet.addUserDebugText(
-                label, pos, [0.50, 0.65, 0.50],
-                textSize=1.4, physicsClientId=c,
+                label, pos, [0.50, 0.60, 0.50],
+                textSize=1.2, physicsClientId=c,
             )
 
     def _draw_range_rings(self):
         c = self.client
-        ring_pts = 36
-        for r, bright in [(5, False), (10, True), (15, False), (20, False), (25, False)]:
-            # 10 m ring = dome boundary, drawn brighter
-            col = [0.00, 0.80, 0.20] if bright else [0.20, 0.30, 0.20]
-            lw  = 2.5 if bright else 1.0
+        ring_pts = 64
+        ring_specs = [
+            (100, [0.00, 0.40, 0.10], 1.0, "100m"),
+            (200, [0.00, 0.70, 0.15], 2.0, "200m ◄ DOME"),
+            (400, [0.20, 0.30, 0.20], 1.0, "400m"),
+            (600, [0.15, 0.22, 0.15], 0.8, "600m"),
+        ]
+        for r, col, lw, lbl in ring_specs:
             pts = [
                 (r * math.cos(2*math.pi*j/ring_pts),
                  r * math.sin(2*math.pi*j/ring_pts),
-                 0.008)
+                 0.01)
                 for j in range(ring_pts + 1)
             ]
             for j in range(ring_pts):
@@ -123,47 +129,60 @@ class PhysicsWorld:
                         physicsClientId=c,
                     )
                 )
-            # Range label at NE
-            lx = r * math.cos(math.pi / 4) + 0.4
-            ly = r * math.sin(math.pi / 4) + 0.4
+            lx = r * math.cos(math.pi / 4) + 2.0
+            ly = r * math.sin(math.pi / 4) + 2.0
             pybullet.addUserDebugText(
-                f"{r}m", [lx, ly, 0.2],
-                [0.45, 0.55, 0.45], textSize=0.9,
-                physicsClientId=c,
+                lbl, [lx, ly, 1.0], col, textSize=1.0, physicsClientId=c,
             )
 
     def _draw_protected_assets(self):
         c = self.client
-        # Small military-structure boxes at 3 positions inside dome
-        for (bx, by) in [(2.0, 1.0), (-1.0, 2.2), (1.0, -2.0)]:
-            bh = 0.30
+        for (bx, by) in [(30, 20), (-25, 30), (10, -35), (-30, -20)]:
             col = pybullet.createCollisionShape(
-                pybullet.GEOM_BOX, halfExtents=[0.40, 0.40, bh],
+                pybullet.GEOM_BOX, halfExtents=[4, 6, 3],
                 physicsClientId=c,
             )
             vis = pybullet.createVisualShape(
-                pybullet.GEOM_BOX, halfExtents=[0.40, 0.40, bh],
-                rgbaColor=[0.60, 0.50, 0.30, 1.0],
+                pybullet.GEOM_BOX, halfExtents=[4, 6, 3],
+                rgbaColor=[0.55, 0.50, 0.38, 1.0],
                 physicsClientId=c,
             )
-            pybullet.createMultiBody(
-                0, col, vis, [bx, by, bh],
-                physicsClientId=c,
-            )
+            pybullet.createMultiBody(0, col, vis, [bx, by, 3], physicsClientId=c)
+
+    def _draw_radar_station(self):
+        """10 m mast + 2 m dish visual at (0, -200, 0) — scale-appropriate supplement."""
+        c = self.client
+        mast_col = pybullet.createCollisionShape(
+            pybullet.GEOM_CYLINDER, radius=0.3, height=10, physicsClientId=c,
+        )
+        mast_vis = pybullet.createVisualShape(
+            pybullet.GEOM_CYLINDER, radius=0.3, length=10,
+            rgbaColor=[0.4, 0.4, 0.45, 1.0], physicsClientId=c,
+        )
+        pybullet.createMultiBody(0, mast_col, mast_vis, [0, -200, 5], physicsClientId=c)
+
+        dish_col = pybullet.createCollisionShape(
+            pybullet.GEOM_CYLINDER, radius=2.0, height=0.3, physicsClientId=c,
+        )
+        dish_vis = pybullet.createVisualShape(
+            pybullet.GEOM_CYLINDER, radius=2.0, length=0.3,
+            rgbaColor=[0.5, 0.55, 0.5, 1.0], physicsClientId=c,
+        )
+        pybullet.createMultiBody(0, dish_col, dish_vis, [0, -200, 10.2], physicsClientId=c)
 
     def _setup_camera(self):
         pybullet.resetDebugVisualizerCamera(
-            cameraDistance=30,
-            cameraYaw=225,
-            cameraPitch=-35,
-            cameraTargetPosition=[3, 3, 3],
+            cameraDistance=600,
+            cameraYaw=45,
+            cameraPitch=-30,
+            cameraTargetPosition=[0, 0, 0],
             physicsClientId=self.client,
         )
 
     # ------------------------------------------------------------------
     def draw_dome(self, center, radius, color=None):
         if color is None:
-            color = [0, 1, 0]
+            color = [0.0, 0.6, 0.1]
         for lid in self._dome_lines:
             try:
                 pybullet.removeUserDebugItem(lid, physicsClientId=self.client)
@@ -172,9 +191,9 @@ class PhysicsWorld:
         self._dome_lines.clear()
 
         cx, cy, cz = center
-        lat_steps    = 4
-        lon_steps    = 8
-        pts_per_ring = 24
+        lat_steps    = 8
+        lon_steps    = 12
+        pts_per_ring = 32
 
         # Latitude rings (upper hemisphere)
         for lat_i in range(lat_steps + 1):

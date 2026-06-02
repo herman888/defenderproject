@@ -384,6 +384,19 @@ class LoiteringMunition:
 
         self._rotor_joints = self._find_rotor_joints()
 
+        # Spawn with horizontal fuselage pointing toward target (nose-first)
+        # Without this, fixed-wing types (Shahed) look wrong for the first
+        # ~50 settling steps before update() is called.
+        to_t = [self._target[i] - start_position[i] for i in range(3)]
+        horiz = math.sqrt(to_t[0]**2 + to_t[1]**2)
+        if horiz > 0.1:
+            nose = [to_t[0]/horiz, to_t[1]/horiz, 0.0]
+            init_orn = self._align_x_to_vec(nose)
+            pybullet.resetBasePositionAndOrientation(
+                self._body, list(start_position), list(init_orn),
+                physicsClientId=self._client,
+            )
+
     # ------------------------------------------------------------------
     def _find_rotor_joints(self):
         joints = []

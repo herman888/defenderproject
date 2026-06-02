@@ -60,6 +60,7 @@ from comms.datalink import DataLink
 from guidance.intercept import PurePursuitGuidance
 from dome.killzone  import DomeKillZone
 from scenarios      import INTRUDER_TYPES, ATTACK_PATTERNS, PAD_OFFSETS, get_waypoints_for_path
+from viz.acmi_writer import ACMIWriter
 
 # ── Global constants ──────────────────────────────────────────────────
 _TIMESTEP     = 1.0 / 240.0
@@ -298,7 +299,10 @@ def _run_one_mission(
 
     # ── PyBullet world ────────────────────────────────────────────────
     world = PhysicsWorld(gui=True)
-    world.draw_dome(_DOME_CENTER, _DOME_RADIUS, color=[0, 1, 0])
+    world.draw_dome(_DOME_CENTER, _DOME_RADIUS, color=[0.0, 0.6, 0.1])
+
+    # ACMI export — start at mission begin
+    acmi = ACMIWriter()
 
     print(
         "\n  ▶▶  PyBullet 3-D sim is running — separate window (dome / grid / aircraft).\n"
@@ -332,11 +336,28 @@ def _run_one_mission(
             targetVelocity=_RADAR_OMEGA, force=5.0,
             physicsClientId=world.client,
         )
-    # Single floating status line above the dome — replaces 5 overlapping texts
-    _hud = pybullet.addUserDebugText(
-        f"STATUS: CLEAR  |  {itype['label']}  |  {initial_speed:.1g}×",
-        [0, 0, _DOME_RADIUS * 1.6],
-        [0, 1, 0], textSize=1.8, physicsClientId=world.client,
+
+    # Multi-line HUD above the dome
+    _hud_ids = {}
+    _hud_ids['status'] = pybullet.addUserDebugText(
+        "● STATUS: CLEAR",
+        [0, 0, 215],
+        [0.0, 1.0, 0.4], textSize=1.8, physicsClientId=world.client,
+    )
+    _hud_ids['intruder'] = pybullet.addUserDebugText(
+        f"INTRUDER  initializing...",
+        [0, 0, 208],
+        [1.0, 0.3, 0.2], textSize=1.2, physicsClientId=world.client,
+    )
+    _hud_ids['interceptor'] = pybullet.addUserDebugText(
+        "INTERCEPTOR  on pad",
+        [0, 0, 201],
+        [0.2, 0.6, 1.0], textSize=1.2, physicsClientId=world.client,
+    )
+    pybullet.addUserDebugText(
+        "SPACE=pause  1-6=speed  C=camera  R=restart  Q=quit",
+        [0, 0, 194],
+        [0.3, 0.4, 0.3], textSize=0.9, physicsClientId=world.client,
     )
 
     _int_urdf = os.path.normpath(
@@ -402,6 +423,9 @@ def _run_one_mission(
     mission_result       = None
     _last_dome_status    = "CLEAR"
     detected_at_step     = None
+    first_detect_range   = 0.0
+    breach_sim_time      = None
+    intercept_sim_time   = None
     response_delay_steps = int(itype["response_delay"] / _TIMESTEP)
     step                 = 0
     sim_start            = time.time()
@@ -601,15 +625,26 @@ def _run_one_mission(
 
         if status != _last_dome_status:
             _dome_colors = {
-                "CLEAR"      : [0.0, 1.0, 0.0],
-                "TRACKING"   : [1.0, 1.0, 0.0],
-                "BREACH"     : [1.0, 0.5, 0.0],
-                "INTERCEPTED": [1.0, 0.0, 0.0],
+                "CLEAR"      : [0.0, 0.6, 0.1],
+                "TRACKING"   : [0.8, 0.7, 0.0],
+                "BREACH"     : [1.0, 0.1, 0.05],
+                "INTERCEPTED": [0.0, 0.8, 1.0],
             }
+            # ACMI events on status transitions
+            if status == "TRACKING" and _last_dome_status == "CLEAR":
+                acmi.write_event(sim_time, "RADAR_LOCK")
+            elif status == "BREACH":
+                acmi.write_event(sim_time, "DOME_BREACH")
+                if breach_sim_time is None:
+                    breach_sim_time = sim_time
+            elif status == "INTERCEPTED":
+                acmi.write_event(sim_time, "INTERCEPT")
+                if intercept_sim_time is None:
+                    intercept_sim_time = sim_time
             try:
                 world.draw_dome(
                     _DOME_CENTER, _DOME_RADIUS,
-                    color=_dome_colors.get(status, [0, 1, 0]),
+                    color=_dome_colors.get(status, [0.0, 0.6, 0.1]),
                 )
             except Exception:
                 mission_result = "ABORTED"
@@ -618,7 +653,8 @@ def _run_one_mission(
 
         # ── Detection timestamp ───────────────────────────────────────
         if status in ("TRACKING", "BREACH") and detected_at_step is None:
-            detected_at_step = step
+            detected_at_step   = step
+            first_detect_range = radar_return.get("range", 0.0)
 
         # ── Interceptor launch (after response delay) ─────────────────
         if (not interceptor_launched and detected_at_step is not None
@@ -669,6 +705,7 @@ def _run_one_mission(
 
         horiz = math.sqrt(i_pos[0]**2 + i_pos[1]**2)
         if horiz < 2.0 and nav.is_complete():
+            acmi.write_event(sim_time, "MISS")
             mission_result = "FAILURE"
             break
 
@@ -710,20 +747,49 @@ def _run_one_mission(
 
         # ── PyBullet HUD update (every 48 steps ≈ 5 Hz) ──────────────
         if step % 48 == 0:
-            _sc = {"CLEAR":[0,1,0],"TRACKING":[1,1,0],"BREACH":[1,0.5,0],"INTERCEPTED":[1,0,0]}.get(status,[1,1,1])
-            _paused = " [PAUSED]" if (paused or dash_ctrl.get("paused")) else ""
-            _rng  = f"rng {radar_return.get('range',0):.0f}m" if radar_return.get("detected") else "no lock"
-            if interceptor_launched and int_pos:
-                _sep = math.sqrt(sum((int_pos[k]-i_pos[k])**2 for k in range(3)))
-                _hud_line = f"STATUS: {status}  |  {_rng}  |  SEP {_sep:.0f}m  |  {sim_speed:.1g}×{_paused}"
-            else:
-                _hud_line = f"STATUS: {status}  |  {_rng}  |  interceptor on pad  |  {sim_speed:.1g}×{_paused}"
+            _sc = {
+                "CLEAR"      : [0.0, 1.0, 0.4],
+                "TRACKING"   : [1.0, 0.8, 0.0],
+                "BREACH"     : [1.0, 0.2, 0.0],
+                "INTERCEPTED": [0.0, 0.9, 1.0],
+            }.get(status, [1, 1, 1])
+            _paused_tag = " [PAUSED]" if (paused or dash_ctrl.get("paused")) else ""
+            _rng_m  = radar_return.get("range", 0.0) if radar_return.get("detected") else None
+            _i_spd  = math.sqrt(sum(v**2 for v in intruder.get_velocity()))
+            _i_alt  = i_pos[2]
+            _rng_str = f"{_rng_m:.0f}m" if _rng_m is not None else "no lock"
             try:
-                _hud = pybullet.addUserDebugText(
-                    _hud_line, [0, 0, _DOME_RADIUS * 1.6], _sc,
-                    textSize=1.6, replaceItemUniqueId=_hud,
+                _hud_ids['status'] = pybullet.addUserDebugText(
+                    f"● {status}{_paused_tag}  {sim_speed:.2g}×",
+                    [0, 0, 215], _sc,
+                    textSize=1.8, replaceItemUniqueId=_hud_ids.get('status', -1),
                     physicsClientId=world.client,
                 )
+                _hud_ids['intruder'] = pybullet.addUserDebugText(
+                    f"INTRUDER  rng:{_rng_str}  spd:{_i_spd:.0f}m/s  alt:{_i_alt:.0f}m",
+                    [0, 0, 208], [1.0, 0.3, 0.2],
+                    textSize=1.2, replaceItemUniqueId=_hud_ids.get('intruder', -1),
+                    physicsClientId=world.client,
+                )
+                if interceptor_launched and int_pos:
+                    _sep = math.sqrt(sum((int_pos[k]-i_pos[k])**2 for k in range(3)))
+                    _int_spd = math.sqrt(sum(v**2 for v in interceptor.get_velocity()))
+                    tti_val = guidance.time_to_intercept(interceptor.get_state(), guidance_track) \
+                              if guidance_track else float("inf")
+                    _tti_str = f"{tti_val:.1f}s" if tti_val < 999 else "---"
+                    _hud_ids['interceptor'] = pybullet.addUserDebugText(
+                        f"INTERCEPTOR  sep:{_sep:.0f}m  TTI:{_tti_str}  spd:{_int_spd:.0f}m/s",
+                        [0, 0, 201], [0.2, 0.6, 1.0],
+                        textSize=1.2, replaceItemUniqueId=_hud_ids.get('interceptor', -1),
+                        physicsClientId=world.client,
+                    )
+                else:
+                    _hud_ids['interceptor'] = pybullet.addUserDebugText(
+                        "INTERCEPTOR  on pad",
+                        [0, 0, 201], [0.2, 0.6, 1.0],
+                        textSize=1.2, replaceItemUniqueId=_hud_ids.get('interceptor', -1),
+                        physicsClientId=world.client,
+                    )
             except Exception:
                 pass
 
@@ -737,6 +803,17 @@ def _run_one_mission(
                     f"T+{sim_time:5.1f}s  INTR ({i_pos[0]:.1f},{i_pos[1]:.1f},{i_pos[2]:.1f})"
                     f"  RADAR {rng:.1f}m  {status:10s}  INT {sep}"
                 )
+
+        # ── ACMI update (every 24 steps ≈ 10 Hz) ──────────────────────
+        if step % 24 == 0:
+            try:
+                acmi.update(
+                    sim_time,
+                    intruder.get_state(),
+                    interceptor.get_state() if interceptor_launched else None,
+                )
+            except Exception:
+                pass
 
         # ── Dashboard state push ──────────────────────────────────────
         i_v   = intruder.get_velocity()
@@ -776,19 +853,59 @@ def _run_one_mission(
     except Exception:
         pass
     broadcaster.close()
+    acmi.close()
 
     total_sim = step * _TIMESTEP
     return {
-        "result"         : mission_result,
-        "scenario"       : intruder_key,
-        "sim_time"       : total_sim,
-        "first_detection": dome.first_detection_time,
-        "breach_time"    : dome.breach_time,
-        "intercept_time" : dome.intercept_time,
-        "closest_approach": closest_approach,
-        "max_penetration": dome.max_penetration_depth(),
-        "sim_start"      : sim_start,
+        "result"             : mission_result,
+        "intruder_key"       : intruder_key,
+        "pattern_key"        : pattern_key,
+        "sim_time"           : total_sim,
+        "first_detect_sim_t" : (detected_at_step * _TIMESTEP) if detected_at_step else 0.0,
+        "first_detect_range" : first_detect_range,
+        "breach_sim_time"    : breach_sim_time,
+        "intercept_sim_time" : intercept_sim_time,
+        "closest_approach"   : closest_approach,
+        "max_penetration"    : dome.max_penetration_depth(),
+        "sim_start"          : sim_start,
+        "acmi_file"          : acmi.filename,
     }
+
+
+# ======================================================================
+# Mission debrief
+# ======================================================================
+
+def _print_debrief(result: str, stats: dict):
+    w = 52
+    R = "\033[91m"   # red
+    G = "\033[92m"   # green
+    X = "\033[0m"    # reset
+    result_str  = "★  INTERCEPT SUCCESS" if result == "INTERCEPTED" else "✗  MISSION FAILED"
+    result_color = G if result == "INTERCEPTED" else R
+    print("\n" + "═" * w)
+    print(f"{'MISSION DEBRIEF':^{w}}")
+    print("═" * w)
+    print(f"{result_color}{result_str:^{w}}{X}")
+    print("─" * w)
+    print(f"  Duration          {stats['duration']:.1f}s")
+    print(f"  Intruder type     {stats['intruder_type']}")
+    print(f"  Attack pattern    {stats['pattern']}")
+    if stats.get('first_detect'):
+        print(f"  First detection   T+{stats['first_detect']:.1f}s at {stats['detect_range']:.0f}m")
+    if stats.get('breach_time') is not None:
+        print(f"  Dome breach       T+{stats['breach_time']:.1f}s")
+    print(f"  Max penetration   {stats['max_penetration']:.0f}m into dome")
+    if result == "INTERCEPTED":
+        if stats.get('intercept_time') is not None:
+            print(f"  Intercept time    T+{stats['intercept_time']:.1f}s")
+        ca = stats.get('closest_approach', float('inf'))
+        if ca < 9999:
+            print(f"  Closest approach  {ca:.1f}m")
+    print(f"  ACMI file saved   missions/{stats.get('acmi_file', '---')}")
+    print("═" * w)
+    print("  [R] Run again  [M] Main menu in dashboard  [Q] Quit")
+    print("═" * w + "\n")
 
 
 # ======================================================================
@@ -914,6 +1031,21 @@ def main():
             if mr == "ABORTED":
                 current_intruder = None
                 continue
+
+            # Console debrief for completed missions
+            if mr in ("INTERCEPTED", "FAILURE", "TIMEOUT"):
+                _print_debrief(mr, {
+                    "duration"       : result["sim_time"],
+                    "intruder_type"  : INTRUDER_TYPES[current_intruder]["label"],
+                    "pattern"        : ATTACK_PATTERNS[current_pattern]["label"],
+                    "first_detect"   : result.get("first_detect_sim_t", 0.0),
+                    "detect_range"   : result.get("first_detect_range", 0.0),
+                    "breach_time"    : result.get("breach_sim_time"),
+                    "max_penetration": result.get("max_penetration", 0.0),
+                    "intercept_time" : result.get("intercept_sim_time"),
+                    "closest_approach": result.get("closest_approach", float("inf")),
+                    "acmi_file"      : result.get("acmi_file", "---"),
+                })
 
             try:
                 state_q.put_nowait({
