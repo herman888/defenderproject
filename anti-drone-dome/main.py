@@ -305,6 +305,20 @@ def _run_one_mission(
     for _ in range(50):
         world.step()
 
+    # Set initial camera toward the intruder start position, then leave it alone
+    # so the user can free-roam.  Pressing C in the PyBullet window snaps back.
+    try:
+        sx, sy, sz = i_start
+        pybullet.resetDebugVisualizerCamera(
+            cameraDistance       = _DOME_RADIUS * 4,
+            cameraYaw            = 45,
+            cameraPitch          = -28,
+            cameraTargetPosition = [sx * 0.3, sy * 0.3, sz * 0.3],
+            physicsClientId      = world.client,
+        )
+    except Exception:
+        pass
+
     waypoints = get_waypoints_for_path(pattern["path"])
     nav     = WaypointNavigator(waypoints=waypoints)
     radar   = RadarNode(
@@ -545,7 +559,7 @@ def _run_one_mission(
             interceptor_launched = True
             int_pos = interceptor.get_position()
             pending_events.append("Interceptor launched")
-            print(f"INTERCEPTOR: LAUNCH  delay={scenario['interceptor_response_delay']:.1f}s")
+            print(f"INTERCEPTOR: LAUNCH  delay={itype['response_delay']:.1f}s")
 
         # ── Track closest approach ────────────────────────────────────
         if interceptor_launched and int_pos:
@@ -578,9 +592,8 @@ def _run_one_mission(
             mission_result = "FAILURE"
             break
 
-        # ── Camera update (every 24 steps ≈ 10 Hz) ────────────────────
-        if step % 24 == 0:
-            _update_camera(world.client, camera_mode, i_pos, int_pos)
+        # Camera is NOT auto-updated every frame so the user can free-roam.
+        # _update_camera is called once when C is pressed (see keyboard block above).
 
         # ── 3-D trail update (every 5 physics steps) ──────────────────
         if show_trail and step % 5 == 0:

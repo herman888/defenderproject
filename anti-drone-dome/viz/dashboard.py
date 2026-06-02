@@ -52,7 +52,7 @@ _STATUS_FG = {
 
 _INTRUDER_LABELS = [
     ("shahed136",    "■ SHAHED-136",  "Loitering munition — 51 m/s, composite, low RCS"),
-    ("consumer_quad","⬡ CONSUMER",    "DJI Mavic type — 16 m/s, ISR / light payload"),
+    ("consumer_quad","# CONSUMER",    "DJI Mavic type — 16 m/s, ISR / light payload"),
     ("fpv_attack",   "✕ FPV ATTACK",  "Racing frame — 32 m/s, agile, near-zero RCS"),
 ]
 
