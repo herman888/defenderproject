@@ -68,10 +68,11 @@ _SPEED_MAP = {49: 0.25, 50: 0.5, 51: 1.0, 52: 2.0, 53: 4.0, 54: 8.0}
 _R = _DOME_RADIUS   # shorthand for position calculations below
 
 _CAM_PRESETS = [
-    dict(distance=_R * 5,   yaw=225, pitch=-32, target=[0, 0, _R * 0.2]),  # 0 overview
-    None,                                                                    # 1 chase intruder
-    None,                                                                    # 2 chase interceptor
-    dict(distance=_R * 5.5, yaw=0,   pitch=-89, target=[0, 0, 0]),         # 3 top-down
+    # 0 overview — yaw=45 faces NE so the approaching intruder is always in frame
+    dict(distance=_R * 4,   yaw=45,  pitch=-28, target=[_R*0.4, _R*0.4, _R*0.1]),
+    None,   # 1 chase intruder  (handled in _update_camera)
+    None,   # 2 chase interceptor
+    dict(distance=_R * 5,   yaw=0,   pitch=-89, target=[0, 0, 0]),          # 3 top-down
 ]
 
 
@@ -168,9 +169,9 @@ def _update_camera(client: int, mode: int, i_pos, int_pos):
             physicsClientId   = client,
         )
     elif mode == 1 and i_pos:
-        pybullet.resetDebugVisualizerCamera(5, 45, -15, list(i_pos), physicsClientId=client)
+        pybullet.resetDebugVisualizerCamera(_R*0.5, 225, -18, list(i_pos), physicsClientId=client)
     elif mode == 2 and int_pos:
-        pybullet.resetDebugVisualizerCamera(5, 45, -15, list(int_pos), physicsClientId=client)
+        pybullet.resetDebugVisualizerCamera(_R*0.4, 225, -18, list(int_pos), physicsClientId=client)
 
 
 def _update_trail(new_pos, last_pos, trail_ids, max_len, color, client):
@@ -298,7 +299,7 @@ def _run_one_mission(
         max_h_force=280.0, max_v_force=280.0, max_speed=60.0,
         kp=5.0, kd=2.5,
         urdf=_int_urdf if os.path.isfile(_int_urdf) else None,
-        global_scaling=3.0,
+        global_scaling=10.0,   # visible at 200 m dome scale
     )
 
     for _ in range(50):

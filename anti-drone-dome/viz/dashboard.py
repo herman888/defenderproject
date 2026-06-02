@@ -83,10 +83,11 @@ class SimControl:
         self.stopped          = False      # ABORT → ends mission
         self.restart          = False      # RESET → restart same mission
         self.speed            = 1          # legacy (unused by sim physics)
-        self.selected_mission = None       # intruder type key — triggers launch
+        self.pending_intruder = "shahed136"  # highlighted intruder type (pre-select)
+        self.selected_mission = None       # set by START button → triggers launch
         self.selected_speed   = 1.0
         self.selected_pad     = "mid"
-        self.selected_pattern = "direct"   # attack pattern key
+        self.selected_pattern = "direct"
 
 
 class Dashboard:
@@ -105,12 +106,21 @@ class Dashboard:
         self._last_blink   = 0.0
 
         plt.ion()
-        self._fig = plt.figure(figsize=(16, 9))
+        self._fig = plt.figure(figsize=(14, 8))
         self._fig.patch.set_facecolor(_BG)
         self._fig.suptitle(
             "ANTI-DRONE DEFENSE SYSTEM  |  STANDBY  ○",
             color=_GREEN, fontsize=13, fontweight="bold", fontfamily="monospace",
         )
+
+        # Position dashboard on the RIGHT half of the screen so the PyBullet
+        # 3-D simulation window is visible on the left without being covered.
+        try:
+            mgr = self._fig.canvas.manager
+            mgr.set_window_title("RADAR DASHBOARD  —  anti-drone-dome")
+            mgr.window.wm_geometry("980x580+940+30")   # right side, 1920-wide screen
+        except Exception:
+            pass
 
         # 3-row layout: [radar/side] [mission+pad select] [controls]
         gs = self._fig.add_gridspec(
@@ -300,23 +310,28 @@ class Dashboard:
 
     def _setup_controls(self, gs):
         ctrl_row = gs[2, :]
-        cgs = ctrl_row.subgridspec(1, 3, wspace=0.25)
+        cgs = ctrl_row.subgridspec(1, 4, wspace=0.20)
 
         ax_pause  = self._fig.add_subplot(cgs[0, 0])
         ax_reset  = self._fig.add_subplot(cgs[0, 1])
-        ax_abort  = self._fig.add_subplot(cgs[0, 2])
+        ax_start  = self._fig.add_subplot(cgs[0, 2])
+        ax_abort  = self._fig.add_subplot(cgs[0, 3])
 
-        self._btn_pause = Button(ax_pause, "|| PAUSE",   color=(0.05, 0.14, 0.05), hovercolor=(0.10, 0.26, 0.10))
-        self._btn_reset = Button(ax_reset, "↺  RESET",   color=(0.10, 0.08, 0.02), hovercolor=(0.22, 0.16, 0.04))
-        self._btn_abort = Button(ax_abort, "◼  ABORT",   color=(0.18, 0.04, 0.04), hovercolor=(0.36, 0.07, 0.07))
+        self._btn_pause = Button(ax_pause, "|| PAUSE",      color=(0.05, 0.14, 0.05), hovercolor=(0.10, 0.26, 0.10))
+        self._btn_reset = Button(ax_reset, "↺  RESET",      color=(0.10, 0.08, 0.02), hovercolor=(0.22, 0.16, 0.04))
+        self._btn_start = Button(ax_start, "▶  START",      color=(0.04, 0.38, 0.08), hovercolor=(0.07, 0.60, 0.12))
+        self._btn_abort = Button(ax_abort, "◼  ABORT",      color=(0.18, 0.04, 0.04), hovercolor=(0.36, 0.07, 0.07))
 
-        for btn in (self._btn_pause, self._btn_reset, self._btn_abort):
+        for btn in (self._btn_pause, self._btn_reset, self._btn_start, self._btn_abort):
             btn.label.set_color("white")
             btn.label.set_fontfamily("monospace")
             btn.label.set_fontsize(9)
 
+        self._btn_start.label.set_fontweight("bold")   # START stands out
+
         self._btn_pause.on_clicked(self._on_pause)
         self._btn_reset.on_clicked(self._on_reset)
+        self._btn_start.on_clicked(self._on_start)
         self._btn_abort.on_clicked(self._on_abort)
 
     # ── Button callbacks ───────────────────────────────────────────────
@@ -345,11 +360,21 @@ class Dashboard:
         self._fig.canvas.draw_idle()
 
     def _on_mission(self, key: str):
+        """Pre-select intruder type — does NOT launch. Use START to launch."""
         if not self._ctrl:
             return
-        self._ctrl.selected_mission = key
+        self._ctrl.pending_intruder = key
         for k, btn in self._mission_btns.items():
-            btn.ax.set_facecolor((0.10, 0.38, 0.14) if k == key else (0.03, 0.12, 0.05))
+            btn.ax.set_facecolor((0.08, 0.30, 0.10) if k == key else (0.03, 0.12, 0.05))
+        self._fig.canvas.draw_idle()
+
+    def _on_start(self, _):
+        """Launch the mission with currently pre-selected settings."""
+        if not self._ctrl:
+            return
+        self._ctrl.selected_mission = self._ctrl.pending_intruder
+        # Flash START button green briefly
+        self._btn_start.ax.set_facecolor((0.05, 0.50, 0.10))
         self._fig.canvas.draw_idle()
 
     def _on_pattern_select(self, key: str):
@@ -490,6 +515,7 @@ class Dashboard:
         self._btn_abort.label.set_text("◼  ABORT")
         self._btn_abort.ax.set_facecolor((0.18, 0.04, 0.04))
         self._btn_reset.ax.set_facecolor((0.10, 0.08, 0.02))
+        self._btn_start.ax.set_facecolor((0.04, 0.38, 0.08))
         self._btn_pause.label.set_text("|| PAUSE")
         self._btn_pause.ax.set_facecolor((0.05, 0.14, 0.05))
         self._ctrl.paused = False

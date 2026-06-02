@@ -78,7 +78,7 @@ INTRUDER_TYPES = {
             "fz_min": -60.0, "fz_max": 90.0,
         },
         "urdf":               "intruder.urdf",
-        "scaling":            4.0,
+        "scaling":            18.0,   # visible at 200 m dome scale
         "color_rgba":         [0.85, 0.12, 0.08, 1.0],   # blood red
     },
 
@@ -97,7 +97,7 @@ INTRUDER_TYPES = {
             "fz_min": -18.0, "fz_max": 40.0,
         },
         "urdf":               "drone.urdf",
-        "scaling":            2.0,
+        "scaling":            10.0,
         "color_rgba":         [0.82, 0.84, 0.90, 1.0],   # light grey
     },
 
@@ -116,7 +116,7 @@ INTRUDER_TYPES = {
             "fz_min": -30.0, "fz_max": 62.0,
         },
         "urdf":               "drone.urdf",
-        "scaling":            1.5,
+        "scaling":            7.0,
         "color_rgba":         [0.90, 0.45, 0.05, 1.0],   # dark orange
     },
 }
