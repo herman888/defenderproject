@@ -154,7 +154,15 @@ class RadarNode:
         }
 
     # ------------------------------------------------------------------
-    def scan(self, true_pos: tuple) -> dict:
+    def scan(self, true_pos: tuple, target_rcs: float = 0.05) -> dict:
+        """
+        target_rcs : radar cross-section of the target (m²).
+          Shahed-136  ≈ 0.05  (composite body, some metal engine)
+          Consumer quad ≈ 0.003  (small plastic frame)
+          FPV attack   ≈ 0.001  (carbon fibre, near-zero metal)
+        Detection probability scales as sqrt(rcs / rcs_ref) — Swerling-I model
+        where SNR ∝ RCS and P_d ∝ SNR^0.5 in the detection threshold regime.
+        """
         """
         One radar frame.
 
@@ -208,13 +216,19 @@ class RadarNode:
             self._hits = max(0, self._hits - 2)
             return {"detected": False, "seq": self._seq}
 
-        # Swerling-I range-dependent probability of detection
-        if rng <= 5.0:
-            p_det = 0.99
-        elif rng <= 18.0:
-            p_det = 0.99 - (rng - 5.0) / 13.0 * 0.09
+        # Range-normalised detection curve (Swerling-I, scaled by target RCS)
+        _RCS_REF = 0.05   # baseline RCS (Shahed-136)
+        rcs_factor = math.sqrt(max(target_rcs, 1e-4) / _RCS_REF)  # ≤1 for small targets
+
+        t_frac = rng / max(self.max_range, 1.0)
+        if t_frac <= 0.15:
+            p_base = 0.88
+        elif t_frac <= 0.50:
+            p_base = 0.88 - (t_frac - 0.15) / 0.35 * 0.30   # 0.88 → 0.58
         else:
-            p_det = 0.90 - (rng - 18.0) / max(self.max_range - 18.0, 1.0) * 0.35
+            p_base = 0.58 - (t_frac - 0.50) / 0.50 * 0.28   # 0.58 → 0.30
+
+        p_det = max(0.02, min(0.96, p_base * rcs_factor))
 
         if random.random() > p_det:
             self._hits = max(0, self._hits - 1)

@@ -51,7 +51,7 @@ from sensors.radar  import RadarNode
 from comms.datalink import DataLink
 from guidance.intercept import PurePursuitGuidance
 from dome.killzone  import DomeKillZone
-from scenarios      import SCENARIOS, PAD_OFFSETS, get_waypoints_for_path
+from scenarios      import INTRUDER_TYPES, ATTACK_PATTERNS, PAD_OFFSETS, get_waypoints_for_path
 
 # ── Global constants ──────────────────────────────────────────────────
 _TIMESTEP     = 1.0 / 240.0
@@ -124,6 +124,7 @@ def _dashboard_worker(state_q: mp.Queue, ctrl_q: mp.Queue, dome_radius: float):
                 ctrl_msg["selected_mission"] = ctrl.selected_mission
                 ctrl_msg["initial_speed"]    = ctrl.selected_speed
                 ctrl_msg["selected_pad"]     = ctrl.selected_pad
+                ctrl_msg["selected_pattern"] = ctrl.selected_pattern
                 ctrl.selected_mission = None   # consume once
             ctrl_q.put_nowait(ctrl_msg)
         except Exception:
@@ -226,34 +227,32 @@ def _print_help():
 # ======================================================================
 
 def _run_one_mission(
-    state_q:      mp.Queue,
-    ctrl_q:       mp.Queue,
-    scenario_key: str   = "standard",
+    state_q:       mp.Queue,
+    ctrl_q:        mp.Queue,
+    intruder_key:  str   = "shahed136",
+    pattern_key:   str   = "direct",
     initial_speed: float = 1.0,
-    pad_key:      str   = "mid",
+    pad_key:       str   = "mid",
 ) -> dict:
     """
     Run one complete mission.  Returns a result dict.
-    Termination conditions:
-      INTERCEPTED — interceptor closed within intercept_radius of intruder
-      FAILURE     — intruder reached dome centre unchallenged
-      TIMEOUT     — _MAX_SIM_TIME sim seconds elapsed
-      RESTART     — R key or dashboard RESET button
-      QUIT        — Q key
-      ABORTED     — dashboard ABORT / PyBullet window closed
+    intruder_key : key in INTRUDER_TYPES  (shahed136 / consumer_quad / fpv_attack)
+    pattern_key  : key in ATTACK_PATTERNS (direct / nap_earth / spiral)
+    Termination  : INTERCEPTED / FAILURE / TIMEOUT / RESTART / QUIT / ABORTED
     """
-    scenario   = SCENARIOS[scenario_key]
+    itype      = INTRUDER_TYPES[intruder_key]
+    pattern    = ATTACK_PATTERNS[pattern_key]
     pad_offset = PAD_OFFSETS.get(pad_key, PAD_OFFSETS["mid"])
     int_start  = (0.0, -(_DOME_RADIUS + pad_offset), 5.0)
+    i_start    = pattern["start"]
+    target_rcs = itype["rcs"]
 
     sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, "reconfigure") else None
-    print("=" * 66)
-    print(f"  MISSION  ▶  {scenario_key.upper()}  —  {scenario['description']}")
-    print(f"  PAD: {pad_key.upper()} ({_DOME_RADIUS + pad_offset:.0f} m south)  "
-          f"SPEED: {initial_speed}×")
-    print("=" * 66)
+    print("=" * 68)
+    print(f"  INTRUDER : {itype['label']}  —  {itype['description']}")
+    print(f"  PATTERN  : {pattern['label']}  |  PAD: {pad_key.upper()}  |  SPEED: {initial_speed}×")
+    print("=" * 68)
 
-    # Signal dashboard: new mission starting — clear trails, re-arm buttons
     try:
         state_q.put_nowait({"type": "mission_start"})
     except Exception:
@@ -263,7 +262,6 @@ def _run_one_mission(
     world = PhysicsWorld(gui=True)
     world.draw_dome(_DOME_CENTER, _DOME_RADIUS, color=[0, 1, 0])
 
-    # Radar station (10 m mast at south dome perimeter)
     radar_body, spin_joint = _load_radar_station(_DOME_RADIUS, world.client)
     if spin_joint >= 0:
         pybullet.setJointMotorControl2(
@@ -278,7 +276,6 @@ def _run_one_mission(
         [0.2, 1.0, 0.2], textSize=1.2, physicsClientId=world.client,
     )
 
-    # ── PyBullet HUD text IDs (positions scaled to dome size) ─────────
     _hx, _hy = -_DOME_RADIUS * 1.4, -_DOME_RADIUS * 1.4
     _hud_status  = pybullet.addUserDebugText("STATUS: CLEAR",    [_hx, _hy, _DOME_RADIUS*0.65], [0,1,0],   textSize=2.0, physicsClientId=world.client)
     _hud_intrudr = pybullet.addUserDebugText("INTRUDER: ---",    [_hx, _hy, _DOME_RADIUS*0.55], [1,0.3,0], textSize=1.5, physicsClientId=world.client)
@@ -286,17 +283,14 @@ def _run_one_mission(
     _hud_sep     = pybullet.addUserDebugText("SEP: ---",         [_hx, _hy, _DOME_RADIUS*0.35], [1,1,0],   textSize=1.5, physicsClientId=world.client)
     _hud_speed   = pybullet.addUserDebugText("SPEED: 1×",        [_hx, _hy, _DOME_RADIUS*0.25], [1,1,0],   textSize=1.3, physicsClientId=world.client)
 
-    # ── Interceptor URDF path ─────────────────────────────────────────
     _int_urdf = os.path.normpath(
         os.path.join(os.path.dirname(__file__), "assets", "interceptor.urdf")
     )
 
-    # ── Drones ───────────────────────────────────────────────────────
-    i_start = scenario["intruder_start"]
-
+    # ── Build intruder from type config ──────────────────────────────
     intruder = LoiteringMunition(
         "intruder", i_start, world.client,
-        max_speed=scenario["intruder_speed"],
+        intruder_cfg=itype,
     )
     interceptor = Drone(
         "interceptor", int_start, world.client,
@@ -307,20 +301,18 @@ def _run_one_mission(
         global_scaling=3.0,
     )
 
-    # Warm-up
     for _ in range(50):
         world.step()
 
-    # ── Sim objects ───────────────────────────────────────────────────
-    waypoints = get_waypoints_for_path(scenario["intruder_path"])
+    waypoints = get_waypoints_for_path(pattern["path"])
     nav     = WaypointNavigator(waypoints=waypoints)
     radar   = RadarNode(
-        station_pos      = (0.0, -_DOME_RADIUS, 10.0),   # 10 m mast
+        station_pos      = (0.0, -_DOME_RADIUS, 10.0),
         protected_center = _DOME_CENTER,
         max_range        = 1500.0,
         elev_max_deg     = 75.0,
-        min_vel          = 1.5,
-        noise_std        = 0.4,
+        min_vel          = 0.8,
+        noise_std        = 0.5,
     )
     broadcaster = DataLink(role="broadcast", port=14550)
     guidance    = PurePursuitGuidance()
@@ -338,7 +330,7 @@ def _run_one_mission(
     mission_result       = None
     _last_dome_status    = "CLEAR"
     detected_at_step     = None
-    response_delay_steps = int(scenario["interceptor_response_delay"] / _TIMESTEP)
+    response_delay_steps = int(itype["response_delay"] / _TIMESTEP)
     step                 = 0
     sim_start            = time.time()
 
@@ -439,12 +431,12 @@ def _run_one_mission(
         i_pos   = intruder.get_position()
         int_pos = interceptor.get_position() if interceptor_launched else None
 
-        radar_return    = radar.scan(i_pos)
+        radar_return    = radar.scan(i_pos, target_rcs=target_rcs)
         guidance_track  = (radar_return if radar_return.get("detected")
                            else radar.get_last_track())
 
         # Wind update every ~2 sim seconds
-        if scenario.get("wind") and (step % 480 == 0):
+        if pattern.get("wind") and (step % 480 == 0):
             wind_force = [
                 random.uniform(-0.5, 0.5),
                 random.uniform(-0.5, 0.5),
@@ -466,7 +458,7 @@ def _run_one_mission(
             intruder.update()
 
             # Wind disturbance on intruder
-            if scenario.get("wind") and any(wind_force):
+            if pattern.get("wind") and any(wind_force):
                 try:
                     pybullet.applyExternalForce(
                         intruder._body, -1, wind_force, list(intruder.get_position()),
@@ -781,19 +773,20 @@ def _wait_for_mission(state_q: mp.Queue, ctrl_q: mp.Queue, dash_proc) -> tuple:
     while True:
         if not dash_proc.is_alive():
             print("[SIM] Dashboard closed — quitting.")
-            return ("quit", 1.0, "mid")
+            return ("quit", "direct", 1.0, "mid")
 
         while True:
             try:
                 msg = ctrl_q.get_nowait()
             except Exception:
                 break
-            key = msg.get("selected_mission")
-            if key:
-                speed = float(msg.get("initial_speed", 1.0))
-                pad   = msg.get("selected_pad", "mid")
-                print(f"[SIM] ▶ {key.upper()}  pad={pad.upper()}  speed={speed}×")
-                return (key, speed, pad)
+            intruder = msg.get("selected_mission")
+            if intruder:
+                speed   = float(msg.get("initial_speed", 1.0))
+                pad     = msg.get("selected_pad", "mid")
+                pattern = msg.get("selected_pattern", "direct")
+                print(f"[SIM] ▶ {intruder.upper()}  pattern={pattern}  pad={pad}  speed={speed}×")
+                return (intruder, pattern, speed, pad)
 
         time.sleep(0.10)
 
@@ -814,54 +807,53 @@ def main():
 
     _print_controls()
 
-    current_scenario = None
+    current_intruder = None
+    current_pattern  = "direct"
     chosen_speed     = 1.0
     chosen_pad       = "mid"
 
     try:
         while True:
-            if current_scenario is None:
-                current_scenario, chosen_speed, chosen_pad = _wait_for_mission(
-                    state_q, ctrl_q, dash_proc
-                )
+            if current_intruder is None:
+                current_intruder, current_pattern, chosen_speed, chosen_pad = \
+                    _wait_for_mission(state_q, ctrl_q, dash_proc)
 
-            if current_scenario == "quit":
+            if current_intruder == "quit":
                 break
 
             result = _run_one_mission(
                 state_q, ctrl_q,
-                scenario_key  = current_scenario,
+                intruder_key  = current_intruder,
+                pattern_key   = current_pattern,
                 initial_speed = chosen_speed,
                 pad_key       = chosen_pad,
             )
             mr = result["result"]
 
             if mr == "QUIT":
-                current_scenario = None
+                current_intruder = None
                 continue
 
             if mr == "RESTART":
                 continue
 
             if mr == "ABORTED":
-                current_scenario = None
+                current_intruder = None
                 continue
 
-            # Mission ended — send debrief to dashboard, then wait for next selection
             try:
                 state_q.put_nowait({
                     "type":             "debrief",
                     "result":           mr,
                     "sim_time":         result["sim_time"],
                     "closest_approach": result.get("closest_approach", float("inf")),
-                    "scenario":         current_scenario,
+                    "intruder":         current_intruder,
                 })
             except Exception:
                 pass
 
-            current_scenario, chosen_speed, chosen_pad = _wait_for_mission(
-                state_q, ctrl_q, dash_proc
-            )
+            current_intruder, current_pattern, chosen_speed, chosen_pad = \
+                _wait_for_mission(state_q, ctrl_q, dash_proc)
 
     except KeyboardInterrupt:
         print("\n[SIM] Interrupted by user.")

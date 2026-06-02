@@ -50,11 +50,17 @@ _STATUS_FG = {
     "INTERCEPTED": _RED,
 }
 
-_SCENARIO_LABELS = {
-    "standard": "■ STANDARD",
-    "fast_low": "► FAST LOW",
-    "spiral":   "◎ SPIRAL",
-}
+_INTRUDER_LABELS = [
+    ("shahed136",    "■ SHAHED-136",  "Loitering munition — 51 m/s, composite, low RCS"),
+    ("consumer_quad","⬡ CONSUMER",    "DJI Mavic type — 16 m/s, ISR / light payload"),
+    ("fpv_attack",   "✕ FPV ATTACK",  "Racing frame — 32 m/s, agile, near-zero RCS"),
+]
+
+_PATTERN_LABELS = [
+    ("direct",    "→ DIRECT",    "NE bearing, cruise altitude"),
+    ("nap_earth", "↘ NAP-EARTH", "Low-altitude sprint, hardest to detect"),
+    ("spiral",    "◎ SPIRAL",    "High-alt evasive descent"),
+]
 
 _SPEEDS = [
     (0.5,  "0.5×"),
@@ -76,10 +82,11 @@ class SimControl:
         self.paused           = False
         self.stopped          = False      # ABORT → ends mission
         self.restart          = False      # RESET → restart same mission
-        self.speed            = 1          # legacy integer (unused by sim physics)
-        self.selected_mission = None       # set by scenario button
-        self.selected_speed   = 1.0        # initial sim speed
-        self.selected_pad     = "mid"      # pad distance key
+        self.speed            = 1          # legacy (unused by sim physics)
+        self.selected_mission = None       # intruder type key — triggers launch
+        self.selected_speed   = 1.0
+        self.selected_pad     = "mid"
+        self.selected_pattern = "direct"   # attack pattern key
 
 
 class Dashboard:
@@ -209,23 +216,31 @@ class Dashboard:
 
     # ── Mission / pad select panel ──────────────────────────────────────
     def _setup_mission_panel(self, gs):
+        """
+        3 sub-rows inside the mission panel row:
+          Sub-row 0: Intruder type  [SHAHED-136][CONSUMER][FPV]  | Speed [0.5x…8x]
+          Sub-row 1: Attack pattern [DIRECT][NAP-EARTH][SPIRAL]  | Pad   [NEAR][MID][FAR]
+        Clicking an intruder-type button triggers launch (sends selected_mission).
+        Pattern, speed, pad are pre-selected state — click to highlight, then
+        choose intruder to fire.
+        """
         mission_row = gs[1, :]
-        # 2 sub-rows: [scenario+speed] and [pad select]
         mgs = mission_row.subgridspec(2, 10, wspace=0.10, hspace=0.35)
 
-        # ── Sub-row 0: Scenario buttons (cols 0-2) + Speed buttons (cols 4-8)
-        _scn_color = (0.03, 0.12, 0.05)
-        _scn_hover = (0.07, 0.23, 0.10)
+        # ── Sub-row 0 left: Intruder type buttons (cols 0-2) — clicking launches
+        _typ_base  = (0.03, 0.12, 0.05)
+        _typ_hover = (0.07, 0.23, 0.10)
         self._mission_btns = {}
-        for i, (key, label) in enumerate(_SCENARIO_LABELS.items()):
+        for i, (key, label, _) in enumerate(_INTRUDER_LABELS):
             ax  = self._fig.add_subplot(mgs[0, i])
-            btn = Button(ax, label, color=_scn_color, hovercolor=_scn_hover)
+            btn = Button(ax, label, color=_typ_base, hovercolor=_typ_hover)
             btn.label.set_color(_GREEN)
             btn.label.set_fontfamily("monospace")
             btn.label.set_fontsize(8)
             btn.on_clicked(lambda _, k=key: self._on_mission(k))
             self._mission_btns[key] = btn
 
+        # ── Sub-row 0 right: Speed buttons (cols 4-8)
         _spd_base  = (0.05, 0.07, 0.18)
         _spd_sel   = (0.16, 0.20, 0.48)
         _spd_hover = (0.10, 0.12, 0.32)
@@ -240,13 +255,28 @@ class Dashboard:
             btn.on_clicked(lambda _, s=spd: self._on_speed_select(s))
             self._speed_btns[spd] = btn
 
-        # ── Sub-row 1: Pad buttons (cols 0-2) + description (cols 3-9)
+        # ── Sub-row 1 left: Attack pattern buttons (cols 0-2)
+        _pat_base  = (0.05, 0.08, 0.18)
+        _pat_sel   = (0.14, 0.20, 0.40)
+        _pat_hover = (0.10, 0.14, 0.30)
+        self._pattern_btns = {}
+        for i, (key, lbl, _desc) in enumerate(_PATTERN_LABELS):
+            ax  = self._fig.add_subplot(mgs[1, i])
+            col = _pat_sel if key == "direct" else _pat_base
+            btn = Button(ax, lbl, color=col, hovercolor=_pat_hover)
+            btn.label.set_color(_CYAN)
+            btn.label.set_fontfamily("monospace")
+            btn.label.set_fontsize(7)
+            btn.on_clicked(lambda _, k=key: self._on_pattern_select(k))
+            self._pattern_btns[key] = btn
+
+        # ── Sub-row 1 right: Pad buttons (cols 4-6)
         _pad_base  = (0.08, 0.06, 0.15)
         _pad_sel   = (0.25, 0.15, 0.40)
         _pad_hover = (0.15, 0.10, 0.28)
         self._pad_btns = {}
         for i, (key, lbl) in enumerate(_PADS):
-            ax  = self._fig.add_subplot(mgs[1, i])
+            ax  = self._fig.add_subplot(mgs[1, 4 + i])
             col = _pad_sel if key == "mid" else _pad_base
             btn = Button(ax, lbl, color=col, hovercolor=_pad_hover)
             btn.label.set_color("#bb88ff")
@@ -255,18 +285,17 @@ class Dashboard:
             btn.on_clicked(lambda _, k=key: self._on_pad_select(k))
             self._pad_btns[key] = btn
 
-        # Description label (right side of sub-row 1)
-        ax_desc = self._fig.add_subplot(mgs[1, 3:])
-        ax_desc.set_facecolor(_BG)
-        for spine in ax_desc.spines.values():
+        # Hint text (cols 7-9 of sub-row 1)
+        ax_hint = self._fig.add_subplot(mgs[1, 7:])
+        ax_hint.set_facecolor(_BG)
+        for spine in ax_hint.spines.values():
             spine.set_visible(False)
-        ax_desc.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
-        self._pad_desc_text = ax_desc.text(
+        ax_hint.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+        ax_hint.text(
             0.03, 0.50,
-            "PAD: interceptor launch site distance from dome edge.\n"
-            "NEAR=easy intercept  MID=balanced  FAR=long-range challenge",
-            transform=ax_desc.transAxes,
-            color="#6a7a6a", fontsize=7, fontfamily="monospace", va="center",
+            "Select pattern + pad + speed,\nthen click intruder to LAUNCH",
+            transform=ax_hint.transAxes,
+            color="#5a6a5a", fontsize=7, fontfamily="monospace", va="center",
         )
 
     def _setup_controls(self, gs):
@@ -319,9 +348,16 @@ class Dashboard:
         if not self._ctrl:
             return
         self._ctrl.selected_mission = key
-        # Flash the clicked button green as confirmation
         for k, btn in self._mission_btns.items():
             btn.ax.set_facecolor((0.10, 0.38, 0.14) if k == key else (0.03, 0.12, 0.05))
+        self._fig.canvas.draw_idle()
+
+    def _on_pattern_select(self, key: str):
+        if not self._ctrl:
+            return
+        self._ctrl.selected_pattern = key
+        for k, btn in self._pattern_btns.items():
+            btn.ax.set_facecolor((0.14, 0.20, 0.40) if k == key else (0.05, 0.08, 0.18))
         self._fig.canvas.draw_idle()
 
     def _on_speed_select(self, speed: float):
@@ -457,9 +493,9 @@ class Dashboard:
         self._btn_pause.label.set_text("|| PAUSE")
         self._btn_pause.ax.set_facecolor((0.05, 0.14, 0.05))
         self._ctrl.paused = False
-        # Re-arm scenario buttons
         for btn in self._mission_btns.values():
             btn.ax.set_facecolor((0.03, 0.12, 0.05))
+        # Keep pattern/pad/speed highlights as-is (user pre-selections persist)
 
     def update(self, sim_state: dict):
         msg_type = sim_state.get("type")
