@@ -271,18 +271,12 @@ def _run_one_mission(
             targetVelocity=_RADAR_OMEGA, force=5.0,
             physicsClientId=world.client,
         )
-    pybullet.addUserDebugText(
-        "RADAR STATION",
-        [0, -_DOME_RADIUS, _DOME_RADIUS * 0.12],
-        [0.2, 1.0, 0.2], textSize=1.2, physicsClientId=world.client,
+    # Single floating status line above the dome — replaces 5 overlapping texts
+    _hud = pybullet.addUserDebugText(
+        f"STATUS: CLEAR  |  {itype['label']}  |  {initial_speed:.1g}×",
+        [0, 0, _DOME_RADIUS * 1.6],
+        [0, 1, 0], textSize=1.8, physicsClientId=world.client,
     )
-
-    _hx, _hy = -_DOME_RADIUS * 1.4, -_DOME_RADIUS * 1.4
-    _hud_status  = pybullet.addUserDebugText("STATUS: CLEAR",    [_hx, _hy, _DOME_RADIUS*0.65], [0,1,0],   textSize=2.0, physicsClientId=world.client)
-    _hud_intrudr = pybullet.addUserDebugText("INTRUDER: ---",    [_hx, _hy, _DOME_RADIUS*0.55], [1,0.3,0], textSize=1.5, physicsClientId=world.client)
-    _hud_intercp = pybullet.addUserDebugText("INTERCEPTOR: ---", [_hx, _hy, _DOME_RADIUS*0.45], [0,0.8,1], textSize=1.5, physicsClientId=world.client)
-    _hud_sep     = pybullet.addUserDebugText("SEP: ---",         [_hx, _hy, _DOME_RADIUS*0.35], [1,1,0],   textSize=1.5, physicsClientId=world.client)
-    _hud_speed   = pybullet.addUserDebugText("SPEED: 1×",        [_hx, _hy, _DOME_RADIUS*0.25], [1,1,0],   textSize=1.3, physicsClientId=world.client)
 
     _int_urdf = os.path.normpath(
         os.path.join(os.path.dirname(__file__), "assets", "interceptor.urdf")
@@ -296,7 +290,7 @@ def _run_one_mission(
     interceptor = Drone(
         "interceptor", int_start, world.client,
         color="blue",
-        max_h_force=280.0, max_v_force=280.0, max_speed=60.0,
+        max_h_force=320.0, max_v_force=320.0, max_speed=100.0,
         kp=5.0, kd=2.5,
         urdf=_int_urdf if os.path.isfile(_int_urdf) else None,
         global_scaling=10.0,   # visible at 200 m dome scale
@@ -336,7 +330,7 @@ def _run_one_mission(
     # ── State variables ───────────────────────────────────────────────
     sim_speed            = initial_speed
     paused               = False
-    camera_mode          = 0
+    camera_mode          = 0   # 0=free-roam  1=track intruder  2=track interceptor  3=top-down
     show_trail           = True
     interceptor_launched = False
     interceptor_target   = None
@@ -411,11 +405,16 @@ def _run_one_mission(
                 mission_result = "RESTART"
             elif key in (81, 113): # Q / q
                 mission_result = "QUIT"
-            elif key in (67, 99):  # C / c
-                camera_mode = (camera_mode + 1) % len(_CAM_PRESETS)
-                i_pos_now  = intruder.get_position()
+            elif key in (67, 99):  # C / c — cycle camera modes
+                camera_mode = (camera_mode + 1) % 4
+                _mode_names = ["FREE-ROAM", "TRACK INTRUDER", "TRACK INTERCEPTOR", "TOP-DOWN"]
+                print(f"[CAM] {_mode_names[camera_mode]}")
+                i_pos_now   = intruder.get_position()
                 int_pos_now = interceptor.get_position() if interceptor_launched else None
                 _update_camera(world.client, camera_mode, i_pos_now, int_pos_now)
+            elif key in (84, 116):  # T / t — quick-toggle intruder tracking
+                camera_mode = 1 if camera_mode != 1 else 0
+                print(f"[CAM] {'TRACK INTRUDER' if camera_mode == 1 else 'FREE-ROAM'}")
             elif key in (73, 105): # I / i
                 show_trail = not show_trail
                 if not show_trail:
@@ -592,8 +591,9 @@ def _run_one_mission(
             mission_result = "FAILURE"
             break
 
-        # Camera is NOT auto-updated every frame so the user can free-roam.
-        # _update_camera is called once when C is pressed (see keyboard block above).
+        # Camera: free-roam when mode==0, auto-follow when mode 1/2/3
+        if camera_mode != 0 and step % 12 == 0:
+            _update_camera(world.client, camera_mode, i_pos, int_pos)
 
         # ── 3-D trail update (every 5 physics steps) ──────────────────
         if show_trail and step % 5 == 0:
@@ -629,54 +629,20 @@ def _run_one_mission(
 
         # ── PyBullet HUD update (every 48 steps ≈ 5 Hz) ──────────────
         if step % 48 == 0:
-            sc = {
-                "CLEAR": [0,1,0], "TRACKING": [1,1,0],
-                "BREACH": [1,0.5,0], "INTERCEPTED": [1,0,0],
-            }.get(status, [1,1,1])
-            paused_tag = " [PAUSED]" if (paused or dash_ctrl.get("paused")) else ""
+            _sc = {"CLEAR":[0,1,0],"TRACKING":[1,1,0],"BREACH":[1,0.5,0],"INTERCEPTED":[1,0,0]}.get(status,[1,1,1])
+            _paused = " [PAUSED]" if (paused or dash_ctrl.get("paused")) else ""
+            _rng  = f"rng {radar_return.get('range',0):.0f}m" if radar_return.get("detected") else "no lock"
+            if interceptor_launched and int_pos:
+                _sep = math.sqrt(sum((int_pos[k]-i_pos[k])**2 for k in range(3)))
+                _hud_line = f"STATUS: {status}  |  {_rng}  |  SEP {_sep:.0f}m  |  {sim_speed:.1g}×{_paused}"
+            else:
+                _hud_line = f"STATUS: {status}  |  {_rng}  |  interceptor on pad  |  {sim_speed:.1g}×{_paused}"
             try:
-                _hud_speed = pybullet.addUserDebugText(
-                    f"SPEED: {sim_speed:.2g}x{paused_tag}",
-                    [-14,-14,4], [1,1,0], textSize=1.3,
-                    replaceItemUniqueId=_hud_speed,
+                _hud = pybullet.addUserDebugText(
+                    _hud_line, [0, 0, _DOME_RADIUS * 1.6], _sc,
+                    textSize=1.6, replaceItemUniqueId=_hud,
                     physicsClientId=world.client,
                 )
-                _hud_status = pybullet.addUserDebugText(
-                    f"STATUS: {status}", [-14,-14,12], sc, textSize=2.0,
-                    replaceItemUniqueId=_hud_status,
-                    physicsClientId=world.client,
-                )
-                rng_str = f"{radar_return.get('range',0):.1f}m" if radar_return.get("detected") else "---"
-                _hud_intrudr = pybullet.addUserDebugText(
-                    f"INTRUDER  ({i_pos[0]:.1f},{i_pos[1]:.1f},{i_pos[2]:.1f})  rng:{rng_str}",
-                    [-14,-14,10], [1,0.3,0], textSize=1.5,
-                    replaceItemUniqueId=_hud_intrudr,
-                    physicsClientId=world.client,
-                )
-                if interceptor_launched and int_pos:
-                    d   = math.sqrt(sum((int_pos[k]-i_pos[k])**2 for k in range(3)))
-                    tti = guidance.time_to_intercept(interceptor.get_state(), guidance_track) \
-                          if guidance_track else float("inf")
-                    tti_s = f"{tti:.1f}s" if tti < 999 else "---"
-                    _hud_intercp = pybullet.addUserDebugText(
-                        f"INTERCEPTOR ({int_pos[0]:.1f},{int_pos[1]:.1f},{int_pos[2]:.1f})",
-                        [-14,-14,8], [0,0.8,1], textSize=1.5,
-                        replaceItemUniqueId=_hud_intercp,
-                        physicsClientId=world.client,
-                    )
-                    _hud_sep = pybullet.addUserDebugText(
-                        f"SEP: {d:.1f}m  TTI: {tti_s}",
-                        [-14,-14,6], [1,1,0], textSize=1.5,
-                        replaceItemUniqueId=_hud_sep,
-                        physicsClientId=world.client,
-                    )
-                else:
-                    _hud_intercp = pybullet.addUserDebugText(
-                        "INTERCEPTOR: on pad — awaiting launch",
-                        [-14,-14,8], [0,0.8,1], textSize=1.5,
-                        replaceItemUniqueId=_hud_intercp,
-                        physicsClientId=world.client,
-                    )
             except Exception:
                 pass
 
@@ -757,7 +723,9 @@ def _print_controls():
 ║  SPACE   Pause / resume                                 ║
 ║  R       Restart same scenario                          ║
 ║  1–6     Sim speed  0.25× / 0.5× / 1× / 2× / 4× / 8×  ║
-║  C       Cycle camera  (overview/chase/top-down)        ║
+║  C       Cycle camera  (free-roam/track intruder/       ║
+║            track interceptor/top-down)                  ║
+║  T       Quick-toggle intruder tracking on/off          ║
 ║  I       Toggle 3-D trail                               ║
 ║  H       Print this help                                ║
 ║  Q       Return to mission select                       ║

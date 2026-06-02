@@ -32,7 +32,7 @@ import numpy as np
 
 _N         = 4.0    # navigation constant
 _MASS      = 1.5    # interceptor mass (kg), matches URDF
-_MAX_FORCE = 160.0  # N — ~11 G sustained (was 60 N at 10 m scale)
+_MAX_FORCE = 260.0  # N — ~18 G sustained; interceptor must close quickly
 _ACC_CLAMP = 20.0   # clamp on target accel input to suppress Kalman spikes
 
 
@@ -77,7 +77,7 @@ class PurePursuitGuidance:
         # Closing acceleration along LOS — PN only steers laterally; without
         # this term the interceptor corrects angle but barely drives range down.
         # Ramps linearly with range up to a cap so it doesn't swamp the PN term.
-        close_accel = float(np.clip(rng * 0.12, 2.0, 32.0))
+        close_accel = float(np.clip(rng * 0.15, 4.0, 60.0))
         a_close = r_hat * close_accel
 
         # Total commanded acceleration

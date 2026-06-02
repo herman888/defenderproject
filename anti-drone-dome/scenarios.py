@@ -69,7 +69,7 @@ INTRUDER_TYPES = {
         "max_speed":          51.0,          # m/s  (~185 km/h cruise)
         "rcs":                0.05,          # m²   composite/fibreglass body
         "threat":             "HIGH",
-        "response_delay":     4.0,           # s    alert + arm + launch
+        "response_delay":     2.0,           # s    alert + arm + launch
         "mass":               1.4,           # kg   (real ~200 kg, sim-scaled)
         "aero": {
             "cd": 0.20, "a": 0.030,          # streamlined delta-wing profile
@@ -107,7 +107,7 @@ INTRUDER_TYPES = {
         "max_speed":          32.0,          # m/s  (~115 km/h)
         "rcs":                0.001,         # m²   carbon fibre, minimal metal
         "threat":             "HIGH",
-        "response_delay":     3.0,           # s    fast attacker — must react quickly
+        "response_delay":     1.5,           # s    fast attacker — must react quickly
         "mass":               1.0,
         "aero": {
             "cd": 0.38, "a": 0.008,
