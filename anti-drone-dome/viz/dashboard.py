@@ -20,10 +20,22 @@ correct whether the dome is 10 m or 200 m.
 """
 
 import math
+import sys
 import time
 import numpy as np
 import matplotlib
-matplotlib.use("TkAgg")
+
+def _matplotlib_backend():
+    # Homebrew Python often has no tkinter; TkAgg then crashes the dashboard process.
+    if sys.platform == "darwin":
+        try:
+            import tkinter  # noqa: F401
+        except ImportError:
+            return "MacOSX"
+    return "TkAgg"
+
+
+matplotlib.use(_matplotlib_backend())
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.widgets import Button
@@ -88,6 +100,8 @@ class SimControl:
         self.selected_speed   = 1.0
         self.selected_pad     = "mid"
         self.selected_pattern = "direct"
+        # One-shot PyBullet camera zoom (read by main process, then cleared)
+        self.camera_zoom_pending = None    # "in" | "out"
 
 
 class Dashboard:
@@ -136,6 +150,7 @@ class Dashboard:
         self._setup_side_ax()
         self._setup_mission_panel(gs)
         self._setup_controls(gs)
+        self._setup_sim_zoom_strip()
         self._init_artists()
         plt.pause(0.01)
 
@@ -230,9 +245,8 @@ class Dashboard:
         3 sub-rows inside the mission panel row:
           Sub-row 0: Intruder type  [SHAHED-136][CONSUMER][FPV]  | Speed [0.5x…8x]
           Sub-row 1: Attack pattern [DIRECT][NAP-EARTH][SPIRAL]  | Pad   [NEAR][MID][FAR]
-        Clicking an intruder-type button triggers launch (sends selected_mission).
-        Pattern, speed, pad are pre-selected state — click to highlight, then
-        choose intruder to fire.
+        Intruder / pattern / pad / speed buttons only PRE-SELECT.
+        The 3-D PyBullet window opens only after **▶ START** (sends selected_mission).
         """
         mission_row = gs[1, :]
         mgs = mission_row.subgridspec(2, 10, wspace=0.10, hspace=0.35)
@@ -303,7 +317,8 @@ class Dashboard:
         ax_hint.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
         ax_hint.text(
             0.03, 0.50,
-            "Select pattern + pad + speed,\nthen click intruder to LAUNCH",
+            "Pick intruder + pattern + pad + speed,\n"
+            "then press  ▶ START  — that opens the 3-D sim",
             transform=ax_hint.transAxes,
             color="#5a6a5a", fontsize=7, fontfamily="monospace", va="center",
         )
@@ -334,6 +349,32 @@ class Dashboard:
         self._btn_start.on_clicked(self._on_start)
         self._btn_abort.on_clicked(self._on_abort)
 
+    def _setup_sim_zoom_strip(self):
+        """Tall white strip on the right with + / − for PyBullet camera distance."""
+        # Figure coordinates: narrow column along the right edge (outside radar grid)
+        ax_strip = self._fig.add_axes([0.935, 0.22, 0.058, 0.68], facecolor="white")
+        ax_strip.set_xticks([])
+        ax_strip.set_yticks([])
+        for spine in ax_strip.spines.values():
+            spine.set_color("#cccccc")
+        ax_strip.set_title(
+            "3-D\nview",
+            fontsize=7,
+            color="#333333",
+            fontfamily="monospace",
+            pad=4,
+        )
+        ax_plus = self._fig.add_axes([0.938, 0.62, 0.052, 0.10], facecolor="#eeeeee")
+        ax_minus = self._fig.add_axes([0.938, 0.48, 0.052, 0.10], facecolor="#eeeeee")
+        self._btn_zoom_in = Button(ax_plus, "+", color=(0.85, 0.95, 0.85), hovercolor=(0.65, 0.88, 0.65))
+        self._btn_zoom_out = Button(ax_minus, "−", color=(0.95, 0.90, 0.85), hovercolor=(0.92, 0.75, 0.65))
+        self._btn_zoom_in.label.set_fontsize(16)
+        self._btn_zoom_in.label.set_fontweight("bold")
+        self._btn_zoom_out.label.set_fontsize(16)
+        self._btn_zoom_out.label.set_fontweight("bold")
+        self._btn_zoom_in.on_clicked(self._on_zoom_in)
+        self._btn_zoom_out.on_clicked(self._on_zoom_out)
+
     # ── Button callbacks ───────────────────────────────────────────────
     def _on_pause(self, _):
         if not self._ctrl:
@@ -357,6 +398,16 @@ class Dashboard:
         self._ctrl.stopped = True
         self._btn_abort.label.set_text("◼  ABORTED")
         self._btn_abort.ax.set_facecolor((0.48, 0.00, 0.00))
+        self._fig.canvas.draw_idle()
+
+    def _on_zoom_in(self, _):
+        if self._ctrl:
+            self._ctrl.camera_zoom_pending = "in"
+        self._fig.canvas.draw_idle()
+
+    def _on_zoom_out(self, _):
+        if self._ctrl:
+            self._ctrl.camera_zoom_pending = "out"
         self._fig.canvas.draw_idle()
 
     def _on_mission(self, key: str):

@@ -45,6 +45,9 @@ class Drone:
         self._target    = list(start_position)
         self._prev_error = [0.0, 0.0, 0.0]
         self._rotor_angle = 0.0
+        self._smooth_up = np.array([0.0, 0.0, 1.0], dtype=float)
+        # Trim from rigid-body mass once URDF is loaded (set in _apply_color path)
+        self._hover_ff = 9.81 * 1.35
 
         self._max_h  = max_h_force
         self._max_v  = max_v_force
@@ -73,6 +76,14 @@ class Drone:
 
         self._apply_color(color)
         self._rotor_joints = self._find_rotor_joints()
+        try:
+            mass = float(
+                pybullet.getDynamicsInfo(self._body, -1, physicsClientId=self._client)[0]
+            )
+            if mass > 1e-4:
+                self._hover_ff = mass * 9.81 * 1.06
+        except Exception:
+            pass
 
         label_color = [0.9, 0.15, 0.15] if color == "red" else [0.1, 0.5, 1.0]
         try:
@@ -142,29 +153,33 @@ class Drone:
 
     def _compute_vtol(self, pos, vel):
         """
-        VTOL flight model.
+        VTOL flight model (interceptor).
 
-        1. PD position controller → desired world-frame force vector.
-        2. Normalise to get desired body-up (= thrust direction).
-        3. Clamp tilt to MAX_TILT so it never flips upside-down.
-        4. Kinematically set body orientation so the mesh visually banks.
-        5. Apply thrust magnitude along that tilted direction + drag.
+        1. **World-frame PD** with velocity damping: ``F = Kp·e − Kd·v`` plus a
+           **mass-trimmed hover bias** ``m·g`` from ``getDynamicsInfo``, so the
+           quad does not hunt vertically on the real rigid-body mass.
+        2. Normalise to desired **thrust direction** (body +Z).
+        3. Clamp tilt to ``MAX_TILT`` so the mesh never inverts.
+        4. **Slew-limit** that direction so attitude eases into hard turns
+           (cinematic bank without twitch).
+        5. Kinematic orientation + thrust along tilted Z + light linear drag.
 
-        Using kinematic orientation (resetBasePositionAndOrientation) avoids
-        inertia-scaling instability while still producing the correct tilted
-        visual and the physically correct thrust direction.
+        Kinematic orientation avoids torque–inertia fights with the external-force
+        abstraction while keeping thrust and visuals consistent.
         """
         MAX_TILT   = math.radians(40)        # max lean from vertical
-        G_COMP     = 9.81 * 1.5             # gravity compensation constant
+        UP_SLEW    = 0.26                    # blend toward new thrust dir (0–1)
 
-        err   = [self._target[i] - pos[i] for i in range(3)]
-        d_err = [(err[i] - self._prev_error[i]) / _TIMESTEP for i in range(3)]
-        self._prev_error = err[:]
+        err = np.array(
+            [self._target[i] - pos[i] for i in range(3)], dtype=float
+        )
+        vel_np = np.array(vel, dtype=float)
 
-        # Desired world-frame force (same PD as before)
-        fx = self._kp * err[0] + self._kd * d_err[0]
-        fy = self._kp * err[1] + self._kd * d_err[1]
-        fz = self._kp * err[2] + self._kd * d_err[2] + G_COMP
+        # PD in world frame: derivative on measured velocity (smooth, standard form)
+        fx = self._kp * err[0] - self._kd * vel_np[0]
+        fy = self._kp * err[1] - self._kd * vel_np[1]
+        fz = self._kp * err[2] - self._kd * vel_np[2] + self._hover_ff
+        self._prev_error = err.tolist()
 
         f_des = np.array([fx, fy, fz])
         f_mag = float(np.linalg.norm(f_des))
@@ -174,6 +189,13 @@ class Drone:
             desired_up = f_des / f_mag
         else:
             desired_up = np.array([0.0, 0.0, 1.0])
+
+        # Ease attitude into aggressive direction changes
+        self._smooth_up = (1.0 - UP_SLEW) * self._smooth_up + UP_SLEW * desired_up
+        sn = float(np.linalg.norm(self._smooth_up))
+        if sn > 1e-8:
+            self._smooth_up /= sn
+        desired_up = self._smooth_up.copy()
 
         # Clamp tilt angle
         if desired_up[2] < math.cos(MAX_TILT):
@@ -194,13 +216,12 @@ class Drone:
             self._body, list(vel), [0.0, 0.0, 0.0], physicsClientId=self._client
         )
 
-        # Cap total force magnitude
-        MAX_F = math.sqrt(self._max_h**2 + (self._max_v + G_COMP)**2)
+        # Cap total force magnitude (budget horizontal + vertical actuator)
+        MAX_F = math.sqrt(self._max_h**2 + (self._max_v + self._hover_ff) ** 2)
         f_mag = min(f_mag, MAX_F)
 
         # Thrust along tilted body-Z + aerodynamic drag
-        vel_np = np.array(vel)
-        speed  = float(np.linalg.norm(vel_np))
+        speed = float(np.linalg.norm(vel_np))
         if speed > self._max_spd:
             vel_np = vel_np * (self._max_spd / speed)
             pybullet.resetBaseVelocity(
@@ -431,13 +452,13 @@ class LoiteringMunition:
         self._spin_rotors(speed)
 
     def _compute_forces(self, pos, vel):
-        err   = [self._target[i] - pos[i] for i in range(3)]
-        d_err = [(err[i] - self._prev_error[i]) / _TIMESTEP for i in range(3)]
+        err = [self._target[i] - pos[i] for i in range(3)]
+        vx, vy, vz = vel[0], vel[1], vel[2]
+        # PD with velocity damping (same structure as interceptor VTOL)
+        fx = self._kp * err[0] - self._kd * vx
+        fy = self._kp * err[1] - self._kd * vy
+        fz = self._kp * err[2] - self._kd * vz + 9.81 * self._mass
         self._prev_error = err[:]
-
-        fx = self._kp * err[0] + self._kd * d_err[0]
-        fy = self._kp * err[1] + self._kd * d_err[1]
-        fz = self._kp * err[2] + self._kd * d_err[2] + 9.81 * self._mass
 
         speed = math.sqrt(sum(v*v for v in vel))
 

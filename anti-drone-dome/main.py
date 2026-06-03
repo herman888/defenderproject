@@ -19,6 +19,7 @@ Mission loop
 
 All mission selection, speed choice, pad-distance selection, pause/reset/abort,
 and post-mission debrief are handled entirely in the dashboard window.
+Click  ▶ START  there to open the PyBullet 3-D view (it does not open until then).
 No blocking console prompts.
 
 Keyboard controls (PyBullet 3-D window focus required)
@@ -27,9 +28,15 @@ Keyboard controls (PyBullet 3-D window focus required)
   R       Restart same scenario
   1–6     Sim speed  0.25× / 0.5× / 1× / 2× / 4× / 8×
   C       Cycle camera modes
+  T       Quick-toggle intruder tracking
+  + / =   Zoom 3-D view in
+  -       Zoom 3-D view out
   I       Toggle intruder 3-D trail
   H       Print help to console
   Q       Return to mission select
+
+Also: PyBullet **User Parameters** (right panel) — + / − zoom sliders; and the
+radar dashboard strip — same camera nudge as the keys.
 
 Run:  python main.py
 """
@@ -44,7 +51,8 @@ import multiprocessing as mp
 import pybullet
 import pybullet_data
 
-from sim.physics    import PhysicsWorld
+from sim.physics         import PhysicsWorld
+from sim.camera_debug_ui import CameraZoomDebugUi
 from sim.drone      import Drone, LoiteringMunition
 from sim.waypoints  import WaypointNavigator
 from sensors.radar  import RadarNode
@@ -127,6 +135,9 @@ def _dashboard_worker(state_q: mp.Queue, ctrl_q: mp.Queue, dome_radius: float):
                 ctrl_msg["selected_pad"]     = ctrl.selected_pad
                 ctrl_msg["selected_pattern"] = ctrl.selected_pattern
                 ctrl.selected_mission = None   # consume once
+            if getattr(ctrl, "camera_zoom_pending", None):
+                ctrl_msg["camera_zoom"] = ctrl.camera_zoom_pending
+                ctrl.camera_zoom_pending = None
             ctrl_q.put_nowait(ctrl_msg)
         except Exception:
             pass
@@ -174,6 +185,29 @@ def _update_camera(client: int, mode: int, i_pos, int_pos):
         pybullet.resetDebugVisualizerCamera(_R*0.4, 225, -18, list(int_pos), physicsClientId=client)
 
 
+def _apply_pybullet_zoom(client: int, direction: str) -> None:
+    """Nudge debug-visualizer camera distance (free-roam); clamp for 200 m dome."""
+    try:
+        ret = pybullet.getDebugVisualizerCamera(physicsClientId=client)
+    except Exception:
+        return
+    if len(ret) < 12:
+        return
+    yaw, pitch, dist, target = float(ret[8]), float(ret[9]), float(ret[10]), list(ret[11])
+    factor = 0.90 if direction == "in" else 1.11
+    newd = max(120.0, min(9000.0, dist * factor))
+    try:
+        pybullet.resetDebugVisualizerCamera(
+            cameraDistance=newd,
+            cameraYaw=yaw,
+            cameraPitch=pitch,
+            cameraTargetPosition=target,
+            physicsClientId=client,
+        )
+    except Exception:
+        pass
+
+
 def _update_trail(new_pos, last_pos, trail_ids, max_len, color, client):
     """Append one segment to a debug-line trail; prune oldest beyond max_len."""
     if last_pos is not None:
@@ -216,6 +250,9 @@ def _print_help():
 ║  5       Speed 4×                       ║
 ║  6       Speed 8× (fast-forward)        ║
 ║  C       Cycle camera mode              ║
+║  + / =   Zoom 3-D view in (closer)      ║
+║  -       Zoom 3-D view out (farther)    ║
+║  PyBullet right panel: +/− ZOOM sliders ║
 ║  I       Toggle intruder 3-D trail      ║
 ║  H       Print this help text           ║
 ║  Q       Quit to main menu              ║
@@ -263,6 +300,30 @@ def _run_one_mission(
     world = PhysicsWorld(gui=True)
     world.draw_dome(_DOME_CENTER, _DOME_RADIUS, color=[0, 1, 0])
 
+    print(
+        "\n  ▶▶  PyBullet 3-D sim is running — separate window (dome / grid / aircraft).\n"
+        "      If you do not see it: Mission Control, or Dock → Python / Bullet / OpenGL.\n"
+        "      Click that window for keyboard controls (Space, C, Q, …).\n",
+        flush=True,
+    )
+    if sys.platform == "darwin":
+        try:
+            import subprocess as _sp
+
+            _sp.run(
+                [
+                    "osascript",
+                    "-e",
+                    "tell application \"System Events\" to set frontmost "
+                    f"of (first process whose unix id is {os.getpid()}) to true",
+                ],
+                timeout=2.5,
+                capture_output=True,
+                check=False,
+            )
+        except Exception:
+            pass
+
     radar_body, spin_joint = _load_radar_station(_DOME_RADIUS, world.client)
     if spin_joint >= 0:
         pybullet.setJointMotorControl2(
@@ -291,7 +352,7 @@ def _run_one_mission(
         "interceptor", int_start, world.client,
         color="blue",
         max_h_force=320.0, max_v_force=320.0, max_speed=100.0,
-        kp=5.0, kd=2.5,
+        kp=6.5, kd=4.2,
         urdf=_int_urdf if os.path.isfile(_int_urdf) else None,
         global_scaling=10.0,   # visible at 200 m dome scale
     )
@@ -312,6 +373,8 @@ def _run_one_mission(
         )
     except Exception:
         pass
+
+    cam_zoom_ui = CameraZoomDebugUi(world.client)
 
     waypoints = get_waypoints_for_path(pattern["path"])
     nav     = WaypointNavigator(waypoints=waypoints)
@@ -370,8 +433,18 @@ def _run_one_mission(
             try:
                 msg = ctrl_q.get_nowait()
                 dash_ctrl.update(msg)
+                z = msg.get("camera_zoom")
+                if z in ("in", "out"):
+                    _apply_pybullet_zoom(world.client, z)
             except Exception:
                 break
+
+        try:
+            zpb = cam_zoom_ui.poll()
+            if zpb in ("in", "out"):
+                _apply_pybullet_zoom(world.client, zpb)
+        except Exception:
+            pass
 
         # ── Window alive check ───────────────────────────────────────
         if step % 120 == 0:
@@ -415,6 +488,10 @@ def _run_one_mission(
             elif key in (84, 116):  # T / t — quick-toggle intruder tracking
                 camera_mode = 1 if camera_mode != 1 else 0
                 print(f"[CAM] {'TRACK INTRUDER' if camera_mode == 1 else 'FREE-ROAM'}")
+            elif key in (43, 61):  # + or =
+                _apply_pybullet_zoom(world.client, "in")
+            elif key == 45:  # -
+                _apply_pybullet_zoom(world.client, "out")
             elif key in (73, 105): # I / i
                 show_trail = not show_trail
                 if not show_trail:
@@ -438,7 +515,7 @@ def _run_one_mission(
             break
 
         # ── Determine physics sub-steps this iteration ────────────────
-        inner_steps  = max(1, round(sim_speed))
+        inner_steps  = max(1, min(round(sim_speed), 5))  # cap substeps — reduces CPU at 8×
         slow_sleep   = max(0.0, _TIMESTEP * (1.0 / sim_speed - 1.0)) if sim_speed < 1 else 0.0
 
         # Compute guidance force once per outer loop (position changes slowly)
@@ -555,6 +632,10 @@ def _run_one_mission(
                 physicsClientId=world.client,
             )
             interceptor._prev_error = [0.0, 0.0, 0.0]
+            try:
+                interceptor._smooth_up[:] = (0.0, 0.0, 1.0)
+            except Exception:
+                pass
             interceptor_launched = True
             int_pos = interceptor.get_position()
             pending_events.append("Interceptor launched")
@@ -665,25 +746,26 @@ def _run_one_mission(
             tti = guidance.time_to_intercept(interceptor.get_state(), guidance_track)
 
         try:
-            state_q.put_nowait({
-                "dome_status"        : status,
-                "intruder_pos"       : i_pos,
-                "interceptor_pos"    : int_pos,
-                "radar_return"       : radar_return,
-                "radar_station"      : radar.station_pos.tolist(),
-                "predicted_intercept": interceptor_target,
-                "intruder_speed"     : math.sqrt(sum(v**2 for v in i_v)),
-                "interceptor_speed"  : math.sqrt(sum(v**2 for v in int_v)),
-                "tti"                : tti,
-                "track_confidence"   : radar.track_confidence(),
-                "last_detection_time": radar.last_detection_time,
-                "events"             : pending_events,
-                "mission_time"       : sim_time,
-                "sim_speed"          : sim_speed,
-            })
+            if step % 4 == 0:
+                state_q.put_nowait({
+                    "dome_status"        : status,
+                    "intruder_pos"       : i_pos,
+                    "interceptor_pos"    : int_pos,
+                    "radar_return"       : radar_return,
+                    "radar_station"      : radar.station_pos.tolist(),
+                    "predicted_intercept": interceptor_target,
+                    "intruder_speed"     : math.sqrt(sum(v**2 for v in i_v)),
+                    "interceptor_speed"  : math.sqrt(sum(v**2 for v in int_v)),
+                    "tti"                : tti,
+                    "track_confidence"   : radar.track_confidence(),
+                    "last_detection_time": radar.last_detection_time,
+                    "events"             : pending_events,
+                    "mission_time"       : sim_time,
+                    "sim_speed"          : sim_speed,
+                })
+                pending_events = []
         except Exception:
             pass
-        pending_events = []
 
     # ── Cleanup ───────────────────────────────────────────────────────
     _clear_trail(i_trail_ids,   world.client)
@@ -698,7 +780,7 @@ def _run_one_mission(
     total_sim = step * _TIMESTEP
     return {
         "result"         : mission_result,
-        "scenario"       : scenario_key,
+        "scenario"       : intruder_key,
         "sim_time"       : total_sim,
         "first_detection": dome.first_detection_time,
         "breach_time"    : dome.breach_time,
@@ -726,9 +808,14 @@ def _print_controls():
 ║  C       Cycle camera  (free-roam/track intruder/       ║
 ║            track interceptor/top-down)                  ║
 ║  T       Quick-toggle intruder tracking on/off          ║
+║  + / =   Zoom 3-D view in (closer)                       ║
+║  -       Zoom 3-D view out (farther)                     ║
 ║  I       Toggle 3-D trail                               ║
 ║  H       Print this help                                ║
 ║  Q       Return to mission select                       ║
+╠══════════════════════════════════════════════════════════╣
+║  PYBULLET: right panel — “3D +/− ZOOM” sliders (slide→1, ║
+║  back→0)  +  keys +/−  +  dashboard strip — same zoom.   ║
 ╠══════════════════════════════════════════════════════════╣
 ║  All mission select, pad, speed, pause, reset, abort    ║
 ║  and debrief are handled in the DASHBOARD window.       ║
@@ -750,7 +837,12 @@ def _wait_for_mission(state_q: mp.Queue, ctrl_q: mp.Queue, dash_proc) -> tuple:
     except Exception:
         pass
 
-    print("\n[SIM] Waiting for mission selection in the Dashboard window …")
+    print(
+        "\n[SIM] Dashboard is ready — the 3-D PyBullet window does NOT open yet.\n"
+        "      In the matplotlib window: choose intruder / pattern / pad / speed,\n"
+        "      then click  ▶ START  .  After that, check the Dock / left screen\n"
+        "      for the Bullet / OpenGL window (it may open behind this IDE).\n"
+    )
 
     while True:
         if not dash_proc.is_alive():

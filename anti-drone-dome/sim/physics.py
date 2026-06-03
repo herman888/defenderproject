@@ -11,7 +11,7 @@ _TIMESTEP = 1.0 / 240.0
 
 # Grid params
 _GRID_HALF  = 30    # metres in each direction
-_GRID_STEP  = 5     # grid spacing (m)
+_GRID_STEP  = 10    # grid spacing (m) — fewer lines than 5 m for faster debug draw
 _GRID_MAJOR = 25    # thick lines every 25 m
 
 
@@ -39,8 +39,9 @@ class PhysicsWorld:
             pybullet.configureDebugVisualizer(
                 pybullet.COV_ENABLE_SHADOWS, 0, physicsClientId=self.client
             )
+            # GUI on = right-hand **User Parameters** panel (+/− zoom sliders, etc.).
             pybullet.configureDebugVisualizer(
-                pybullet.COV_ENABLE_GUI, 0, physicsClientId=self.client
+                pybullet.COV_ENABLE_GUI, 1, physicsClientId=self.client
             )
             pybullet.configureDebugVisualizer(
                 pybullet.COV_ENABLE_RGB_BUFFER_PREVIEW, 0, physicsClientId=self.client
@@ -104,7 +105,7 @@ class PhysicsWorld:
 
     def _draw_range_rings(self):
         c = self.client
-        ring_pts = 60
+        ring_pts = 36
         for r, bright in [(5, False), (10, True), (15, False), (20, False), (25, False)]:
             # 10 m ring = dome boundary, drawn brighter
             col = [0.00, 0.80, 0.20] if bright else [0.20, 0.30, 0.20]
