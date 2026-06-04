@@ -416,7 +416,9 @@ class Dashboard:
             return
         self._ctrl.pending_intruder = key
         for k, btn in self._mission_btns.items():
-            btn.ax.set_facecolor((0.08, 0.30, 0.10) if k == key else (0.03, 0.12, 0.05))
+            c = (0.08, 0.30, 0.10) if k == key else (0.03, 0.12, 0.05)
+            btn.color = c
+            btn.ax.set_facecolor(c)
         self._fig.canvas.draw_idle()
 
     def _on_start(self, _):
@@ -433,7 +435,9 @@ class Dashboard:
             return
         self._ctrl.selected_pattern = key
         for k, btn in self._pattern_btns.items():
-            btn.ax.set_facecolor((0.14, 0.20, 0.40) if k == key else (0.05, 0.08, 0.18))
+            c = (0.14, 0.20, 0.40) if k == key else (0.05, 0.08, 0.18)
+            btn.color = c
+            btn.ax.set_facecolor(c)
         self._fig.canvas.draw_idle()
 
     def _on_speed_select(self, speed: float):
@@ -441,7 +445,9 @@ class Dashboard:
             return
         self._ctrl.selected_speed = speed
         for spd, btn in self._speed_btns.items():
-            btn.ax.set_facecolor((0.16, 0.20, 0.48) if spd == speed else (0.05, 0.07, 0.18))
+            c = (0.16, 0.20, 0.48) if spd == speed else (0.05, 0.07, 0.18)
+            btn.color = c
+            btn.ax.set_facecolor(c)
         self._fig.canvas.draw_idle()
 
     def _on_pad_select(self, key: str):
@@ -449,7 +455,9 @@ class Dashboard:
             return
         self._ctrl.selected_pad = key
         for k, btn in self._pad_btns.items():
-            btn.ax.set_facecolor((0.25, 0.15, 0.40) if k == key else (0.08, 0.06, 0.15))
+            c = (0.25, 0.15, 0.40) if k == key else (0.08, 0.06, 0.15)
+            btn.color = c
+            btn.ax.set_facecolor(c)
         self._fig.canvas.draw_idle()
 
     # ── Artists ─────────────────────────────────────────────────────────

@@ -12,3 +12,10 @@ __pycache__/
 
 # gym-pybullet-drones generated logs (regenerated locally)
 gym-pybullet-drones/gym_pybullet_drones/examples/results/
+
+# Virtual environments
+**/venv312/
+**/venv/
+
+# Runtime-generated ACMI mission files
+anti-drone-dome/missions/

@@ -41,15 +41,19 @@ radar dashboard strip — same camera nudge as the keys.
 Run:  python main.py
 """
 
+import argparse
 import math
 import os
 import random
 import sys
 import time
+import threading
 import multiprocessing as mp
 
 import pybullet
 import pybullet_data
+
+USE_VISPY   = False   # set to True by --no-vispy absence in main()
 
 from sim.physics         import PhysicsWorld
 from sim.camera_debug_ui import CameraZoomDebugUi
@@ -272,6 +276,8 @@ def _run_one_mission(
     pattern_key:   str   = "direct",
     initial_speed: float = 1.0,
     pad_key:       str   = "mid",
+    shared_state:  dict  = None,
+    state_lock             = None,
 ) -> dict:
     """
     Run one complete mission.  Returns a result dict.
@@ -298,8 +304,16 @@ def _run_one_mission(
         pass
 
     # ── PyBullet world ────────────────────────────────────────────────
-    world = PhysicsWorld(gui=True)
-    world.draw_dome(_DOME_CENTER, _DOME_RADIUS, color=[0.0, 0.6, 0.1])
+    world = PhysicsWorld(gui=not USE_VISPY)
+    if not USE_VISPY:
+        world.draw_dome(_DOME_CENTER, _DOME_RADIUS, color=[0.0, 0.6, 0.1])
+
+    # Publish intruder type immediately so renderer can build the right mesh
+    if USE_VISPY and shared_state is not None:
+        with state_lock:
+            shared_state["intruder_key"] = intruder_key
+            shared_state.pop("intruder_pos", None)
+            shared_state.pop("interceptor_pos", None)
 
     # ACMI export — start at mission begin
     acmi = ACMIWriter()
@@ -329,7 +343,7 @@ def _run_one_mission(
             pass
 
     radar_body, spin_joint = _load_radar_station(_DOME_RADIUS, world.client)
-    if spin_joint >= 0:
+    if not USE_VISPY and spin_joint >= 0:
         pybullet.setJointMotorControl2(
             radar_body, spin_joint,
             pybullet.VELOCITY_CONTROL,
@@ -337,28 +351,29 @@ def _run_one_mission(
             physicsClientId=world.client,
         )
 
-    # Multi-line HUD above the dome
+    # Multi-line HUD above the dome (PyBullet GUI only)
     _hud_ids = {}
-    _hud_ids['status'] = pybullet.addUserDebugText(
-        "● STATUS: CLEAR",
-        [0, 0, 215],
-        [0.0, 1.0, 0.4], textSize=1.8, physicsClientId=world.client,
-    )
-    _hud_ids['intruder'] = pybullet.addUserDebugText(
-        f"INTRUDER  initializing...",
-        [0, 0, 208],
-        [1.0, 0.3, 0.2], textSize=1.2, physicsClientId=world.client,
-    )
-    _hud_ids['interceptor'] = pybullet.addUserDebugText(
-        "INTERCEPTOR  on pad",
-        [0, 0, 201],
-        [0.2, 0.6, 1.0], textSize=1.2, physicsClientId=world.client,
-    )
-    pybullet.addUserDebugText(
-        "SPACE=pause  1-6=speed  C=camera  R=restart  Q=quit",
-        [0, 0, 194],
-        [0.3, 0.4, 0.3], textSize=0.9, physicsClientId=world.client,
-    )
+    if not USE_VISPY:
+        _hud_ids['status'] = pybullet.addUserDebugText(
+            "● STATUS: CLEAR",
+            [0, 0, 215],
+            [0.0, 1.0, 0.4], textSize=1.8, physicsClientId=world.client,
+        )
+        _hud_ids['intruder'] = pybullet.addUserDebugText(
+            "INTRUDER  initializing...",
+            [0, 0, 208],
+            [1.0, 0.3, 0.2], textSize=1.2, physicsClientId=world.client,
+        )
+        _hud_ids['interceptor'] = pybullet.addUserDebugText(
+            "INTERCEPTOR  on pad",
+            [0, 0, 201],
+            [0.2, 0.6, 1.0], textSize=1.2, physicsClientId=world.client,
+        )
+        pybullet.addUserDebugText(
+            "SPACE=pause  1-6=speed  C=camera  R=restart  Q=quit",
+            [0, 0, 194],
+            [0.3, 0.4, 0.3], textSize=0.9, physicsClientId=world.client,
+        )
 
     _int_urdf = os.path.normpath(
         os.path.join(os.path.dirname(__file__), "assets", "interceptor.urdf")
@@ -381,21 +396,20 @@ def _run_one_mission(
     for _ in range(50):
         world.step()
 
-    # Set initial camera toward the intruder start position, then leave it alone
-    # so the user can free-roam.  Pressing C in the PyBullet window snaps back.
-    try:
-        sx, sy, sz = i_start
-        pybullet.resetDebugVisualizerCamera(
-            cameraDistance       = _DOME_RADIUS * 4,
-            cameraYaw            = 45,
-            cameraPitch          = -28,
-            cameraTargetPosition = [sx * 0.3, sy * 0.3, sz * 0.3],
-            physicsClientId      = world.client,
-        )
-    except Exception:
-        pass
+    if not USE_VISPY:
+        try:
+            sx, sy, sz = i_start
+            pybullet.resetDebugVisualizerCamera(
+                cameraDistance       = _DOME_RADIUS * 4,
+                cameraYaw            = 45,
+                cameraPitch          = -28,
+                cameraTargetPosition = [sx * 0.3, sy * 0.3, sz * 0.3],
+                physicsClientId      = world.client,
+            )
+        except Exception:
+            pass
 
-    cam_zoom_ui = CameraZoomDebugUi(world.client)
+    cam_zoom_ui = CameraZoomDebugUi(world.client) if not USE_VISPY else None
 
     waypoints = get_waypoints_for_path(pattern["path"])
     nav     = WaypointNavigator(waypoints=waypoints)
@@ -457,21 +471,23 @@ def _run_one_mission(
             try:
                 msg = ctrl_q.get_nowait()
                 dash_ctrl.update(msg)
-                z = msg.get("camera_zoom")
-                if z in ("in", "out"):
-                    _apply_pybullet_zoom(world.client, z)
+                if not USE_VISPY:
+                    z = msg.get("camera_zoom")
+                    if z in ("in", "out"):
+                        _apply_pybullet_zoom(world.client, z)
             except Exception:
                 break
 
-        try:
-            zpb = cam_zoom_ui.poll()
-            if zpb in ("in", "out"):
-                _apply_pybullet_zoom(world.client, zpb)
-        except Exception:
-            pass
+        if not USE_VISPY:
+            try:
+                zpb = cam_zoom_ui.poll()
+                if zpb in ("in", "out"):
+                    _apply_pybullet_zoom(world.client, zpb)
+            except Exception:
+                pass
 
-        # ── Window alive check ───────────────────────────────────────
-        if step % 120 == 0:
+        # ── Window alive check (GUI mode only) ──────────────────────
+        if not USE_VISPY and step % 120 == 0:
             try:
                 pybullet.getConnectionInfo(world.client)
             except Exception:
@@ -487,44 +503,56 @@ def _run_one_mission(
             mission_result = "RESTART"
             break
 
-        # ── Keyboard events ───────────────────────────────────────────
-        try:
-            keys = pybullet.getKeyboardEvents(physicsClientId=world.client)
-        except Exception:
-            keys = {}
+        # ── VisPy keyboard signal drain ──────────────────────────────
+        if USE_VISPY and shared_state is not None:
+            with state_lock:
+                if shared_state.get("restart"):
+                    shared_state["restart"] = False
+                    mission_result = "RESTART"
+                if shared_state.get("quit"):
+                    mission_result = "QUIT"
+                paused    = shared_state.get("paused",    paused)
+                sim_speed = shared_state.get("sim_speed", sim_speed)
 
-        for key, kstate in keys.items():
-            if not (kstate & 4):   # KEY_WAS_TRIGGERED
-                continue
-            if key == 32:          # SPACE
-                paused = not paused
-            elif key in (82, 114): # R / r
-                mission_result = "RESTART"
-            elif key in (81, 113): # Q / q
-                mission_result = "QUIT"
-            elif key in (67, 99):  # C / c — cycle camera modes
-                camera_mode = (camera_mode + 1) % 4
-                _mode_names = ["FREE-ROAM", "TRACK INTRUDER", "TRACK INTERCEPTOR", "TOP-DOWN"]
-                print(f"[CAM] {_mode_names[camera_mode]}")
-                i_pos_now   = intruder.get_position()
-                int_pos_now = interceptor.get_position() if interceptor_launched else None
-                _update_camera(world.client, camera_mode, i_pos_now, int_pos_now)
-            elif key in (84, 116):  # T / t — quick-toggle intruder tracking
-                camera_mode = 1 if camera_mode != 1 else 0
-                print(f"[CAM] {'TRACK INTRUDER' if camera_mode == 1 else 'FREE-ROAM'}")
-            elif key in (43, 61):  # + or =
-                _apply_pybullet_zoom(world.client, "in")
-            elif key == 45:  # -
-                _apply_pybullet_zoom(world.client, "out")
-            elif key in (73, 105): # I / i
-                show_trail = not show_trail
-                if not show_trail:
-                    _clear_trail(i_trail_ids, world.client)
-                    _clear_trail(int_trail_ids, world.client)
-            elif key in (72, 104): # H / h
-                _print_help()
-            elif key in _SPEED_MAP:
-                sim_speed = _SPEED_MAP[key]
+        # ── PyBullet keyboard events (GUI mode only) ──────────────────
+        if not USE_VISPY:
+            try:
+                keys = pybullet.getKeyboardEvents(physicsClientId=world.client)
+            except Exception:
+                keys = {}
+
+            for key, kstate in keys.items():
+                if not (kstate & 4):   # KEY_WAS_TRIGGERED
+                    continue
+                if key == 32:          # SPACE
+                    paused = not paused
+                elif key in (82, 114): # R / r
+                    mission_result = "RESTART"
+                elif key in (81, 113): # Q / q
+                    mission_result = "QUIT"
+                elif key in (67, 99):  # C / c — cycle camera modes
+                    camera_mode = (camera_mode + 1) % 4
+                    _mode_names = ["FREE-ROAM", "TRACK INTRUDER", "TRACK INTERCEPTOR", "TOP-DOWN"]
+                    print(f"[CAM] {_mode_names[camera_mode]}")
+                    i_pos_now   = intruder.get_position()
+                    int_pos_now = interceptor.get_position() if interceptor_launched else None
+                    _update_camera(world.client, camera_mode, i_pos_now, int_pos_now)
+                elif key in (84, 116):  # T / t — quick-toggle intruder tracking
+                    camera_mode = 1 if camera_mode != 1 else 0
+                    print(f"[CAM] {'TRACK INTRUDER' if camera_mode == 1 else 'FREE-ROAM'}")
+                elif key in (43, 61):  # + or =
+                    _apply_pybullet_zoom(world.client, "in")
+                elif key == 45:  # -
+                    _apply_pybullet_zoom(world.client, "out")
+                elif key in (73, 105): # I / i
+                    show_trail = not show_trail
+                    if not show_trail:
+                        _clear_trail(i_trail_ids, world.client)
+                        _clear_trail(int_trail_ids, world.client)
+                elif key in (72, 104): # H / h
+                    _print_help()
+                elif key in _SPEED_MAP:
+                    sim_speed = _SPEED_MAP[key]
 
         if mission_result:
             break
@@ -641,14 +669,15 @@ def _run_one_mission(
                 acmi.write_event(sim_time, "INTERCEPT")
                 if intercept_sim_time is None:
                     intercept_sim_time = sim_time
-            try:
-                world.draw_dome(
-                    _DOME_CENTER, _DOME_RADIUS,
-                    color=_dome_colors.get(status, [0.0, 0.6, 0.1]),
-                )
-            except Exception:
-                mission_result = "ABORTED"
-                break
+            if not USE_VISPY:
+                try:
+                    world.draw_dome(
+                        _DOME_CENTER, _DOME_RADIUS,
+                        color=_dome_colors.get(status, [0.0, 0.6, 0.1]),
+                    )
+                except Exception:
+                    mission_result = "ABORTED"
+                    break
             _last_dome_status = status
 
         # ── Detection timestamp ───────────────────────────────────────
@@ -690,14 +719,15 @@ def _run_one_mission(
         # ── Terminal conditions ───────────────────────────────────────
         if status == "INTERCEPTED":
             if not flash_shown:
-                try:
-                    pybullet.addUserDebugText(
-                        "★ INTERCEPT! ★", list(i_pos),
-                        [1, 1, 0], textSize=3.0, lifeTime=4.0,
-                        physicsClientId=world.client,
-                    )
-                except Exception:
-                    pass
+                if not USE_VISPY:
+                    try:
+                        pybullet.addUserDebugText(
+                            "★ INTERCEPT! ★", list(i_pos),
+                            [1, 1, 0], textSize=3.0, lifeTime=4.0,
+                            physicsClientId=world.client,
+                        )
+                    except Exception:
+                        pass
                 flash_shown = True
             mission_result = "INTERCEPTED"
             time.sleep(1.5)   # linger so user sees the flash
@@ -709,12 +739,12 @@ def _run_one_mission(
             mission_result = "FAILURE"
             break
 
-        # Camera: free-roam when mode==0, auto-follow when mode 1/2/3
-        if camera_mode != 0 and step % 12 == 0:
+        # Camera: free-roam when mode==0, auto-follow when mode 1/2/3 (GUI only)
+        if not USE_VISPY and camera_mode != 0 and step % 12 == 0:
             _update_camera(world.client, camera_mode, i_pos, int_pos)
 
-        # ── 3-D trail update (every 5 physics steps) ──────────────────
-        if show_trail and step % 5 == 0:
+        # ── 3-D trail update (PyBullet GUI mode only) ─────────────────
+        if not USE_VISPY and show_trail and step % 5 == 0:
             i_last_pos = _update_trail(
                 i_pos, i_last_pos, i_trail_ids, 30,
                 [0.9, 0.12, 0.08], world.client,
@@ -725,8 +755,8 @@ def _run_one_mission(
                     [0.10, 0.55, 0.90], world.client,
                 )
 
-        # ── Intercept-vector line update (every 12 steps) ─────────────
-        if interceptor_launched and interceptor_target and step % 12 == 0:
+        # ── Intercept-vector line (PyBullet GUI mode only) ────────────
+        if not USE_VISPY and interceptor_launched and interceptor_target and step % 12 == 0:
             int_pos_now = interceptor.get_position()
             if icept_vec_id is not None:
                 try:
@@ -745,53 +775,79 @@ def _run_one_mission(
         if guidance_track:
             interceptor_target = guidance_track.get("position_estimate")
 
-        # ── PyBullet HUD update (every 48 steps ≈ 5 Hz) ──────────────
+        # ── HUD / shared_state update (every 48 steps ≈ 5 Hz) ────────
         if step % 48 == 0:
-            _sc = {
-                "CLEAR"      : [0.0, 1.0, 0.4],
-                "TRACKING"   : [1.0, 0.8, 0.0],
-                "BREACH"     : [1.0, 0.2, 0.0],
-                "INTERCEPTED": [0.0, 0.9, 1.0],
-            }.get(status, [1, 1, 1])
-            _paused_tag = " [PAUSED]" if (paused or dash_ctrl.get("paused")) else ""
-            _rng_m  = radar_return.get("range", 0.0) if radar_return.get("detected") else None
-            _i_spd  = math.sqrt(sum(v**2 for v in intruder.get_velocity()))
-            _i_alt  = i_pos[2]
-            _rng_str = f"{_rng_m:.0f}m" if _rng_m is not None else "no lock"
-            try:
-                _hud_ids['status'] = pybullet.addUserDebugText(
-                    f"● {status}{_paused_tag}  {sim_speed:.2g}×",
-                    [0, 0, 215], _sc,
-                    textSize=1.8, replaceItemUniqueId=_hud_ids.get('status', -1),
-                    physicsClientId=world.client,
-                )
-                _hud_ids['intruder'] = pybullet.addUserDebugText(
-                    f"INTRUDER  rng:{_rng_str}  spd:{_i_spd:.0f}m/s  alt:{_i_alt:.0f}m",
-                    [0, 0, 208], [1.0, 0.3, 0.2],
-                    textSize=1.2, replaceItemUniqueId=_hud_ids.get('intruder', -1),
-                    physicsClientId=world.client,
-                )
-                if interceptor_launched and int_pos:
-                    _sep = math.sqrt(sum((int_pos[k]-i_pos[k])**2 for k in range(3)))
-                    _int_spd = math.sqrt(sum(v**2 for v in interceptor.get_velocity()))
-                    tti_val = guidance.time_to_intercept(interceptor.get_state(), guidance_track) \
-                              if guidance_track else float("inf")
-                    _tti_str = f"{tti_val:.1f}s" if tti_val < 999 else "---"
-                    _hud_ids['interceptor'] = pybullet.addUserDebugText(
-                        f"INTERCEPTOR  sep:{_sep:.0f}m  TTI:{_tti_str}  spd:{_int_spd:.0f}m/s",
-                        [0, 0, 201], [0.2, 0.6, 1.0],
-                        textSize=1.2, replaceItemUniqueId=_hud_ids.get('interceptor', -1),
+            _i_spd   = math.sqrt(sum(v**2 for v in intruder.get_velocity()))
+            _int_spd = math.sqrt(sum(v**2 for v in interceptor.get_velocity())) \
+                       if interceptor_launched else 0.0
+            tti_val  = guidance.time_to_intercept(interceptor.get_state(), guidance_track) \
+                       if (interceptor_launched and guidance_track) else float("inf")
+
+            # VisPy shared state update
+            if USE_VISPY and shared_state is not None:
+                _i_state   = intruder.get_state()
+                _int_state = interceptor.get_state() if interceptor_launched else None
+                with state_lock:
+                    shared_state.update({
+                        "dome_status":            status,
+                        "intruder_pos":           list(i_pos),
+                        "intruder_orientation":   list(_i_state.get("orientation", [0,0,0,1])),
+                        "interceptor_pos":        list(int_pos) if int_pos else None,
+                        "interceptor_orientation": list(_int_state["orientation"])
+                                                   if _int_state else None,
+                        "predicted_intercept":    interceptor_target,
+                        "intruder_speed":         _i_spd,
+                        "interceptor_speed":      _int_spd,
+                        "tti":                    tti_val,
+                        "mission_time":           sim_time,
+                        "sim_speed":              sim_speed,
+                        "paused":                 paused or dash_ctrl.get("paused", False),
+                        "radar_return":           radar_return,
+                    })
+
+            # PyBullet HUD text (GUI mode only)
+            if not USE_VISPY:
+                _sc = {
+                    "CLEAR"      : [0.0, 1.0, 0.4],
+                    "TRACKING"   : [1.0, 0.8, 0.0],
+                    "BREACH"     : [1.0, 0.2, 0.0],
+                    "INTERCEPTED": [0.0, 0.9, 1.0],
+                }.get(status, [1, 1, 1])
+                _paused_tag = " [PAUSED]" if (paused or dash_ctrl.get("paused")) else ""
+                _rng_m   = radar_return.get("range", 0.0) if radar_return.get("detected") else None
+                _i_alt   = i_pos[2]
+                _rng_str = f"{_rng_m:.0f}m" if _rng_m is not None else "no lock"
+                try:
+                    _hud_ids['status'] = pybullet.addUserDebugText(
+                        f"● {status}{_paused_tag}  {sim_speed:.2g}×",
+                        [0, 0, 215], _sc,
+                        textSize=1.8, replaceItemUniqueId=_hud_ids.get('status', -1),
                         physicsClientId=world.client,
                     )
-                else:
-                    _hud_ids['interceptor'] = pybullet.addUserDebugText(
-                        "INTERCEPTOR  on pad",
-                        [0, 0, 201], [0.2, 0.6, 1.0],
-                        textSize=1.2, replaceItemUniqueId=_hud_ids.get('interceptor', -1),
+                    _hud_ids['intruder'] = pybullet.addUserDebugText(
+                        f"INTRUDER  rng:{_rng_str}  spd:{_i_spd:.0f}m/s  alt:{_i_alt:.0f}m",
+                        [0, 0, 208], [1.0, 0.3, 0.2],
+                        textSize=1.2, replaceItemUniqueId=_hud_ids.get('intruder', -1),
                         physicsClientId=world.client,
                     )
-            except Exception:
-                pass
+                    if interceptor_launched and int_pos:
+                        _sep = math.sqrt(sum((int_pos[k]-i_pos[k])**2 for k in range(3)))
+                        _tti_str = f"{tti_val:.1f}s" if tti_val < 999 else "---"
+                        _hud_ids['interceptor'] = pybullet.addUserDebugText(
+                            f"INTERCEPTOR  sep:{_sep:.0f}m  TTI:{_tti_str}  spd:{_int_spd:.0f}m/s",
+                            [0, 0, 201], [0.2, 0.6, 1.0],
+                            textSize=1.2, replaceItemUniqueId=_hud_ids.get('interceptor', -1),
+                            physicsClientId=world.client,
+                        )
+                    else:
+                        _hud_ids['interceptor'] = pybullet.addUserDebugText(
+                            "INTERCEPTOR  on pad",
+                            [0, 0, 201], [0.2, 0.6, 1.0],
+                            textSize=1.2, replaceItemUniqueId=_hud_ids.get('interceptor', -1),
+                            physicsClientId=world.client,
+                        )
+                except Exception:
+                    pass
 
             # Console log
             if step % _LOG_INTERVAL == 0:
@@ -982,22 +1038,9 @@ def _wait_for_mission(state_q: mp.Queue, ctrl_q: mp.Queue, dash_proc) -> tuple:
         time.sleep(0.10)
 
 
-def main():
-    mp.freeze_support()
-
-    state_q = mp.Queue(maxsize=2)
-    ctrl_q  = mp.Queue(maxsize=20)
-
-    dash_proc = mp.Process(
-        target=_dashboard_worker,
-        args=(state_q, ctrl_q, _DOME_RADIUS),
-        daemon=True,
-        name="dashboard",
-    )
-    dash_proc.start()
-
+def _mission_loop(state_q, ctrl_q, dash_proc, shared_state=None, state_lock=None):
+    """Full mission loop — runs in main thread (no-vispy) or a background thread (vispy)."""
     _print_controls()
-
     current_intruder = None
     current_pattern  = "direct"
     chosen_speed     = 1.0
@@ -1018,6 +1061,8 @@ def main():
                 pattern_key   = current_pattern,
                 initial_speed = chosen_speed,
                 pad_key       = chosen_pad,
+                shared_state  = shared_state,
+                state_lock    = state_lock,
             )
             mr = result["result"]
 
@@ -1032,31 +1077,39 @@ def main():
                 current_intruder = None
                 continue
 
-            # Console debrief for completed missions
+            # Console debrief
             if mr in ("INTERCEPTED", "FAILURE", "TIMEOUT"):
                 _print_debrief(mr, {
-                    "duration"       : result["sim_time"],
-                    "intruder_type"  : INTRUDER_TYPES[current_intruder]["label"],
-                    "pattern"        : ATTACK_PATTERNS[current_pattern]["label"],
-                    "first_detect"   : result.get("first_detect_sim_t", 0.0),
-                    "detect_range"   : result.get("first_detect_range", 0.0),
-                    "breach_time"    : result.get("breach_sim_time"),
-                    "max_penetration": result.get("max_penetration", 0.0),
-                    "intercept_time" : result.get("intercept_sim_time"),
+                    "duration"        : result["sim_time"],
+                    "intruder_type"   : INTRUDER_TYPES[current_intruder]["label"],
+                    "pattern"         : ATTACK_PATTERNS[current_pattern]["label"],
+                    "first_detect"    : result.get("first_detect_sim_t", 0.0),
+                    "detect_range"    : result.get("first_detect_range", 0.0),
+                    "breach_time"     : result.get("breach_sim_time"),
+                    "max_penetration" : result.get("max_penetration", 0.0),
+                    "intercept_time"  : result.get("intercept_sim_time"),
                     "closest_approach": result.get("closest_approach", float("inf")),
-                    "acmi_file"      : result.get("acmi_file", "---"),
+                    "acmi_file"       : result.get("acmi_file", "---"),
                 })
 
+            # Send debrief to dashboard and VisPy
+            debrief_msg = {
+                "type":             "debrief",
+                "result":           mr,
+                "sim_time":         result["sim_time"],
+                "closest_approach": result.get("closest_approach", float("inf")),
+                "intruder":         current_intruder,
+            }
             try:
-                state_q.put_nowait({
-                    "type":             "debrief",
-                    "result":           mr,
-                    "sim_time":         result["sim_time"],
-                    "closest_approach": result.get("closest_approach", float("inf")),
-                    "intruder":         current_intruder,
-                })
+                state_q.put_nowait(debrief_msg)
             except Exception:
                 pass
+            if USE_VISPY and shared_state is not None:
+                with state_lock:
+                    shared_state["debrief"] = debrief_msg
+                time.sleep(4.0)
+                with state_lock:
+                    shared_state.pop("debrief", None)
 
             current_intruder, current_pattern, chosen_speed, chosen_pad = \
                 _wait_for_mission(state_q, ctrl_q, dash_proc)
@@ -1067,6 +1120,65 @@ def main():
         import traceback
         print(f"\n[SIM] Crash: {e}")
         traceback.print_exc()
+
+    if USE_VISPY and shared_state is not None:
+        with state_lock:
+            shared_state["app_quit"] = True
+
+
+def main():
+    global USE_VISPY
+    mp.freeze_support()
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
+    parser = argparse.ArgumentParser(description="Anti-Drone Dome Simulation")
+    parser.add_argument("--no-vispy", action="store_true",
+                        help="Use PyBullet GUI renderer instead of VisPy")
+    args = parser.parse_args()
+    USE_VISPY = not args.no_vispy
+
+    state_q = mp.Queue(maxsize=2)
+    ctrl_q  = mp.Queue(maxsize=20)
+
+    dash_proc = mp.Process(
+        target=_dashboard_worker,
+        args=(state_q, ctrl_q, _DOME_RADIUS),
+        daemon=True,
+        name="dashboard",
+    )
+    dash_proc.start()
+
+    try:
+        if USE_VISPY:
+            from vispy import app as vispy_app
+            from viz.vispy_renderer import SimRenderer
+
+            shared_state = {}
+            state_lock   = threading.Lock()
+
+            phys_thread = threading.Thread(
+                target=_mission_loop,
+                args=(state_q, ctrl_q, dash_proc, shared_state, state_lock),
+                daemon=True,
+                name="physics",
+            )
+            phys_thread.start()
+
+            renderer = SimRenderer(shared_state, state_lock, dome_radius=_DOME_RADIUS)
+            timer    = vispy_app.Timer(interval=1/20, connect=renderer.update, start=True)
+            vispy_app.run()  # blocks — OpenGL owns main thread
+
+            shared_state["app_quit"] = True
+            phys_thread.join(timeout=4)
+        else:
+            _mission_loop(state_q, ctrl_q, dash_proc)
+
+    except KeyboardInterrupt:
+        print("\n[SIM] Interrupted by user.")
     finally:
         try:
             state_q.put_nowait("QUIT")
