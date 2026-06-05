@@ -12,6 +12,13 @@ from vispy.scene import visuals
 MatrixTransform = scene.transforms.MatrixTransform
 from vispy.geometry import create_box
 
+try:
+    from scipy.spatial.transform import Rotation as _SciRot
+    _SCIPY_OK = True
+except ImportError:
+    _SciRot   = None
+    _SCIPY_OK = False
+
 _ASSETS      = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
 _RADAR_OMEGA = 12.0 / 60.0 * 2 * math.pi   # rad/s
 
@@ -188,6 +195,17 @@ class SimRenderer:
         self._radar_sweep_angle = 0.0
         self._frame             = 0
 
+        # PiP FPV state (initialised before _build_canvas so F-key handler is safe)
+        self._pip_visible   = True
+        self._pip_canvas    = None
+        self._pip_view      = None
+        self._pip_label     = None
+        self._pip_i_tf      = MatrixTransform()
+        self._pip_i_mesh    = None
+        self._pip_i_key     = None
+        self._pip_int_tf    = MatrixTransform()
+        self._pip_int_mesh  = None
+
         r = dome_radius
         self._cam_presets = [
             dict(elevation=28,  azimuth=-135, distance=r*2.2,  center=(0,0,r*0.2)),  # 0 overview
@@ -199,6 +217,7 @@ class SimRenderer:
         self._build_canvas()
         self._build_scene()
         self._build_hud()
+        self._build_pip()
 
     # ────────────────────────────────────────────────────── canvas / input ────
 
@@ -239,6 +258,8 @@ class SimRenderer:
                         "1": 0.25, "2": 0.5, "3": 1.0,
                         "4": 2.0,  "5": 4.0, "6": 8.0,
                     }[key]
+                elif key == "F":
+                    self._toggle_pip()
 
     # ────────────────────────────────────────────────────────── 3D scene ─────
 
@@ -500,7 +521,7 @@ class SimRenderer:
         # Bottom controls bar
         _hud_quad(0, 0, W, 20, (0.04, 0.06, 0.04, 0.72), hv)
         visuals.Text(
-            "Drag=orbit  Scroll=zoom  SPACE=pause  C=cam  R=restart  Q=quit  1-6=speed",
+            "Drag=orbit  Scroll=zoom  SPACE=pause  C=cam  F=fpv  R=restart  Q=quit  1-6=speed",
             color=(0.30, 0.45, 0.30, 0.9), font_size=8,
             anchor_x="left", anchor_y="bottom", pos=(8, 3), parent=hv)
 
@@ -525,6 +546,151 @@ class SimRenderer:
             "", color=(0.8, 0.8, 0.8, 1.0), font_size=12,
             anchor_x="center", anchor_y="center", pos=(cx, cy), parent=hv)
         self._debrief_stats.visible = False
+
+    # ──────────────────────────────────────────────────── FPV PiP window ────
+
+    def _toggle_pip(self):
+        self._pip_visible = not self._pip_visible
+        if self._pip_canvas is not None:
+            try:
+                self._pip_canvas.show(self._pip_visible)
+            except Exception:
+                try:
+                    if self._pip_visible:
+                        self._pip_canvas.native.show()
+                    else:
+                        self._pip_canvas.native.hide()
+                except Exception:
+                    pass
+        print("FPV PiP ON" if self._pip_visible else "FPV PiP OFF")
+
+    def _build_pip(self):
+        r  = self._dome_radius
+        W, H = self._canvas_w, self._canvas_h
+        pw, ph = W // 4, H // 4                   # 230 × 175 for 920×700 main
+        px, py = W - pw - 10, H - ph - 10         # bottom-right of main canvas
+
+        try:
+            self._pip_canvas = scene.SceneCanvas(
+                title="FPV",
+                size=(pw, ph),
+                position=(px, py),
+                bgcolor=(0.02, 0.04, 0.02, 1.0),
+                show=True,
+            )
+        except Exception as e:
+            print(f"[PiP] Could not create FPV canvas: {e}")
+            return
+
+        # ── 3-D scene view ─────────────────────────────────────────────────
+        self._pip_view = self._pip_canvas.central_widget.add_view()
+        self._pip_view.camera = scene.TurntableCamera(
+            elevation=20, azimuth=0, distance=r * 0.3,
+            center=(0, 0, r * 0.1), fov=80,
+        )
+        self._pip_view.camera.interactive = False
+
+        sv = self._pip_view.scene
+
+        # Ground
+        visuals.Plane(
+            width=800, height=800,
+            color=(0.07, 0.10, 0.07, 1.0),
+            parent=sv,
+        )
+
+        # Simplified dome: equator ring + 4 meridians
+        pts, conn = [], []
+        N = 48
+        for i in range(N + 1):
+            a = 2 * math.pi * i / N
+            pts.append([r * math.cos(a), r * math.sin(a), 0.2])
+        conn.extend([True] * N + [False])
+        for lon_deg in (0, 90, 180, 270):
+            la = math.radians(lon_deg)
+            for j in range(9):
+                lt = math.pi / 2 * j / 8
+                pts.append([r * math.cos(lt) * math.cos(la),
+                             r * math.cos(lt) * math.sin(la),
+                             r * math.sin(lt)])
+            conn.extend([True] * 8 + [False])
+        p_arr = np.array(pts, dtype=np.float32)
+        c_arr = np.array(conn[:len(pts) - 1], dtype=bool)
+        visuals.Line(pos=p_arr, connect=c_arr,
+                     color=(0.0, 0.7, 0.15, 0.5), width=1, parent=sv)
+
+        # Interceptor mesh (independent instance)
+        bv, bf, bc = _build_quad_geom(
+            _INTERCEPTOR_SCALE,
+            body_rgba=(0.10, 0.45, 0.90, 1.0),
+            rotor_rgba=(0.20, 0.65, 1.00, 0.85),
+        )
+        self._pip_int_mesh = visuals.Mesh(
+            vertices=bv, faces=bf, vertex_colors=bc,
+            shading="flat", parent=sv,
+        )
+        self._pip_int_mesh.transform = self._pip_int_tf
+        self._pip_int_mesh.visible   = False
+
+        # ── HUD overlay: border + label ─────────────────────────────────────
+        hud = self._pip_canvas.central_widget.add_view()
+        hud.camera = scene.PanZoomCamera(aspect=1)
+        hud.camera.set_range(x=(0, pw), y=(0, ph))
+        hud.interactive = False
+        hv = hud.scene
+
+        # 2-px bright-green border
+        border = np.array([
+            [1,      1,      0],
+            [pw - 1, 1,      0],
+            [pw - 1, ph - 1, 0],
+            [1,      ph - 1, 0],
+            [1,      1,      0],
+        ], dtype=np.float32)
+        visuals.Line(pos=border, color=(0.0, 1.0, 0.4, 1.0), width=2, parent=hv)
+
+        self._pip_label = visuals.Text(
+            "FPV — INTRUDER",
+            color=(0.0, 1.0, 0.4, 1.0), font_size=8, bold=True,
+            anchor_x="left", anchor_y="top",
+            pos=(5, ph - 3),
+            parent=hv,
+        )
+
+    def _build_pip_intruder_mesh(self, ikey: str):
+        """Rebuild intruder mesh in PiP scene when intruder type changes."""
+        if self._pip_view is None:
+            return
+        if self._pip_i_mesh is not None:
+            self._pip_i_mesh.parent = None
+
+        scale = _INTRUDER_SCALES.get(ikey, 10.0)
+        if ikey == "shahed136":
+            bv, bf, bc = _build_shahed_geom(
+                scale,
+                wing_rgba=(0.80, 0.10, 0.08, 1.0),
+                fuse_rgba=(0.60, 0.08, 0.06, 1.0),
+            )
+        elif ikey == "fpv_attack":
+            bv, bf, bc = _build_quad_geom(
+                scale,
+                body_rgba=(0.88, 0.42, 0.05, 1.0),
+                rotor_rgba=(1.00, 0.60, 0.15, 0.85),
+            )
+        else:
+            bv, bf, bc = _build_quad_geom(
+                scale,
+                body_rgba=(0.75, 0.10, 0.05, 1.0),
+                rotor_rgba=(1.00, 0.25, 0.10, 0.85),
+            )
+
+        self._pip_i_mesh = visuals.Mesh(
+            vertices=bv, faces=bf, vertex_colors=bc,
+            shading="flat", parent=self._pip_view.scene,
+        )
+        self._pip_i_mesh.transform = self._pip_i_tf
+        self._pip_i_mesh.visible   = False
+        self._pip_i_key            = ikey
 
     # ─────────────────────────────────────────────────── camera control ──────
 
@@ -696,6 +862,86 @@ class SimRenderer:
         else:
             self._int_telem.visible = False
 
+    # ────────────────────────────────────────────────────── FPV PiP update ────
+
+    def _update_pip(self, state: dict):
+        """Update FPV PiP window every frame alongside the main view."""
+        if self._pip_canvas is None or not self._pip_visible:
+            return
+
+        i_pos   = state.get("intruder_pos")
+        i_orn   = state.get("intruder_orientation")
+        i_key   = state.get("intruder_key")
+        int_pos = state.get("interceptor_pos")
+        int_orn = state.get("interceptor_orientation")
+
+        # Rebuild intruder mesh in PiP if type changed
+        if i_key and i_key != self._pip_i_key:
+            self._build_pip_intruder_mesh(i_key)
+
+        # ── intruder mesh pose ──────────────────────────────────────────────
+        if self._pip_i_mesh is not None:
+            if i_pos and i_orn:
+                self._pip_i_mesh.visible = True
+                self._pip_i_tf.matrix   = _pose_mat(i_pos, i_orn)
+            else:
+                self._pip_i_mesh.visible = False
+
+        # ── interceptor mesh pose ───────────────────────────────────────────
+        if self._pip_int_mesh is not None:
+            if int_pos and int_orn:
+                self._pip_int_mesh.visible = True
+                self._pip_int_tf.matrix   = _pose_mat(int_pos, int_orn)
+            else:
+                self._pip_int_mesh.visible = False
+
+        # ── standby: intruder not yet airborne ─────────────────────────────
+        if not i_pos or i_pos[2] < 2.0:
+            if self._pip_label is not None:
+                self._pip_label.text = "FPV — STANDBY"
+            self._pip_canvas.update()
+            return
+
+        if self._pip_label is not None:
+            self._pip_label.text = "FPV — INTRUDER"
+
+        # ── FPV camera ─────────────────────────────────────────────────────
+        if i_orn is not None:
+            pos_arr = np.array(i_pos, dtype=float)
+
+            if _SCIPY_OK:
+                rot      = _SciRot.from_quat(i_orn)       # PyBullet [x,y,z,w]
+                nose_vec = rot.apply([1.0, 0.0, 0.0])     # intruder nose = +X
+                up_vec   = rot.apply([0.0, 0.0, 1.0])
+            else:
+                # Manual quaternion rotation (no scipy)
+                qx, qy, qz, qw = i_orn
+                def _qr(v):
+                    v  = np.array(v, dtype=float)
+                    t  = 2.0 * np.cross([qx, qy, qz], v)
+                    return v + qw * t + np.cross([qx, qy, qz], t)
+                nose_vec = _qr([1.0, 0.0, 0.0])
+                up_vec   = _qr([0.0, 0.0, 1.0])
+
+            # Camera 25 m behind nose, 8 m above; looking 20 m ahead
+            # (scales well at 200 m dome; drone meshes are 16-30 m)
+            cam_pos = pos_arr + nose_vec * (-25.0) + up_vec * 8.0
+            look_at = pos_arr + nose_vec * 20.0
+
+            diff = cam_pos - look_at
+            dist = float(np.linalg.norm(diff))
+            if dist > 0.5:
+                unit = diff / dist
+                el   = math.degrees(math.asin(float(np.clip(unit[2], -1.0, 1.0))))
+                az   = math.degrees(math.atan2(float(unit[0]), float(-unit[1])))
+                cam  = self._pip_view.camera
+                cam.center    = tuple(look_at.tolist())
+                cam.azimuth   = az
+                cam.elevation = el
+                cam.distance  = dist
+
+        self._pip_canvas.update()
+
     # ──────────────────────────────────────────────────────── main update ────
 
     def update(self, ev):
@@ -782,3 +1028,4 @@ class SimRenderer:
         if self._frame % 3 == 0:    # telemetry at ~7 Hz
             self._refresh_telem(state)
         self.canvas.update()
+        self._update_pip(state)
