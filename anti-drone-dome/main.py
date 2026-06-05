@@ -26,7 +26,7 @@ Keyboard controls (PyBullet 3-D window focus required)
 ──────────────────────────────────────────────────────
   SPACE   Pause / resume
   R       Restart same scenario
-  1–6     Sim speed  0.25× / 0.5× / 1× / 2× / 4× / 8×
+  0–6     Sim speed  0.1× / 0.25× / 0.5× / 1× / 2× / 4× / 8×
   C       Cycle camera modes
   T       Quick-toggle intruder tracking
   + / =   Zoom 3-D view in
@@ -75,8 +75,8 @@ _LOG_INTERVAL = 240            # console log every ~1 s sim time
 _RADAR_RPM    = 12.0
 _RADAR_OMEGA  = _RADAR_RPM / 60.0 * 2 * math.pi   # rad/s
 
-_SPEED_MAP = {49: 0.25, 50: 0.5, 51: 1.0, 52: 2.0, 53: 4.0, 54: 8.0}
-# ASCII codes: 1=49, 2=50, 3=51, 4=52, 5=53, 6=54
+_SPEED_MAP = {48: 0.1, 49: 0.25, 50: 0.5, 51: 1.0, 52: 2.0, 53: 4.0, 54: 8.0}
+# ASCII codes: 0=48, 1=49, 2=50, 3=51, 4=52, 5=53, 6=54
 
 _R = _DOME_RADIUS   # shorthand for position calculations below
 
@@ -248,6 +248,7 @@ def _print_help():
 ╠══════════════════════════════════════════╣
 ║  SPACE   Pause / resume                 ║
 ║  R       Restart same scenario          ║
+║  0       Speed 0.1× (ultra slow-motion) ║
 ║  1       Speed 0.25× (slow-motion)      ║
 ║  2       Speed 0.5×                     ║
 ║  3       Speed 1× (normal)              ║
@@ -288,7 +289,7 @@ def _run_one_mission(
     itype      = INTRUDER_TYPES[intruder_key]
     pattern    = ATTACK_PATTERNS[pattern_key]
     pad_offset = PAD_OFFSETS.get(pad_key, PAD_OFFSETS["mid"])
-    int_start  = (0.0, -(_DOME_RADIUS + pad_offset), 5.0)
+    int_start  = (0.0, 0.0, 5.0)
     i_start    = pattern["start"]
     target_rcs = itype["rcs"]
 
@@ -387,7 +388,7 @@ def _run_one_mission(
     interceptor = Drone(
         "interceptor", int_start, world.client,
         color="blue",
-        max_h_force=320.0, max_v_force=320.0, max_speed=100.0,
+        max_h_force=320.0, max_v_force=320.0, max_speed=50.0,
         kp=6.5, kd=4.2,
         urdf=_int_urdf if os.path.isfile(_int_urdf) else None,
         global_scaling=10.0,   # visible at 200 m dome scale
@@ -977,7 +978,7 @@ def _print_controls():
 ╠══════════════════════════════════════════════════════════╣
 ║  SPACE   Pause / resume                                 ║
 ║  R       Restart same scenario                          ║
-║  1–6     Sim speed  0.25× / 0.5× / 1× / 2× / 4× / 8×  ║
+║  0–6     Sim speed  0.1× / 0.25× / 0.5× / 1× / 2× / 4× / 8×  ║
 ║  C       Cycle camera  (free-roam/track intruder/       ║
 ║            track interceptor/top-down)                  ║
 ║  T       Quick-toggle intruder tracking on/off          ║

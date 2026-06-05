@@ -131,6 +131,72 @@ def _build_shahed_geom(scale: float, wing_rgba, fuse_rgba):
     return verts * scale, faces, colors
 
 
+def _build_radar_tower_geom(target_height: float = 12.0):
+    """
+    Load radar tower GLB and return (verts, faces, per-vertex-colors).
+    Falls back to a simple pole+dish if trimesh is unavailable or file missing.
+    """
+    glb_path = os.path.join(_ASSETS, "rts_radar_tower (1).glb")
+    try:
+        import trimesh
+        raw = trimesh.load(glb_path, force="mesh")
+        v = np.asarray(raw.vertices, dtype=np.float32)
+        f = np.asarray(raw.faces,    dtype=np.uint32)
+        # glTF is Y-up; convert to Z-up: (X, Y, Z) → (X, -Z, Y)
+        v = np.column_stack([v[:, 0], -v[:, 2], v[:, 1]])
+        # Centre XY, lift so base sits at z=0
+        v[:, :2] -= v[:, :2].mean(axis=0)
+        v[:, 2]  -= v[:, 2].min()
+        h = v[:, 2].max()
+        if h > 0:
+            v *= target_height / h
+        color = np.tile(np.array([0.38, 0.40, 0.42, 1.0], dtype=np.float32), (len(v), 1))
+        return v, f, color
+    except Exception:
+        pass
+    # Fallback: pole + dish
+    parts = []
+    bv, bf, _ = create_box(0.6, 0.6, 10.0)
+    bvp = bv["position"].astype(np.float32); bvp[:, 2] += 5.0
+    parts.append((bvp, bf.astype(np.uint32), (0.38, 0.40, 0.42, 1.0)))
+    dv, df, _ = create_box(4.0, 4.0, 0.3)
+    dvp = dv["position"].astype(np.float32); dvp[:, 2] += 10.2
+    parts.append((dvp, df.astype(np.uint32), (0.44, 0.46, 0.48, 1.0)))
+    return _combine(parts)
+
+
+def _perp_vecs(d):
+    """Two unit vectors orthogonal to d."""
+    d = np.array(d, dtype=np.float64)
+    d /= np.linalg.norm(d)
+    up = np.array([0., 0., 1.]) if abs(d[2]) < 0.9 else np.array([1., 0., 0.])
+    p1 = np.cross(d, up); p1 /= np.linalg.norm(p1)
+    p2 = np.cross(d, p1)
+    return p1.astype(np.float32), p2.astype(np.float32)
+
+
+def _make_cone(apex, direction, half_deg, length, rgba_ring, n=22):
+    """
+    Triangle-fan cone mesh: apex (transparent) → ring of n points.
+    Returns (vertices [n+1,3], faces [n,3], vertex_colors [n+1,4]).
+    """
+    apex = np.array(apex, dtype=np.float32)
+    d    = np.array(direction, dtype=np.float64); d /= np.linalg.norm(d)
+    p1, p2 = _perp_vecs(d)
+    base   = apex + d.astype(np.float32) * float(length)
+    br     = float(length) * math.tan(math.radians(half_deg))
+    angles = np.linspace(0, 2 * math.pi, n, endpoint=False)
+    ring   = (base[None]
+              + br * np.cos(angles)[:, None] * p1[None]
+              + br * np.sin(angles)[:, None] * p2[None])
+    verts  = np.vstack([apex[None], ring]).astype(np.float32)
+    faces  = np.array([[0, i + 1, (i + 1) % n + 1] for i in range(n)], dtype=np.uint32)
+    r, g, b, a = rgba_ring
+    colors    = np.zeros((n + 1, 4), dtype=np.float32)
+    colors[1:] = [r, g, b, a]   # apex row stays [0,0,0,0] → transparent tip
+    return verts, faces, colors
+
+
 # ═══════════════════════════════════════════════════════════ math helpers ══════
 
 def _quat_to_mat4(q) -> np.ndarray:
@@ -169,6 +235,37 @@ def _hud_quad(x, y, w, h, color, parent):
     return m
 
 
+# ════════════════════════════════════════════════════ shared pip helpers ══════
+
+def _quat_axes(q, fwd_axis):
+    """Rotate fwd_axis and world-up [0,0,1] by PyBullet quaternion (xyzw)."""
+    if _SCIPY_OK:
+        rot = _SciRot.from_quat(q)
+        return rot.apply(fwd_axis), rot.apply([0.0, 0.0, 1.0])
+    qx, qy, qz, qw = q
+    def _qr(v):
+        v = np.array(v, dtype=float)
+        t = 2.0 * np.cross([qx, qy, qz], v)
+        return v + qw * t + np.cross([qx, qy, qz], t)
+    return _qr(fwd_axis), _qr([0.0, 0.0, 1.0])
+
+
+def _set_cam(view, cam_pos, look_at):
+    """Point a TurntableCamera at look_at from cam_pos."""
+    diff = cam_pos - look_at
+    dist = float(np.linalg.norm(diff))
+    if dist < 0.5:
+        return
+    unit = diff / dist
+    el   = math.degrees(math.asin(float(np.clip(unit[2], -1.0, 1.0))))
+    az   = math.degrees(math.atan2(float(unit[0]), float(-unit[1])))
+    cam  = view.camera
+    cam.center    = tuple(look_at.tolist())
+    cam.azimuth   = az
+    cam.elevation = el
+    cam.distance  = dist
+
+
 # ═══════════════════════════════════════════════════════════ Renderer ═════════
 
 _INTRUDER_SCALES = {
@@ -196,6 +293,8 @@ class SimRenderer:
         self._frame             = 0
 
         # PiP FPV state (initialised before _build_canvas so F-key handler is safe)
+        # pip  = intruder tail-cam  (always on, no toggle)
+        # pip2 = interceptor nose-cam (F key toggles)
         self._pip_visible   = True
         self._pip_canvas    = None
         self._pip_view      = None
@@ -205,6 +304,16 @@ class SimRenderer:
         self._pip_i_key     = None
         self._pip_int_tf    = MatrixTransform()
         self._pip_int_mesh  = None
+
+        self._pip2_visible  = True
+        self._pip2_canvas   = None
+        self._pip2_view     = None
+        self._pip2_label    = None
+        self._pip2_i_tf     = MatrixTransform()
+        self._pip2_i_mesh   = None
+        self._pip2_i_key    = None
+        self._pip2_int_tf   = MatrixTransform()
+        self._pip2_int_mesh = None
 
         r = dome_radius
         self._cam_presets = [
@@ -218,6 +327,7 @@ class SimRenderer:
         self._build_scene()
         self._build_hud()
         self._build_pip()
+        self._build_pip2()
 
     # ────────────────────────────────────────────────────── canvas / input ────
 
@@ -253,12 +363,12 @@ class SimRenderer:
                     self._shared_state["quit"] = True
                 elif key == "C":
                     self._cycle_camera()
-                elif key in ("1", "2", "3", "4", "5", "6"):
+                elif key in ("0", "1", "2", "3", "4", "5", "6"):
                     self._shared_state["sim_speed"] = {
-                        "1": 0.25, "2": 0.5, "3": 1.0,
-                        "4": 2.0,  "5": 4.0, "6": 8.0,
+                        "0": 0.10, "1": 0.25, "2": 0.5, "3": 1.0,
+                        "4": 2.0,  "5": 4.0,  "6": 8.0,
                     }[key]
-                elif key == "F":
+                elif key in ("F", "f"):
                     self._toggle_pip()
 
     # ────────────────────────────────────────────────────────── 3D scene ─────
@@ -294,24 +404,38 @@ class SimRenderer:
                              color=(0.55,0.50,0.38,1.0), shading=None, parent=self.view.scene)
             m.transform = scene.transforms.STTransform(translate=(bx, by, 3))
 
-        # Radar station
-        for (w,h,d,tx,ty,tz) in [(0.6,0.6,10,0,-r,5),(4.0,4.0,0.3,0,-r,10.2)]:
-            bv, bf, _ = create_box(w, h, d)
-            m = visuals.Mesh(vertices=bv["position"], faces=bf,
-                             color=(0.4,0.42,0.45,1.0), shading=None, parent=self.view.scene)
-            m.transform = scene.transforms.STTransform(translate=(tx, ty, tz))
+        # Radar tower (GLB or procedural fallback)
+        _rtv, _rtf, _rtc = _build_radar_tower_geom(target_height=12.0)
+        _rt_mesh = visuals.Mesh(vertices=_rtv, faces=_rtf, vertex_colors=_rtc,
+                                shading="smooth", parent=self.view.scene)
+        _rt_mesh.transform = scene.transforms.STTransform(translate=(0, 0, 0))
 
-        # Radar sweep — create once, update data in-place each frame
-        _sweep_alphas = [0.80, 0.50, 0.35, 0.22, 0.13, 0.07, 0.03]
-        self._radar_sweep_lines = [
-            visuals.Line(
-                pos=np.zeros((2, 3), dtype=np.float32),
-                color=np.array((0.0, a, 0.0, a), dtype=np.float32),
-                width=max(1, int(3 - i * 0.4)),
-                parent=self.view.scene,
-            )
-            for i, a in enumerate(_sweep_alphas)
-        ]
+        # ── Radar 3-D cone (search sweep + lock beam) ─────────────────────────
+        _NC = 22
+        _cv = np.zeros((_NC + 1, 3), dtype=np.float32)
+        _cf = np.array([[0, i + 1, (i + 1) % _NC + 1] for i in range(_NC)], dtype=np.uint32)
+        _cc = np.zeros((_NC + 1, 4), dtype=np.float32)
+        self._radar_cone = visuals.Mesh(
+            vertices=_cv, faces=_cf, vertex_colors=_cc,
+            parent=self.view.scene)
+        self._radar_cone.set_gl_state("additive", depth_test=False)
+        self._radar_cone_n = _NC
+
+        # Lock beam: apex → target
+        self._radar_lock_line = visuals.Line(
+            pos=np.zeros((2, 3), dtype=np.float32),
+            color=(0.0, 1.0, 0.28, 0.0), width=2,
+            parent=self.view.scene)
+
+        # Lock ring: circle pulsing around the target
+        _NR = 33
+        self._radar_lock_ring = visuals.Line(
+            pos=np.zeros((_NR, 3), dtype=np.float32),
+            color=(0.0, 1.0, 0.28, 0.0), width=2,
+            parent=self.view.scene)
+        self._radar_cone_n    = _NC
+        self._radar_locked    = False
+        self._radar_lock_pulse = 0.0
 
         # ── drone meshes (built once, rebuilt on intruder-key change) ─────────
         self._intruder_mesh   = None
@@ -333,8 +457,8 @@ class SimRenderer:
         # Predicted intercept
         self._predict_marker = visuals.Markers(parent=self.view.scene)
         self._predict_marker.set_data(
-            pos=np.zeros((1,3),dtype=np.float32),
-            face_color=(1.0,0.7,0.0,0.0), size=14, symbol="x")
+            pos=np.array([[0,0,-9999]],dtype=np.float32),
+            face_color=(1.0,0.7,0.0,0.0), size=1, symbol="x")
         self._predict_marker.visible = False
 
         self._predict_line = visuals.Line(
@@ -472,17 +596,69 @@ class SimRenderer:
             visuals.Text(label, color=color, font_size=8, pos=(lx,ly,1.0),
                          parent=self.view.scene)
 
-    def _update_radar_sweep(self):
-        r  = self._dome_radius
-        a  = self._radar_sweep_angle
-        d  = math.radians(5)
-        _alphas = [0.80, 0.50, 0.35, 0.22, 0.13, 0.07, 0.03]
-        for i, (ln, alpha) in enumerate(zip(self._radar_sweep_lines, _alphas)):
-            ang = a - i * d
-            pts = np.array([[0, -r, 0.5],
-                            [r * math.cos(ang), -r + r * math.sin(ang), 0.5]],
-                           dtype=np.float32)
-            ln.set_data(pos=pts, color=np.array((0.0, alpha, 0.0, alpha), dtype=np.float32))
+    def _update_radar_sweep(self, state=None):
+        r    = self._dome_radius
+        a    = self._radar_sweep_angle
+        apex = np.array([0.0, 0.0, 12.0], dtype=np.float32)   # tower-top at centre
+        n    = self._radar_cone_n
+
+        rdr      = (state or {}).get("radar_return") or {}
+        detected = rdr.get("detected", False)
+        conf     = (state or {}).get("track_confidence", 0.0)
+        i_pos    = (state or {}).get("intruder_pos")
+
+        if detected and i_pos and conf > 0.35:
+            # ── LOCKED: narrow cone aimed at target ───────────────────────────
+            target = np.array(i_pos, dtype=np.float32)
+            diff   = target - apex
+            dist   = float(np.linalg.norm(diff))
+            if dist > 2.0:
+                direction = diff / dist
+                v, f, c = _make_cone(apex, direction, 6.0, dist,
+                                     (0.10, 1.0, 0.28, 0.45), n=n)
+                self._radar_cone.set_data(vertices=v, faces=f, vertex_colors=c)
+
+                self._radar_lock_pulse = (self._radar_lock_pulse + 0.28) % (2 * math.pi)
+                beam_a = 0.55 + 0.35 * math.sin(self._radar_lock_pulse)
+                self._radar_lock_line.set_data(
+                    pos=np.array([apex, target], dtype=np.float32),
+                    color=(0.10, 1.0, 0.28, float(beam_a)))
+
+                # Pulsing ring centred on target, perpendicular to beam axis
+                p1, p2 = _perp_vecs(direction)
+                ring_r = max(4.0, dist * 0.06)
+                ring_a = 0.45 + 0.40 * math.sin(self._radar_lock_pulse)
+                NR = 33
+                ring_pts = np.array([
+                    target + ring_r * (math.cos(2 * math.pi * j / (NR - 1)) * p1
+                                       + math.sin(2 * math.pi * j / (NR - 1)) * p2)
+                    for j in range(NR)], dtype=np.float32)
+                self._radar_lock_ring.set_data(
+                    pos=ring_pts, color=(0.10, 1.0, 0.28, float(ring_a)))
+                self._radar_locked = True
+                return
+
+        # ── SEARCH: wide cone sweeping 360° around Z, tilted 20° above horizon ─
+        self._radar_locked = False
+        el_rad = math.radians(20)
+        cos_el = math.cos(el_rad)
+        direction = np.array([
+            math.cos(a) * cos_el,
+            math.sin(a) * cos_el,
+            math.sin(el_rad),
+        ], dtype=np.float32)
+        v, f, c = _make_cone(apex, direction, 13.0, r * 1.3,
+                              (0.04, 0.82, 0.15, 0.18), n=n)
+        self._radar_cone.set_data(vertices=v, faces=f, vertex_colors=c)
+
+        # Hide lock visuals while searching
+        _a2 = apex + np.array([0, 0, 0.01], dtype=np.float32)
+        self._radar_lock_line.set_data(
+            pos=np.array([apex, _a2], dtype=np.float32),
+            color=(0.0, 1.0, 0.28, 0.0))
+        _dummy = np.tile(apex, (33, 1))
+        self._radar_lock_ring.set_data(
+            pos=_dummy, color=(0.0, 1.0, 0.28, 0.0))
 
     # ────────────────────────────────────────────────────────── HUD (2D) ─────
 
@@ -494,23 +670,37 @@ class SimRenderer:
         self._hud_view.interactive = False
         hv = self._hud_view.scene
 
-        # Left panel background
-        _hud_quad(0, H - 120, 560, 120, (0.04, 0.06, 0.04, 0.78), hv)
+        # Left panel — taller to fit 4 data rows
+        _hud_quad(0, H - 170, 630, 170, (0.04, 0.06, 0.04, 0.82), hv)
 
         self._hud_status = visuals.Text(
             "● STATUS: CLEAR", color=(0.0, 1.0, 0.4, 1.0),
             font_size=16, bold=True,
             anchor_x="left", anchor_y="top", pos=(10, H), parent=hv)
 
+        # Intruder: range, bearing, elevation, altitude, speed
         self._hud_intruder = visuals.Text(
-            "INTRUDER  rng:---m  spd:---m/s  alt:---m",
+            "INTRUDER  RNG:---m  BRG:---°  EL:---°  ALT:---m  SPD:---m/s",
             color=(1.0, 0.35, 0.2, 1.0), font_size=10,
-            anchor_x="left", anchor_y="top", pos=(10, H - 28), parent=hv)
+            anchor_x="left", anchor_y="top", pos=(10, H - 30), parent=hv)
 
+        # Radar track: confidence, SNR, threat %
+        self._hud_radar = visuals.Text(
+            "         RADAR CONF:---%  SNR:---dB  THREAT:--%",
+            color=(0.88, 0.30, 0.18, 0.85), font_size=10,
+            anchor_x="left", anchor_y="top", pos=(10, H - 50), parent=hv)
+
+        # Interceptor row
         self._hud_intercept = visuals.Text(
-            "INTERCEPTOR  sep:---m  TTI:---s",
+            "INTERCEPTOR  SEP:---m  SPD:---m/s  TTI:---",
             color=(0.2, 0.65, 1.0, 1.0), font_size=10,
-            anchor_x="left", anchor_y="top", pos=(10, H - 48), parent=hv)
+            anchor_x="left", anchor_y="top", pos=(10, H - 72), parent=hv)
+
+        # TTI countdown — large, shown when TTI < 15 s
+        self._hud_tti = visuals.Text(
+            "", color=(1.0, 0.60, 0.0, 1.0), font_size=20, bold=True,
+            anchor_x="right", anchor_y="top", pos=(620, H - 28), parent=hv)
+        self._hud_tti.visible = False
 
         # Mission timer top-right
         self._hud_timer = visuals.Text(
@@ -521,16 +711,16 @@ class SimRenderer:
         # Bottom controls bar
         _hud_quad(0, 0, W, 20, (0.04, 0.06, 0.04, 0.72), hv)
         visuals.Text(
-            "Drag=orbit  Scroll=zoom  SPACE=pause  C=cam  F=fpv  R=restart  Q=quit  1-6=speed",
+            "Drag=orbit  Scroll=zoom  SPACE=pause  C=cam  F=fpv  R=restart  Q=quit  0-6=speed",
             color=(0.30, 0.45, 0.30, 0.9), font_size=8,
             anchor_x="left", anchor_y="bottom", pos=(8, 3), parent=hv)
 
         # Threat bar
-        _hud_quad(10, H - 155, 200, 14, (0.08, 0.10, 0.08, 0.8), hv)
+        _hud_quad(10, H - 160, 200, 14, (0.08, 0.10, 0.08, 0.8), hv)
         visuals.Text("THREAT", color=(0.30, 0.45, 0.30, 0.8), font_size=9,
-                     anchor_x="left", anchor_y="bottom", pos=(10, H - 141), parent=hv)
+                     anchor_x="left", anchor_y="bottom", pos=(10, H - 146), parent=hv)
         self._threat_fill = visuals.Line(
-            pos=np.array([[10, H - 148, 0], [11, H - 148, 0]], dtype=np.float32),
+            pos=np.array([[10, H - 153, 0], [11, H - 153, 0]], dtype=np.float32),
             color=(0.0, 0.8, 0.15, 0.9), width=10, parent=hv)
 
         # Debrief overlay
@@ -550,19 +740,20 @@ class SimRenderer:
     # ──────────────────────────────────────────────────── FPV PiP window ────
 
     def _toggle_pip(self):
-        self._pip_visible = not self._pip_visible
-        if self._pip_canvas is not None:
+        """F key: toggle the interceptor nose-cam window on/off."""
+        self._pip2_visible = not self._pip2_visible
+        print("FPV INTERCEPTOR: ON" if self._pip2_visible else "FPV INTERCEPTOR: OFF")
+        if self._pip2_canvas is not None:
             try:
-                self._pip_canvas.show(self._pip_visible)
+                self._pip2_canvas.show(self._pip2_visible)
             except Exception:
                 try:
-                    if self._pip_visible:
-                        self._pip_canvas.native.show()
+                    if self._pip2_visible:
+                        self._pip2_canvas.native.show()
                     else:
-                        self._pip_canvas.native.hide()
+                        self._pip2_canvas.native.hide()
                 except Exception:
                     pass
-        print("FPV PiP ON" if self._pip_visible else "FPV PiP OFF")
 
     def _build_pip(self):
         r  = self._dome_radius
@@ -692,6 +883,113 @@ class SimRenderer:
         self._pip_i_mesh.visible   = False
         self._pip_i_key            = ikey
 
+    # ────────────────────────────────── interceptor nose-cam pip2 (F-toggle) ──
+
+    def _build_pip2(self):
+        r  = self._dome_radius
+        W, H = self._canvas_w, self._canvas_h
+        pw, ph = W // 4, H // 4                    # 230 × 175
+        px = W - pw - 10                            # same right edge as pip1
+        py = H - ph * 2 - 20                        # directly above pip1 (10px gap)
+
+        try:
+            self._pip2_canvas = scene.SceneCanvas(
+                title="FPV INTERCEPTOR",
+                size=(pw, ph),
+                position=(px, py),
+                bgcolor=(0.02, 0.03, 0.05, 1.0),   # dark blue tint for contrast
+                show=True,
+            )
+        except Exception as e:
+            print(f"[PiP2] Could not create interceptor FPV canvas: {e}")
+            return
+
+        self._pip2_view = self._pip2_canvas.central_widget.add_view()
+        self._pip2_view.camera = scene.TurntableCamera(
+            elevation=15, azimuth=0, distance=r * 0.3,
+            center=(0, 0, r * 0.1), fov=80,
+        )
+        self._pip2_view.camera.interactive = False
+
+        sv = self._pip2_view.scene
+
+        visuals.Plane(width=800, height=800,
+                      color=(0.05, 0.07, 0.10, 1.0), parent=sv)
+
+        # Simplified dome
+        pts, conn = [], []
+        N = 48
+        for i in range(N + 1):
+            a = 2 * math.pi * i / N
+            pts.append([r * math.cos(a), r * math.sin(a), 0.2])
+        conn.extend([True] * N + [False])
+        for lon_deg in (0, 90, 180, 270):
+            la = math.radians(lon_deg)
+            for j in range(9):
+                lt = math.pi / 2 * j / 8
+                pts.append([r * math.cos(lt) * math.cos(la),
+                             r * math.cos(lt) * math.sin(la),
+                             r * math.sin(lt)])
+            conn.extend([True] * 8 + [False])
+        p_arr = np.array(pts, dtype=np.float32)
+        c_arr = np.array(conn[:len(pts) - 1], dtype=bool)
+        visuals.Line(pos=p_arr, connect=c_arr,
+                     color=(0.0, 0.5, 0.9, 0.4), width=1, parent=sv)
+
+        # Intruder mesh (the target we're chasing — shown, not self)
+        self._pip2_int_mesh = None   # interceptor mesh — never shown (we are it)
+
+        # HUD: border + label
+        hud = self._pip2_canvas.central_widget.add_view()
+        hud.camera = scene.PanZoomCamera(aspect=1)
+        hud.camera.set_range(x=(0, pw), y=(0, ph))
+        hud.interactive = False
+        hv = hud.scene
+
+        border = np.array([
+            [1,      1,      0],
+            [pw - 1, 1,      0],
+            [pw - 1, ph - 1, 0],
+            [1,      ph - 1, 0],
+            [1,      1,      0],
+        ], dtype=np.float32)
+        visuals.Line(pos=border, color=(0.2, 0.6, 1.0, 1.0), width=2, parent=hv)
+
+        self._pip2_label = visuals.Text(
+            "FPV — INTERCEPTOR",
+            color=(0.2, 0.6, 1.0, 1.0), font_size=8, bold=True,
+            anchor_x="left", anchor_y="top",
+            pos=(5, ph - 3),
+            parent=hv,
+        )
+
+    def _build_pip2_intruder_mesh(self, ikey: str):
+        if self._pip2_view is None:
+            return
+        if self._pip2_i_mesh is not None:
+            self._pip2_i_mesh.parent = None
+
+        scale = _INTRUDER_SCALES.get(ikey, 10.0)
+        if ikey == "shahed136":
+            bv, bf, bc = _build_shahed_geom(scale,
+                wing_rgba=(0.80, 0.10, 0.08, 1.0),
+                fuse_rgba=(0.60, 0.08, 0.06, 1.0))
+        elif ikey == "fpv_attack":
+            bv, bf, bc = _build_quad_geom(scale,
+                body_rgba=(0.88, 0.42, 0.05, 1.0),
+                rotor_rgba=(1.00, 0.60, 0.15, 0.85))
+        else:
+            bv, bf, bc = _build_quad_geom(scale,
+                body_rgba=(0.75, 0.10, 0.05, 1.0),
+                rotor_rgba=(1.00, 0.25, 0.10, 0.85))
+
+        self._pip2_i_mesh = visuals.Mesh(
+            vertices=bv, faces=bf, vertex_colors=bc,
+            shading="flat", parent=self._pip2_view.scene)
+        self._pip2_i_mesh.transform = self._pip2_i_tf
+        self._pip2_i_mesh.visible   = False
+        self._pip2_i_key            = ikey
+
     # ─────────────────────────────────────────────────── camera control ──────
 
     def _cycle_camera(self):
@@ -758,37 +1056,73 @@ class SimRenderer:
         i_pos  = state.get("intruder_pos")
         i_spd  = state.get("intruder_speed", 0.0)
         rdr    = state.get("radar_return") or {}
-        rng    = rdr.get("range") if rdr.get("detected") else None
+        detected = rdr.get("detected", False)
+        rng    = rdr.get("range") if detected else None
+        snr    = rdr.get("snr", 0.0) if detected else None
+        conf   = state.get("track_confidence", 0.0)
         rstr   = f"{rng:.0f}m" if rng else "no lock"
-        alt    = f"{i_pos[2]:.0f}m" if i_pos else "---"
-        self._hud_intruder.text = f"INTRUDER  rng:{rstr}  spd:{i_spd:.0f}m/s  alt:{alt}"
+
+        # Intruder line: range, bearing, elevation, altitude, speed
+        if i_pos:
+            horiz = math.sqrt(i_pos[0]**2 + i_pos[1]**2)
+            brg   = math.degrees(math.atan2(i_pos[0], i_pos[1])) % 360
+            el    = math.degrees(math.atan2(i_pos[2], max(horiz, 1.0)))
+            self._hud_intruder.text = (
+                f"INTRUDER  RNG:{rstr}  BRG:{brg:05.1f}°  EL:{el:+.1f}°"
+                f"  ALT:{i_pos[2]:.0f}m  SPD:{i_spd:.0f}m/s")
+        else:
+            self._hud_intruder.text = "INTRUDER  RNG:---  BRG:---  EL:---  ALT:---  SPD:---"
+
+        # Radar / threat row
+        if detected:
+            conf_s = f"{conf*100:.0f}%"
+            snr_s  = f"{snr:.1f}dB" if snr is not None else "---"
+        else:
+            conf_s, snr_s = "---%", "---dB"
+        if i_pos:
+            dist   = math.sqrt(i_pos[0]**2 + i_pos[1]**2 + i_pos[2]**2)
+            threat = max(0.0, min(1.0, 1.0 - dist / (self._dome_radius * 2.5)))
+        else:
+            threat = 0.0
+        self._hud_radar.text = (
+            f"         RADAR CONF:{conf_s}  SNR:{snr_s}  THREAT:{threat*100:.0f}%")
 
         int_pos = state.get("interceptor_pos")
+        tti     = state.get("tti", float("inf"))
         if int_pos and i_pos:
             sep     = math.sqrt(sum((int_pos[k]-i_pos[k])**2 for k in range(3)))
             int_spd = state.get("interceptor_speed", 0.0)
-            tti     = state.get("tti", float("inf"))
             tti_s   = f"{tti:.1f}s" if tti < 999 else "---"
+            arrow   = " ◄" if tti < 10 else ""
             self._hud_intercept.text = (
-                f"INTERCEPTOR  sep:{sep:.0f}m  TTI:{tti_s}  spd:{int_spd:.0f}m/s")
+                f"INTERCEPTOR  SEP:{sep:.0f}m  SPD:{int_spd:.0f}m/s  TTI:{tti_s}{arrow}")
         else:
-            self._hud_intercept.text = "INTERCEPTOR  on pad"
+            self._hud_intercept.text = "INTERCEPTOR  SEP:---  SPD:---  TTI:---"
+
+        # TTI countdown widget (right side of panel, large font)
+        if tti < 15 and int_pos and i_pos:
+            if tti < 5:
+                col = (1.0, 0.15, 0.05, 1.0)   # red
+            elif tti < 10:
+                col = (1.0, 0.55, 0.0, 1.0)    # orange
+            else:
+                col = (1.0, 0.85, 0.0, 0.9)    # yellow
+            self._hud_tti.text    = f"TTI {tti:.1f}s"
+            self._hud_tti.color   = col
+            self._hud_tti.visible = True
+        else:
+            self._hud_tti.visible = False
 
         t   = state.get("mission_time", 0.0)
         spd = state.get("sim_speed", 1.0)
         self._hud_timer.text = f"T+{t:.1f}s  {spd:.2g}×"
 
         # Threat bar
-        if i_pos:
-            dist   = math.sqrt(i_pos[0]**2+i_pos[1]**2+i_pos[2]**2)
-            threat = max(0.0, min(1.0, 1.0 - dist/(self._dome_radius*2.5)))
-        else:
-            threat = 0.0
         bar_w = max(1.0, threat * 195)
         H     = self._canvas_h
         tc    = (threat*2, 0.8, 0.0, 0.9) if threat < 0.5 else (1.0, (1-threat)*1.6, 0.0, 0.9)
         self._threat_fill.set_data(
-            pos=np.array([[10, H-148, 0], [10+bar_w, H-148, 0]], dtype=np.float32),
+            pos=np.array([[10, H-153, 0], [10+bar_w, H-153, 0]], dtype=np.float32),
             color=tc)
 
         # Debrief
@@ -865,8 +1199,55 @@ class SimRenderer:
     # ────────────────────────────────────────────────────── FPV PiP update ────
 
     def _update_pip(self, state: dict):
-        """Update FPV PiP window every frame alongside the main view."""
-        if self._pip_canvas is None or not self._pip_visible:
+        """Intruder tail-cam — always on, drone visible ahead of camera."""
+        if self._pip_canvas is None:
+            return
+
+        i_pos  = state.get("intruder_pos")
+        i_orn  = state.get("intruder_orientation")
+        i_key  = state.get("intruder_key")
+        int_pos = state.get("interceptor_pos")
+        int_orn = state.get("interceptor_orientation")
+
+        if i_key and i_key != self._pip_i_key:
+            self._build_pip_intruder_mesh(i_key)
+
+        # Show intruder mesh (you're behind it watching), update interceptor pose
+        if self._pip_i_mesh is not None:
+            if i_pos and i_orn:
+                self._pip_i_mesh.visible = True
+                self._pip_i_tf.matrix = _pose_mat(i_pos, i_orn)
+            else:
+                self._pip_i_mesh.visible = False
+
+        if self._pip_int_mesh is not None:
+            if int_pos and int_orn:
+                self._pip_int_mesh.visible = True
+                self._pip_int_tf.matrix = _pose_mat(int_pos, int_orn)
+            else:
+                self._pip_int_mesh.visible = False
+
+        if not i_pos or i_pos[2] < 2.0:
+            if self._pip_label is not None:
+                self._pip_label.text = "CAM — INTRUDER (STANDBY)"
+            self._pip_canvas.update()
+            return
+
+        if self._pip_label is not None:
+            self._pip_label.text = "CAM — INTRUDER"
+
+        if i_orn is not None:
+            pos_arr  = np.array(i_pos, dtype=float)
+            nose, up = _quat_axes(i_orn, [1, 0, 0])
+            cam_pos  = pos_arr + nose * (-25.0) + up * 8.0
+            look_at  = pos_arr + nose * 20.0
+            _set_cam(self._pip_view, cam_pos, look_at)
+
+        self._pip_canvas.update()
+
+    def _update_pip2(self, state: dict):
+        """Interceptor nose-cam — toggled with F, interceptor mesh hidden."""
+        if self._pip2_canvas is None or not self._pip2_visible:
             return
 
         i_pos   = state.get("intruder_pos")
@@ -875,72 +1256,51 @@ class SimRenderer:
         int_pos = state.get("interceptor_pos")
         int_orn = state.get("interceptor_orientation")
 
-        # Rebuild intruder mesh in PiP if type changed
-        if i_key and i_key != self._pip_i_key:
-            self._build_pip_intruder_mesh(i_key)
+        if i_key and i_key != self._pip2_i_key:
+            self._build_pip2_intruder_mesh(i_key)
 
-        # ── intruder mesh pose ──────────────────────────────────────────────
-        if self._pip_i_mesh is not None:
+        # Show intruder (the target), hide self (interceptor)
+        if self._pip2_i_mesh is not None:
             if i_pos and i_orn:
-                self._pip_i_mesh.visible = True
-                self._pip_i_tf.matrix   = _pose_mat(i_pos, i_orn)
+                self._pip2_i_mesh.visible = True
+                self._pip2_i_tf.matrix = _pose_mat(i_pos, i_orn)
             else:
-                self._pip_i_mesh.visible = False
+                self._pip2_i_mesh.visible = False
 
-        # ── interceptor mesh pose ───────────────────────────────────────────
-        if self._pip_int_mesh is not None:
-            if int_pos and int_orn:
-                self._pip_int_mesh.visible = True
-                self._pip_int_tf.matrix   = _pose_mat(int_pos, int_orn)
-            else:
-                self._pip_int_mesh.visible = False
+        if self._pip2_int_mesh is not None:
+            self._pip2_int_mesh.visible = False   # you are the interceptor
 
-        # ── standby: intruder not yet airborne ─────────────────────────────
-        if not i_pos or i_pos[2] < 2.0:
-            if self._pip_label is not None:
-                self._pip_label.text = "FPV — STANDBY"
-            self._pip_canvas.update()
+        if not int_pos:
+            if self._pip2_label is not None:
+                self._pip2_label.text = "FPV — INTERCEPTOR (STANDBY)"
+            self._pip2_canvas.update()
             return
 
-        if self._pip_label is not None:
-            self._pip_label.text = "FPV — INTRUDER"
+        if self._pip2_label is not None:
+            self._pip2_label.text = "FPV — INTERCEPTOR"
 
-        # ── FPV camera ─────────────────────────────────────────────────────
-        if i_orn is not None:
-            pos_arr = np.array(i_pos, dtype=float)
+        pos_arr = np.array(int_pos, dtype=float)
 
-            if _SCIPY_OK:
-                rot      = _SciRot.from_quat(i_orn)       # PyBullet [x,y,z,w]
-                nose_vec = rot.apply([1.0, 0.0, 0.0])     # intruder nose = +X
-                up_vec   = rot.apply([0.0, 0.0, 1.0])
-            else:
-                # Manual quaternion rotation (no scipy)
-                qx, qy, qz, qw = i_orn
-                def _qr(v):
-                    v  = np.array(v, dtype=float)
-                    t  = 2.0 * np.cross([qx, qy, qz], v)
-                    return v + qw * t + np.cross([qx, qy, qz], t)
-                nose_vec = _qr([1.0, 0.0, 0.0])
-                up_vec   = _qr([0.0, 0.0, 1.0])
+        # Nose direction: toward intruder (interceptor is always chasing it)
+        if i_pos:
+            fwd = np.array(i_pos, dtype=float) - pos_arr
+            l   = float(np.linalg.norm(fwd))
+            fwd = fwd / l if l > 0.5 else np.array([0.0, 1.0, 0.0])
+        elif int_orn is not None:
+            # Not yet chasing — derive from orientation tilt (+Z body = thrust)
+            thrust, _ = _quat_axes(int_orn, [0, 0, 1])
+            fwd_xy    = np.array([thrust[0], thrust[1], 0.0])
+            l         = float(np.linalg.norm(fwd_xy))
+            fwd       = fwd_xy / l if l > 0.15 else np.array([0.0, 1.0, 0.0])
+        else:
+            fwd = np.array([0.0, 1.0, 0.0])
 
-            # Camera 25 m behind nose, 8 m above; looking 20 m ahead
-            # (scales well at 200 m dome; drone meshes are 16-30 m)
-            cam_pos = pos_arr + nose_vec * (-25.0) + up_vec * 8.0
-            look_at = pos_arr + nose_vec * 20.0
+        up      = np.array([0.0, 0.0, 1.0])
+        cam_pos = pos_arr + fwd * (-25.0) + up * 8.0
+        look_at = pos_arr + fwd * 20.0
+        _set_cam(self._pip2_view, cam_pos, look_at)
 
-            diff = cam_pos - look_at
-            dist = float(np.linalg.norm(diff))
-            if dist > 0.5:
-                unit = diff / dist
-                el   = math.degrees(math.asin(float(np.clip(unit[2], -1.0, 1.0))))
-                az   = math.degrees(math.atan2(float(unit[0]), float(-unit[1])))
-                cam  = self._pip_view.camera
-                cam.center    = tuple(look_at.tolist())
-                cam.azimuth   = az
-                cam.elevation = el
-                cam.distance  = dist
-
-        self._pip_canvas.update()
+        self._pip2_canvas.update()
 
     # ──────────────────────────────────────────────────────── main update ────
 
@@ -1019,7 +1379,7 @@ class SimRenderer:
 
         # ── radar sweep ───────────────────────────────────────────────────────
         self._radar_sweep_angle += _RADAR_OMEGA / 20.0
-        self._update_radar_sweep()
+        self._update_radar_sweep(state)
 
         # ── HUD + telemetry (throttled — text rebuild is expensive) ─────────
         self._frame += 1
@@ -1029,3 +1389,4 @@ class SimRenderer:
             self._refresh_telem(state)
         self.canvas.update()
         self._update_pip(state)
+        self._update_pip2(state)
