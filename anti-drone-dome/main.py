@@ -451,6 +451,7 @@ def _run_one_mission(
     int_last_pos   = None
     icept_vec_id   = None
     flash_shown    = False
+    prev_sep       = float("inf")
 
     # Wind state
     wind_force = [0.0, 0.0, 0.0]
@@ -637,6 +638,25 @@ def _run_one_mission(
             world.step()
             step += 1
 
+            # Hard speed cap for interceptor in APN mode.
+            # interceptor.update() (PD path) has its own cap, but when APN
+            # forces are active that method is bypassed, allowing unconstrained
+            # acceleration.  Cap here so geometry stays physical.
+            if interceptor_launched:
+                try:
+                    _iv  = interceptor.get_velocity()
+                    _is  = math.sqrt(sum(v*v for v in _iv))
+                    if _is > 70.0:
+                        _sc = 70.0 / _is
+                        pybullet.resetBaseVelocity(
+                            interceptor._body,
+                            [v * _sc for v in _iv],
+                            [0, 0, 0],
+                            physicsClientId=world.client,
+                        )
+                except Exception:
+                    pass
+
             if slow_sleep > 0:
                 time.sleep(slow_sleep)
 
@@ -716,6 +736,14 @@ def _run_one_mission(
             sep = math.sqrt(sum((int_pos[k]-i_pos[k])**2 for k in range(3)))
             if sep < closest_approach:
                 closest_approach = sep
+            # Flyby-miss detection: interceptor made a genuine approach
+            # (got within 150 m) then diverged — end the sim immediately
+            # instead of running until the 4-minute timeout.
+            if closest_approach < 150.0 and sep > closest_approach + 60.0:
+                acmi.write_event(sim_time, "MISS_FLYBY")
+                print(f"INTERCEPTOR: MISSED — closest {closest_approach:.1f}m, now {sep:.1f}m away")
+                mission_result = "FAILURE"
+            prev_sep = sep
 
         # ── Broadcast track every 2 sim-s ────────────────────────────
         if radar_return.get("detected") and step % 480 == 0:

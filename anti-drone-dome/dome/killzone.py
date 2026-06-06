@@ -46,7 +46,9 @@ class DomeKillZone:
 
         if self._status == "INTERCEPTED":
             pass
-        elif interceptor_position is not None and self._status in ("TRACKING", "BREACH"):
+        elif interceptor_position is not None:
+            # Check intercept regardless of current status — intercept is valid
+            # even if radar briefly loses lock during the terminal approach.
             if self.check_intercept(interceptor_position, intruder_position, intercept_radius):
                 self._status = "INTERCEPTED"
                 self._intercept_time = time.time()

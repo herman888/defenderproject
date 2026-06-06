@@ -52,9 +52,21 @@ class PurePursuitGuidance:
         # LOS geometry
         r_vec = t_pos - i_pos
         rng   = float(np.linalg.norm(r_vec))
-        if rng < 0.5:
+        if rng < 0.3:
             return (0.0, 0.0, 0.0)
         r_hat = r_vec / rng
+
+        # Terminal homing: within 25 m commit straight to the target with max
+        # closing force.  PN lateral corrections at this range can deflect the
+        # interceptor past the intruder, causing a miss.
+        if rng < 25.0:
+            a_cmd = r_hat * 130.0
+            a_cmd[2] += 9.81
+            force = a_cmd * _MASS
+            mag   = float(np.linalg.norm(force))
+            if mag > _MAX_FORCE:
+                force = force / mag * _MAX_FORCE
+            return tuple(force)
 
         # Relative velocity (target w.r.t. interceptor)
         v_rel = t_vel - i_vel
@@ -74,9 +86,7 @@ class PurePursuitGuidance:
             t_acc = t_acc / acc_mag * _ACC_CLAMP
         a_aug = (_N / 2.0) * t_acc
 
-        # Closing acceleration along LOS.
-        # Linear-plus-inverse term: ramps gently at long range, surges in the
-        # terminal phase so the interceptor can't coast past the target.
+        # Closing acceleration along LOS — surges in terminal phase.
         close_accel = float(np.clip(rng * 0.12 + 100.0 / max(rng, 4.0), 8.0, 80.0))
         a_close = r_hat * close_accel
 

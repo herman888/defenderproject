@@ -450,6 +450,14 @@ class LoiteringMunition:
             d    = math.sqrt(sum(v*v for v in to_t))
             nose_dir = [to_t[i]/d for i in range(3)] if d > 0.1 else [1.0, 0.0, 0.0]
 
+        # Apply hard speed cap here — the cap inside _compute_forces is
+        # immediately overwritten by the resetBaseVelocity below, so it must
+        # live here to actually persist into the next physics step.
+        if speed > self._max_spd:
+            sc = self._max_spd / speed
+            vel = tuple(v * sc for v in vel)
+            speed = self._max_spd
+
         orn = self._align_x_to_vec(nose_dir)
         pybullet.resetBasePositionAndOrientation(
             self._body, list(pos), list(orn), physicsClientId=self._client)

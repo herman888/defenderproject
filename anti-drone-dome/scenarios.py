@@ -65,8 +65,8 @@ _WAYPOINTS = {
 INTRUDER_TYPES = {
     "shahed136": {
         "label":              "■ SHAHED-136",
-        "description":        "Shahed-136 loitering munition — 51 m/s cruise, delta wing, low RCS",
-        "max_speed":          51.0,          # m/s  (~185 km/h cruise)
+        "description":        "Shahed-136 loitering munition — 70 m/s cruise, delta wing, low RCS",
+        "max_speed":          70.0,          # m/s  (~252 km/h cruise)
         "rcs":                0.05,          # m²   composite/fibreglass body
         "threat":             "HIGH",
         "response_delay":     2.0,           # s    alert + arm + launch
