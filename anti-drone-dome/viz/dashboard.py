@@ -116,9 +116,9 @@ class Dashboard:
         self._intruder_alt_trail    = []
         self._interceptor_alt_trail = []
         self._radar_angle = 0.0
-        self._last_draw   = 0.0
+        self._last_draw   = time.time()
         self._blink_state = False
-        self._last_blink  = 0.0
+        self._last_blink  = time.time()
 
         plt.ion()
         self._fig = plt.figure(figsize=(14, 8.8), dpi=96)
@@ -694,7 +694,8 @@ class Dashboard:
             return
 
         now = time.time()
-        if now - self._last_draw < 0.20:
+        dt  = min(now - self._last_draw, 0.5)   # cap first-frame / resume spike
+        if dt < 0.067:                           # ~15 FPS cap
             return
         self._last_draw = now
 
@@ -747,8 +748,8 @@ class Dashboard:
         self._status_badge.set_color(dome_fg)
         self._status_badge.get_bbox_patch().set_edgecolor(dome_fg)
 
-        # ── Phosphor sweep ────────────────────────────────────────────────────
-        self._radar_angle = (self._radar_angle + 15) % 360
+        # ── Phosphor sweep — time-based so speed is FPS-independent ─────────
+        self._radar_angle = (self._radar_angle + 72.0 * dt) % 360
         rs = sim_state.get("radar_station", [0, 0, 0])
         sweep_len = self._view * 1.02
         for i, fan in enumerate(self._sweep_fans):

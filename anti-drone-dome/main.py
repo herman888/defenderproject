@@ -119,7 +119,6 @@ def _dashboard_worker(state_q: mp.Queue, ctrl_q: mp.Queue, dome_radius: float):
 
         if state:
             dash.update(state)
-            _time.sleep(0.015)
         else:
             try:
                 plt.pause(0.05)
@@ -781,8 +780,8 @@ def _run_one_mission(
         if guidance_track:
             interceptor_target = guidance_track.get("position_estimate")
 
-        # ── HUD / shared_state update (every 48 steps ≈ 5 Hz) ────────
-        if step % 48 == 0:
+        # ── HUD / shared_state update (every 8 steps ≈ 30 Hz) ────────
+        if step % 8 == 0:
             _i_spd   = math.sqrt(sum(v**2 for v in intruder.get_velocity()))
             _int_spd = math.sqrt(sum(v**2 for v in interceptor.get_velocity())) \
                        if interceptor_launched else 0.0
@@ -1175,7 +1174,7 @@ def main():
             phys_thread.start()
 
             renderer = SimRenderer(shared_state, state_lock, dome_radius=_DOME_RADIUS)
-            timer    = vispy_app.Timer(interval=1/20, connect=renderer.update, start=True)
+            timer    = vispy_app.Timer(interval=1/60, connect=renderer.update, start=True)
             vispy_app.run()  # blocks — OpenGL owns main thread
 
             shared_state["app_quit"] = True

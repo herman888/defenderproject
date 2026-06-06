@@ -1377,15 +1377,15 @@ class SimRenderer:
             self.view.camera.elevation = 15
             self.view.camera.distance  = self._dome_radius * 2
 
-        # ── radar sweep ───────────────────────────────────────────────────────
-        self._radar_sweep_angle += _RADAR_OMEGA / 20.0
+        # ── radar sweep — time-based so rate is independent of timer interval ──
+        self._radar_sweep_angle += _RADAR_OMEGA * (ev.dt if ev.dt else 1.0 / 60.0)
         self._update_radar_sweep(state)
 
         # ── HUD + telemetry (throttled — text rebuild is expensive) ─────────
         self._frame += 1
-        if self._frame % 2 == 0:    # HUD at ~10 Hz
+        if self._frame % 6 == 0:    # HUD at ~10 Hz
             self._refresh_hud(state)
-        if self._frame % 3 == 0:    # telemetry at ~7 Hz
+        if self._frame % 9 == 0:    # telemetry at ~7 Hz
             self._refresh_telem(state)
         self.canvas.update()
         self._update_pip(state)
