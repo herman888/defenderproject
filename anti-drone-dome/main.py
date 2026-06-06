@@ -387,7 +387,7 @@ def _run_one_mission(
     interceptor = Drone(
         "interceptor", int_start, world.client,
         color="blue",
-        max_h_force=320.0, max_v_force=320.0, max_speed=50.0,
+        max_h_force=320.0, max_v_force=320.0, max_speed=70.0,
         kp=6.5, kd=4.2,
         urdf=_int_urdf if os.path.isfile(_int_urdf) else None,
         global_scaling=10.0,   # visible at 200 m dome scale
