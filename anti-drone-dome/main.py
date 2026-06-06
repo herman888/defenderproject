@@ -714,9 +714,33 @@ def _run_one_mission(
         if (not interceptor_launched and detected_at_step is not None
                 and step >= detected_at_step + response_delay_steps):
             lp = list(interceptor.get_position())
-            dx, dy = i_pos[0] - lp[0], i_pos[1] - lp[1]
-            dh = max(math.sqrt(dx**2 + dy**2), 0.1)
-            kick = [18.0 * dx / dh, 18.0 * dy / dh, 8.0]
+            i_v  = intruder.get_velocity()
+
+            # Solve for optimal intercept time T so the kick aims at the
+            # predicted intercept point — not the intruder's current position.
+            # (V_INT² - v_t²)·T² - 2·(r·v_t)·T - |r|² = 0
+            _V_KICK = 65.0
+            _r  = [i_pos[k] - lp[k] for k in range(3)]
+            _rs = sum(v*v for v in _r)
+            _rv = sum(_r[k] * i_v[k] for k in range(3))
+            _vt = sum(v*v for v in i_v)
+            _a  = _V_KICK**2 - _vt
+            _b  = -2.0 * _rv
+            _c  = -_rs
+            T_kick = math.sqrt(_rs) / max(_V_KICK, 1.0)   # fallback
+            if abs(_a) > 0.1:
+                _disc = _b*_b - 4*_a*_c
+                if _disc >= 0:
+                    _sq = math.sqrt(_disc)
+                    _candidates = [(-_b+_sq)/(2*_a), (-_b-_sq)/(2*_a)]
+                    _pos = [t for t in _candidates if t > 0.05]
+                    if _pos:
+                        T_kick = max(0.3, min(min(_pos), 20.0))
+
+            pred = [i_pos[k] + i_v[k] * T_kick for k in range(3)]
+            to_p = [pred[k] - lp[k] for k in range(3)]
+            dp   = max(math.sqrt(sum(v*v for v in to_p)), 0.1)
+            kick = [20.0 * v / dp for v in to_p]
             pybullet.resetBaseVelocity(
                 interceptor._body, kick, [0, 0, 0],
                 physicsClientId=world.client,

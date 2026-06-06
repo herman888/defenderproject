@@ -1,98 +1,121 @@
 """
-Augmented Proportional Navigation (APN) guidance law.
+Direct intercept-point guidance.
 
-BEFORE: Pure pursuit — steered toward target's *current* position.
-        Predicted intercept by projecting forward with noisy velocity.
-        Result: tail-chase geometry, wildly unstable predicted points,
-        MAX_FORCE 25 N.
+Replaces APN with a two-step approach that produces a near-straight-line
+trajectory:
 
-AFTER:  Augmented Proportional Navigation with N=4.
-        Command acceleration:
-            a_cmd = N * Vc * (omega_LOS x r_hat) + (N/2) * a_target
+  1. Solve the quadratic intercept equation to find the exact time T at which
+     both vehicles meet if the interceptor flies at design speed V_INT:
 
-        where:
-            N         = 4  (navigation constant — standard for intercept)
-            Vc        = closing speed (m/s), positive when closing
-            omega_LOS = LOS angular velocity vector (rad/s)
-            r_hat     = unit LOS vector
-            a_target  = Kalman-derived target acceleration (from radar)
+         (V_INT² − v_t²)·T² − 2·(r·v_t)·T − |r|² = 0
 
-        The PN term steers to null the LOS rotation rate, producing a
-        collision-course (lead-pursuit) geometry — interceptor flies
-        perpendicular to the intruder's path, not tail-chasing it.
-        The APN augmentation feedforwards target acceleration so the
-        guidance anticipates manoeuvres without lagging.
+     This gives the earliest positive T (optimal intercept time).
 
-        Gravity compensated in vertical channel.
-        MAX_FORCE 60 N (vs 25 N before).
+  2. Fly toward the predicted intercept point  P = t_pos + t_vel·T  by
+     decomposing the interceptor's current velocity into:
+       • parallel component  (toward P) — accelerate to V_INT
+       • perpendicular component         — kill it completely
+
+     Killing the perpendicular velocity is what prevents the pivot / swing
+     that the old APN + close_accel combination produced: those two terms
+     aimed at different points (lead vs. current) and fought each other.
+
+  3. Terminal phase (rng < 25 m): ignore velocity state, slam maximum force
+     along the LOS — ensures first-pass kill regardless of geometry at knife-range.
 """
 
 import math
 import numpy as np
 
-_N         = 4.0    # navigation constant
-_MASS      = 1.5    # interceptor mass (kg), matches URDF
-_MAX_FORCE = 260.0  # N — ~18 G sustained; interceptor must close quickly
-_ACC_CLAMP = 20.0   # clamp on target accel input to suppress Kalman spikes
+_MASS      = 1.5     # interceptor mass (kg), matches URDF
+_MAX_FORCE = 260.0   # N — ~17 G at 1.5 kg
+_V_INT     = 65.0    # m/s — design intercept speed (below 70 m/s hard cap)
+_K_LAT     = 9.0     # lateral gain: kills perpendicular velocity
+_K_LON     = 4.0     # longitudinal gain: drives to design speed toward P
 
 
 class PurePursuitGuidance:
-    """Augmented Proportional Navigation interceptor guidance (name kept for import compatibility)."""
+    """Direct intercept-point guidance (class name kept for import compatibility)."""
 
+    # ------------------------------------------------------------------
+    def _intercept_time(self, r_vec: np.ndarray, t_vel: np.ndarray) -> float:
+        """
+        Minimum positive T such that the interceptor (at speed _V_INT) can
+        reach the target's predicted position.
+
+        Equation:  (V_INT² - v_t²)·T² - 2·(r·v_t)·T - |r|² = 0
+        """
+        v_t_sq  = float(np.dot(t_vel, t_vel))
+        r_dot_v = float(np.dot(r_vec, t_vel))
+        r_sq    = float(np.dot(r_vec, r_vec))
+
+        a = _V_INT ** 2 - v_t_sq
+        b = -2.0 * r_dot_v
+        c = -r_sq
+
+        if abs(a) > 0.1:
+            disc = b * b - 4.0 * a * c
+            if disc >= 0.0:
+                sq = math.sqrt(disc)
+                t1 = (-b + sq) / (2.0 * a)
+                t2 = (-b - sq) / (2.0 * a)
+                pos = [t for t in (t1, t2) if t > 0.05]
+                if pos:
+                    return float(min(max(0.3, min(pos)), 30.0))
+
+        # Fallback when speeds are similar or no real solution
+        rng = math.sqrt(max(r_sq, 1e-6))
+        return float(max(0.3, rng / max(_V_INT, 1.0)))
+
+    # ------------------------------------------------------------------
     def compute_guidance(self, interceptor_state: dict, target_track: dict) -> tuple:
         if not target_track.get("detected"):
             return (0.0, 0.0, 0.0)
 
         i_pos = np.array(interceptor_state["position"], dtype=float)
         i_vel = np.array(interceptor_state["velocity"],  dtype=float)
-        t_pos = np.array(target_track["position_estimate"],           dtype=float)
-        t_vel = np.array(target_track.get("velocity",     [0,0,0]),   dtype=float)
-        t_acc = np.array(target_track.get("acceleration", [0,0,0]),   dtype=float)
+        t_pos = np.array(target_track["position_estimate"],        dtype=float)
+        t_vel = np.array(target_track.get("velocity", [0, 0, 0]), dtype=float)
 
-        # LOS geometry
         r_vec = t_pos - i_pos
         rng   = float(np.linalg.norm(r_vec))
         if rng < 0.3:
             return (0.0, 0.0, 0.0)
         r_hat = r_vec / rng
 
-        # Terminal homing: within 25 m commit straight to the target with max
-        # closing force.  PN lateral corrections at this range can deflect the
-        # interceptor past the intruder, causing a miss.
+        # ── Terminal phase ──────────────────────────────────────────────
+        # Within 25 m: ignore velocity state and slam full force along LOS.
+        # APN lateral corrections at this range can swing the interceptor
+        # past the target — direct thrust is more reliable.
         if rng < 25.0:
-            a_cmd = r_hat * 130.0
+            a_cmd    = r_hat * 130.0
             a_cmd[2] += 9.81
-            force = a_cmd * _MASS
-            mag   = float(np.linalg.norm(force))
+            force    = a_cmd * _MASS
+            mag      = float(np.linalg.norm(force))
             if mag > _MAX_FORCE:
                 force = force / mag * _MAX_FORCE
             return tuple(force)
 
-        # Relative velocity (target w.r.t. interceptor)
-        v_rel = t_vel - i_vel
+        # ── Intercept point prediction ──────────────────────────────────
+        T     = self._intercept_time(r_vec, t_vel)
+        p_int = t_pos + t_vel * T          # where the target will be at time T
 
-        # Closing speed: positive = closing in
-        v_c = float(-np.dot(r_hat, v_rel))
+        to_ip = p_int - i_pos
+        d_ip  = float(np.linalg.norm(to_ip))
+        d_hat = to_ip / d_ip if d_ip > 0.1 else r_hat
 
-        # LOS angular velocity: omega = (r x v_rel) / r^2
-        omega = np.cross(r_vec, v_rel) / (rng**2)
+        # ── Velocity decomposition ──────────────────────────────────────
+        # Parallel  (toward intercept point) — drive to design speed
+        # Perpendicular                       — kill it: this is what stopped
+        #                                       the interceptor from pivoting
+        v_para_s = float(np.dot(i_vel, d_hat))
+        v_perp   = i_vel - v_para_s * d_hat
 
-        # PN term: lateral steering — nulls LOS rotation rate (collision course)
-        a_pn = _N * v_c * np.cross(omega, r_hat)
+        a_lat    = -_K_LAT * v_perp                         # kill perp velocity
+        a_lon    = _K_LON * (_V_INT - v_para_s) * d_hat    # match design speed
 
-        # APN augmentation: target acceleration feedforward
-        acc_mag = float(np.linalg.norm(t_acc))
-        if acc_mag > _ACC_CLAMP:
-            t_acc = t_acc / acc_mag * _ACC_CLAMP
-        a_aug = (_N / 2.0) * t_acc
-
-        # Closing acceleration along LOS — surges in terminal phase.
-        close_accel = float(np.clip(rng * 0.12 + 100.0 / max(rng, 4.0), 8.0, 80.0))
-        a_close = r_hat * close_accel
-
-        # Total commanded acceleration
-        a_cmd    = a_pn + a_aug + a_close
-        a_cmd[2] += 9.81   # gravity compensation (vertical channel)
+        a_cmd    = a_lat + a_lon
+        a_cmd[2] += 9.81   # gravity compensation
 
         force = a_cmd * _MASS
         mag   = float(np.linalg.norm(force))
@@ -101,9 +124,8 @@ class PurePursuitGuidance:
 
         return tuple(force)
 
+    # ------------------------------------------------------------------
     def lead_angle_deg(self, interceptor_state: dict, target_track: dict) -> float:
-        """Angle (degrees) between interceptor velocity and LOS to target.
-        Non-zero whenever the interceptor is not pointing straight at the target."""
         if not target_track.get("detected"):
             return 0.0
         i_pos = np.array(interceptor_state["position"], dtype=float)
@@ -114,9 +136,7 @@ class PurePursuitGuidance:
         i_spd = float(np.linalg.norm(i_vel))
         if rng < 0.01 or i_spd < 0.01:
             return 0.0
-        r_hat = r_vec / rng
-        v_hat = i_vel / i_spd
-        cos_a = float(np.clip(np.dot(r_hat, v_hat), -1.0, 1.0))
+        cos_a = float(np.clip(np.dot(r_vec / rng, i_vel / i_spd), -1.0, 1.0))
         return math.degrees(math.acos(cos_a))
 
     def time_to_intercept(self, interceptor_state: dict, target_track: dict) -> float:
@@ -124,8 +144,8 @@ class PurePursuitGuidance:
             return float("inf")
         i_pos = np.array(interceptor_state["position"], dtype=float)
         i_vel = np.array(interceptor_state["velocity"],  dtype=float)
-        t_pos = np.array(target_track["position_estimate"],         dtype=float)
-        t_vel = np.array(target_track.get("velocity", [0,0,0]),     dtype=float)
+        t_pos = np.array(target_track["position_estimate"],        dtype=float)
+        t_vel = np.array(target_track.get("velocity", [0, 0, 0]), dtype=float)
         r_vec = t_pos - i_pos
         rng   = float(np.linalg.norm(r_vec))
         if rng < 0.1:
