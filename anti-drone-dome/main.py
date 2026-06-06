@@ -415,7 +415,7 @@ def _run_one_mission(
     waypoints = get_waypoints_for_path(pattern["path"])
     nav     = WaypointNavigator(waypoints=waypoints)
     radar   = RadarNode(
-        station_pos      = (0.0, -_DOME_RADIUS, 10.0),
+        station_pos      = (0.0, 0.0, 10.0),   # dome centre — matches 3-D GLB model
         protected_center = _DOME_CENTER,
         max_range        = 1500.0,
         elev_max_deg     = 75.0,
@@ -571,14 +571,6 @@ def _run_one_mission(
         inner_steps  = max(1, min(round(sim_speed), 5))  # cap substeps — reduces CPU at 8×
         slow_sleep   = max(0.0, _TIMESTEP * (1.0 / sim_speed - 1.0)) if sim_speed < 1 else 0.0
 
-        # Compute guidance force once per outer loop (position changes slowly)
-        i_pos   = intruder.get_position()
-        int_pos = interceptor.get_position() if interceptor_launched else None
-
-        radar_return    = radar.scan(i_pos, target_rcs=target_rcs)
-        guidance_track  = (radar_return if radar_return.get("detected")
-                           else radar.get_last_track())
-
         # Wind update every ~2 sim seconds
         if pattern.get("wind") and (step % 480 == 0):
             wind_force = [
@@ -587,15 +579,14 @@ def _run_one_mission(
                 0.0,
             ]
 
-        # Guidance force
-        g_force = (0.0, 0.0, 0.0)
-        if interceptor_launched and guidance_track:
-            t_pos = guidance_track.get("position_estimate")
-            if t_pos:
-                interceptor.set_target(*t_pos)
-            g_force = guidance.compute_guidance(interceptor.get_state(), guidance_track)
+        # Initialise per-outer-loop state (overwritten each inner step below)
+        radar_return   = {"detected": False}
+        guidance_track = radar.get_last_track()
+        g_force        = (0.0, 0.0, 0.0)
 
         # ── Inner physics sub-steps ───────────────────────────────────
+        # Radar scan and guidance are re-computed every physics step so that
+        # detection hit-count and APN force stay accurate at all sim speeds.
         for _sub in range(inner_steps):
             nav.update(intruder.get_position())
             intruder.set_target(*nav.get_current_target())
@@ -610,6 +601,20 @@ def _run_one_mission(
                     )
                 except Exception:
                     pass
+
+            # Radar scan — every physics step keeps detection rate correct
+            i_pos        = intruder.get_position()
+            radar_return = radar.scan(i_pos, target_rcs=target_rcs)
+            guidance_track = (radar_return if radar_return.get("detected")
+                              else radar.get_last_track())
+
+            # APN guidance — fresh force every step for accurate terminal homing
+            g_force = (0.0, 0.0, 0.0)
+            if interceptor_launched and guidance_track:
+                t_pos = guidance_track.get("position_estimate")
+                if t_pos:
+                    interceptor.set_target(*t_pos)
+                g_force = guidance.compute_guidance(interceptor.get_state(), guidance_track)
 
             if interceptor_launched:
                 if any(abs(v) > 1e-6 for v in g_force):
@@ -648,7 +653,7 @@ def _run_one_mission(
             intruder_position    = i_pos,
             intruder_detected    = radar_return.get("detected", False),
             interceptor_position = int_pos,
-            intercept_radius     = 12.0,   # scaled for 200 m dome
+            intercept_radius     = 18.0,   # scaled for 200 m dome
         )
         status = dome.get_status()
 

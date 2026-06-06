@@ -74,10 +74,10 @@ class PurePursuitGuidance:
             t_acc = t_acc / acc_mag * _ACC_CLAMP
         a_aug = (_N / 2.0) * t_acc
 
-        # Closing acceleration along LOS — PN only steers laterally; without
-        # this term the interceptor corrects angle but barely drives range down.
-        # Ramps linearly with range up to a cap so it doesn't swamp the PN term.
-        close_accel = float(np.clip(rng * 0.15, 4.0, 60.0))
+        # Closing acceleration along LOS.
+        # Linear-plus-inverse term: ramps gently at long range, surges in the
+        # terminal phase so the interceptor can't coast past the target.
+        close_accel = float(np.clip(rng * 0.12 + 100.0 / max(rng, 4.0), 8.0, 80.0))
         a_close = r_hat * close_accel
 
         # Total commanded acceleration
