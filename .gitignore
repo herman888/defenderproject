@@ -29,6 +29,7 @@ anti-drone-dome/py_install_*.log
 anti-drone-dome/pybullet_install.log
 anti-drone-dome/winget_*.log
 anti-drone-dome/test_output.txt
+anti-drone-dome/_install_with_msvc.bat
 
 # Ad-hoc git status dumps
 git_status.txt
