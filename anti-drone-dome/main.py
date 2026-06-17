@@ -54,13 +54,19 @@ import pybullet
 import pybullet_data
 
 USE_VISPY   = False   # set to True by --no-vispy absence in main()
+USE_SITL    = False   # set to True by --sitl flag in main()
+_SITL_ADDR  = "127.0.0.1"
+_SITL_PORT  = 14560
+# Setpoint send interval in physics steps (240 Hz ÷ 20 Hz = every 12 steps)
+_SITL_SEND_INTERVAL = 12
 
 from sim.physics         import PhysicsWorld
 from sim.camera_debug_ui import CameraZoomDebugUi
 from sim.drone      import Drone, LoiteringMunition
 from sim.waypoints  import WaypointNavigator
 from sensors.radar  import RadarNode
-from comms.datalink import DataLink
+from comms.datalink    import DataLink
+from comms.sitl_bridge import SITLBridge
 from guidance.intercept import PurePursuitGuidance
 from guidance.setpoint  import GuidanceSetpoint, enu_to_ned
 from config             import PAD_ALTITUDE_M, PAD_GROUND_Z_M, TAKEOFF_TOL_M
@@ -446,6 +452,16 @@ def _run_one_mission(
     )
     broadcaster = DataLink(role="broadcast", port=14550)
     guidance    = PurePursuitGuidance()
+
+    # ── Stage B: SITL bridge (optional) ──────────────────────────────
+    sitl_bridge = None
+    if USE_SITL:
+        sitl_bridge = SITLBridge(addr=_SITL_ADDR, port=_SITL_PORT)
+        if not sitl_bridge.connect():
+            print("[SITL] Connection failed — falling back to Python placeholder FC")
+            sitl_bridge = None
+        else:
+            print("[SITL] Active — interceptor under ArduPilot SITL control")
     dome        = DomeKillZone(center=_DOME_CENTER, radius=_DOME_RADIUS)
 
     # ── State variables ───────────────────────────────────────────────
@@ -662,7 +678,20 @@ def _run_one_mission(
                 )
 
             try:
-                interceptor.apply_setpoint(g_setpoint)
+                if USE_SITL and sitl_bridge is not None:
+                    # Send setpoint to ArduPilot at 20 Hz; sync PyBullet body
+                    # every step so position/velocity reads stay accurate.
+                    if step % _SITL_SEND_INTERVAL == 0:
+                        sitl_bridge.send_setpoint(g_setpoint)
+                    _sp, _sv = sitl_bridge.get_state()
+                    pybullet.resetBasePositionAndOrientation(
+                        interceptor._body, list(_sp), [0.0, 0.0, 0.0, 1.0],
+                        physicsClientId=world.client)
+                    pybullet.resetBaseVelocity(
+                        interceptor._body, list(_sv), [0.0, 0.0, 0.0],
+                        physicsClientId=world.client)
+                else:
+                    interceptor.apply_setpoint(g_setpoint)
             except Exception:
                 mission_result = "ABORTED"
                 break
@@ -962,6 +991,8 @@ def _run_one_mission(
         pass
     broadcaster.close()
     acmi.close()
+    if sitl_bridge is not None:
+        sitl_bridge.close()
 
     total_sim = step * _TIMESTEP
     return {
@@ -1179,7 +1210,7 @@ def _mission_loop(state_q, ctrl_q, dash_proc, shared_state=None, state_lock=None
 
 
 def main():
-    global USE_VISPY
+    global USE_VISPY, USE_SITL, _SITL_ADDR, _SITL_PORT
     mp.freeze_support()
     try:
         sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
@@ -1190,8 +1221,17 @@ def main():
     parser = argparse.ArgumentParser(description="Anti-Drone Dome Simulation")
     parser.add_argument("--no-vispy", action="store_true",
                         help="Use PyBullet GUI renderer instead of VisPy")
+    parser.add_argument("--sitl", action="store_true",
+                        help="Connect interceptor to ArduCopter SITL via MAVLink")
+    parser.add_argument("--sitl-addr", default="127.0.0.1",
+                        help="SITL UDP address (default: 127.0.0.1)")
+    parser.add_argument("--sitl-port", type=int, default=14560,
+                        help="SITL UDP port (default: 14560)")
     args = parser.parse_args()
-    USE_VISPY = not args.no_vispy
+    USE_VISPY  = not args.no_vispy
+    USE_SITL   = args.sitl
+    _SITL_ADDR = args.sitl_addr
+    _SITL_PORT = args.sitl_port
 
     state_q = mp.Queue(maxsize=2)
     ctrl_q  = mp.Queue(maxsize=20)

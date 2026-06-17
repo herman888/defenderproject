@@ -207,6 +207,7 @@ class Dashboard(QtWidgets.QMainWindow):
         self._t_start_wall    = time.time()
         self._last_blink      = time.time()
         self._blink_state     = False
+        self._mission_active  = False
 
         # ── Window chrome ─────────────────────────────────────────────────
         self.setWindowTitle("ANTI-DRONE DEFENSE SYSTEM  —  C-UAS COMMAND")
@@ -593,14 +594,16 @@ class Dashboard(QtWidgets.QMainWindow):
             R*np.cos(theta), R*np.sin(theta),
             pen=pg.mkPen(QtGui.QColor(C["primary"]), width=2.5))
 
-        # Phosphor sweep — 12 fan lines, decreasing alpha
-        self._sweep_fans: list[pg.PlotDataItem] = []
-        for i in range(12):
-            alpha = max(40, int(255 * (0.82 - i * 0.07)))
-            g_val = max(40, int(255 * (0.90 - i * 0.07)))
-            lw    = max(0.5, 2.0 - i * 0.12)
-            pen   = pg.mkPen(QtGui.QColor(10, g_val, 26, alpha), width=lw)
-            self._sweep_fans.append(ax.plot([], [], pen=pen))
+        # Phosphor sweep — persistent wedge + single rotating beam
+        self._sweep_wedge = QtWidgets.QGraphicsPolygonItem()
+        self._sweep_wedge.setBrush(QtGui.QBrush(QtGui.QColor(0, 180, 60, 45)))
+        self._sweep_wedge.setPen(QtGui.QPen(QtCore.Qt.PenStyle.NoPen))
+        self._sweep_wedge.setZValue(3)
+        ax.addItem(self._sweep_wedge)
+        self._sweep_beam = ax.plot([], [], pen=pg.mkPen(QtGui.QColor(0, 230, 118, 255), width=2.0))
+        self._sweep_beam.setZValue(4)
+        self._sweep_beam.setVisible(False)
+        self._sweep_wedge.setVisible(False)
 
         # Radar marker
         self._radar_marker = pg.ScatterPlotItem(
@@ -670,17 +673,28 @@ class Dashboard(QtWidgets.QMainWindow):
             self._blink_state = not self._blink_state
             self._last_blink = now
 
-        # Sweep fans
-        self._radar_angle = (self._radar_angle + 72.0 * dt) % 360
         rs = getattr(self, "_radar_station", [0, 0, 0])
-        sweep_len = self._view * 1.02
-        for i, fan in enumerate(self._sweep_fans):
-            angle = (self._radar_angle - i * 8) % 360
-            rad   = math.radians(angle)
-            fan.setData(
-                [rs[0], rs[0] + sweep_len * math.cos(rad)],
-                [rs[1], rs[1] + sweep_len * math.sin(rad)])
         self._radar_marker.setData(x=[rs[0]], y=[rs[1]])
+        if not self._mission_active:
+            self._sweep_beam.setVisible(False)
+            self._sweep_wedge.setVisible(False)
+        else:
+            self._radar_angle = (self._radar_angle + 72.0 * dt) % 360
+            sweep_len = self._view * 1.02
+            cur_rad = math.radians(self._radar_angle)
+            self._sweep_beam.setData(
+                [rs[0], rs[0] + sweep_len * math.cos(cur_rad)],
+                [rs[1], rs[1] + sweep_len * math.sin(cur_rad)])
+            trailing = self._radar_angle - 25.0
+            pts = [QtCore.QPointF(rs[0], rs[1])]
+            for k in range(21):
+                a = math.radians(trailing + k * 25.0 / 20)
+                pts.append(QtCore.QPointF(
+                    rs[0] + sweep_len * math.cos(a),
+                    rs[1] + sweep_len * math.sin(a)))
+            self._sweep_wedge.setPolygon(QtGui.QPolygonF(pts))
+            self._sweep_beam.setVisible(True)
+            self._sweep_wedge.setVisible(True)
 
         # Trails fade continuously even when no new state arrives
         self._intruder_ppi.render(now)
@@ -767,10 +781,12 @@ class Dashboard(QtWidgets.QMainWindow):
             self._clear_trails()
             self._debrief_text.setVisible(False)
             self._reset_buttons()
+            self._mission_active = True
             return
         if msg_type in ("reset", "show_menu"):
             self._clear_trails()
             self._debrief_text.setVisible(False)
+            self._mission_active = False
             return
         if msg_type == "debrief":
             self._show_debrief(sim_state)
