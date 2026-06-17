@@ -1,43 +1,40 @@
 """
-Real-time matplotlib dashboard — production C-UAS aesthetic.
-DroneShield DroneSentry-C2 / military C2 interface style.
+Real-time PyQtGraph dashboard — DroneShield DroneSentry-C2 / military C2 aesthetic.
 
-IPC logic, queue handling, button callbacks, and data flow are unchanged.
-Only visual appearance and layout changed.
+Drop-in replacement for the legacy matplotlib dashboard. Same public surface:
+    Dashboard(dome_radius, sim_control).update(state_dict)
+    Dashboard(...).close()
+    SimControl()  ── plain attribute container
+
+Why PyQtGraph:
+    * matplotlib's full-figure redraw pipeline caps around 30–40 fps for this layout.
+    * PyQtGraph uses QPainter raster rendering with dirty-region updates — easily
+      100+ fps on the same content.
+
+Trail rendering:
+    Each PPI trail keeps a deque of (x, y, t_birth). On every refresh we age all
+    points and recompute brushes with linear alpha decay so the tail fades to
+    transparent over ``TRAIL_PERSISTENCE_S`` seconds — the classic phosphor-decay
+    look of a real PPI scope.
+
+Threading model:
+    The owning process must run a Qt event loop on its main thread. ``update()``
+    only mutates Qt items / data buffers and is safe to call from the same
+    thread that owns the loop (the typical pattern is a QTimer drain → update).
 """
 
+from __future__ import annotations
+
 import math
-import sys
 import time
+from collections import deque
+
 import numpy as np
-import matplotlib
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 
 
-def _matplotlib_backend():
-    if sys.platform == "darwin":
-        try:
-            import tkinter  # noqa: F401
-        except ImportError:
-            return "MacOSX"
-    return "TkAgg"
-
-
-matplotlib.use(_matplotlib_backend())
-matplotlib.rcParams.update({
-    "toolbar":         "None",
-    "font.family":     "monospace",
-    "font.size":       9,
-    "text.color":      "#c8d8c8",
-    "axes.labelcolor": "#c8d8c8",
-    "xtick.color":     "#4a6a4a",
-    "ytick.color":     "#4a6a4a",
-})
-
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib.widgets import Button
-
-# ── Color palette ──────────────────────────────────────────────────────────────
+# ── Color palette (DroneSentry C2) ──────────────────────────────────────────
 C = {
     "bg":      "#04080c",
     "panel":   "#080f14",
@@ -61,656 +58,734 @@ _STATUS_COLOR = {
 }
 
 _INTRUDER_LABELS = [
-    ("shahed136",    "■ SHAHED-136",  "Loitering munition — 51 m/s, composite, low RCS"),
-    ("consumer_quad","# CONSUMER",    "DJI Mavic type — 16 m/s, ISR / light payload"),
-    ("fpv_attack",   "✕ FPV ATTACK",  "Racing frame — 32 m/s, agile, near-zero RCS"),
+    ("shahed136",     "■ SHAHED-136"),
+    ("consumer_quad", "# CONSUMER"),
+    ("fpv_attack",    "✕ FPV ATTACK"),
 ]
 _PATTERN_LABELS = [
-    ("direct",    "→ DIRECT",    "NE bearing, cruise altitude"),
-    ("nap_earth", "↘ NAP-EARTH", "Low-altitude sprint, hardest to detect"),
-    ("spiral",    "◎ SPIRAL",    "High-alt evasive descent"),
+    ("direct",    "→ DIRECT"),
+    ("nap_earth", "↘ NAP-EARTH"),
+    ("spiral",    "◎ SPIRAL"),
 ]
 _SPEEDS = [(0.5, "0.5×"), (1.0, "1×"), (2.0, "2×"), (4.0, "4×"), (8.0, "8×")]
 _PADS   = [("near", "NEAR 50m"), ("mid", "MID 180m"), ("far", "FAR 380m")]
+
+TRAIL_PERSISTENCE_S = 6.0    # phosphor decay time
+TRAIL_HEAD_SIZE     = 11     # marker size for current-position dot
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 class SimControl:
     def __init__(self):
-        self.paused           = False
-        self.stopped          = False
-        self.restart          = False
-        self.speed            = 1
-        self.pending_intruder = "shahed136"
-        self.selected_mission = None
-        self.selected_speed   = 1.0
-        self.selected_pad     = "mid"
-        self.selected_pattern = "direct"
+        self.paused              = False
+        self.stopped             = False
+        self.restart             = False
+        self.speed               = 1
+        self.pending_intruder    = "shahed136"
+        self.selected_mission    = None
+        self.selected_speed      = 1.0
+        self.selected_pad        = "mid"
+        self.selected_pattern    = "direct"
         self.camera_zoom_pending = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def _dark_ax(ax, border=True):
-    """Apply dark theme: panel bg, no ticks, optional border via spines."""
-    ax.set_facecolor(C["panel"])
-    ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
-    if border:
-        for sp in ax.spines.values():
-            sp.set_visible(True)
-            sp.set_color(C["border"])
-            sp.set_linewidth(0.8)
-    else:
-        for sp in ax.spines.values():
-            sp.set_visible(False)
+def _btn_style(fg: str, border: str, base: str, hover: str, sel: str = None) -> str:
+    sel = sel or hover
+    return f"""
+        QPushButton {{
+            background-color: {base};
+            color: {fg};
+            border: 1.4px solid {border};
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 10px;
+            padding: 4px 6px;
+        }}
+        QPushButton:hover {{ background-color: {hover}; }}
+        QPushButton:checked {{ background-color: {sel}; border-color: {fg}; }}
+    """
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-class Dashboard:
+class _FadingTrail:
+    """Phosphor-decay PPI trail. Holds (x, y, t_birth) tuples and renders as a
+    ScatterPlotItem with per-point alpha that decays linearly to 0 over
+    TRAIL_PERSISTENCE_S seconds."""
+
+    def __init__(self, plot_item: pg.PlotItem, color_hex: str,
+                 size: int = 4, head_size: int = TRAIL_HEAD_SIZE,
+                 head_symbol: str = "d", z_trail: int = 5, z_head: int = 6):
+        self._color   = QtGui.QColor(color_hex)
+        self._size    = size
+        self._buf: deque[tuple[float, float, float]] = deque(maxlen=600)
+
+        self._scatter = pg.ScatterPlotItem(
+            size=size, pen=None, brush=None, pxMode=True)
+        self._scatter.setZValue(z_trail)
+        plot_item.addItem(self._scatter)
+
+        self._head = pg.ScatterPlotItem(
+            size=head_size, symbol=head_symbol,
+            pen=pg.mkPen(color_hex, width=1.5),
+            brush=pg.mkBrush(QtGui.QColor(color_hex)))
+        self._head.setZValue(z_head)
+        plot_item.addItem(self._head)
+
+    def append(self, x: float, y: float, t: float) -> None:
+        self._buf.append((float(x), float(y), float(t)))
+
+    def clear(self) -> None:
+        self._buf.clear()
+        self._scatter.setData([])
+        self._head.setData([])
+
+    def hide(self) -> None:
+        self._scatter.setData([])
+        self._head.setData([])
+
+    def render(self, now: float) -> None:
+        if not self._buf:
+            self._scatter.setData([])
+            self._head.setData([])
+            return
+
+        # drop expired
+        while self._buf and (now - self._buf[0][2]) > TRAIL_PERSISTENCE_S:
+            self._buf.popleft()
+        if not self._buf:
+            self._scatter.setData([])
+            self._head.setData([])
+            return
+
+        n   = len(self._buf)
+        xs  = np.empty(n, dtype=np.float32)
+        ys  = np.empty(n, dtype=np.float32)
+        brs = np.empty(n, dtype=object)
+        base_r, base_g, base_b = self._color.red(), self._color.green(), self._color.blue()
+        for i, (x, y, t) in enumerate(self._buf):
+            age   = now - t
+            alpha = max(0, min(255, int(255 * (1.0 - age / TRAIL_PERSISTENCE_S))))
+            xs[i] = x; ys[i] = y
+            brs[i] = pg.mkBrush(base_r, base_g, base_b, alpha)
+        self._scatter.setData(x=xs, y=ys, brush=brs.tolist(), pen=None, size=self._size)
+
+        # head dot at most-recent point
+        hx, hy, _ = self._buf[-1]
+        self._head.setData(x=[hx], y=[hy])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+class _FpsGraphicsLayoutWidget(pg.GraphicsLayoutWidget):
+    """GraphicsLayoutWidget that timestamps actual `paintEvent` calls.
+
+    True render-rate measurement: every painted frame appends ``perf_counter()``
+    to ``self._paint_times``. If Qt drops paints under load this naturally
+    reflects it, unlike a QTimer-tick counter which only reports how often the
+    timer is firing.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._paint_times: deque[float] = deque(maxlen=240)
+
+    def paintEvent(self, ev):                                  # type: ignore[override]
+        super().paintEvent(ev)
+        self._paint_times.append(time.perf_counter())
+
+
+# ───────────────────────────────────────────────────────────────────────────
+class Dashboard(QtWidgets.QMainWindow):
+    """PyQtGraph C-UAS C2 dashboard. Public API matches legacy matplotlib version."""
+
     def __init__(self, dome_radius: float = 200.0, sim_control: SimControl = None):
-        self._dome_radius = dome_radius
-        self._view        = dome_radius * 4.0
-        self._ctrl        = sim_control
-        self._event_log   = []
-        self._intruder_trail        = []
-        self._interceptor_trail     = []
-        self._intruder_alt_trail    = []
-        self._interceptor_alt_trail = []
-        self._radar_angle = 0.0
-        self._last_draw   = time.time()
-        self._blink_state = False
-        self._last_blink  = time.time()
+        super().__init__()
+        self._dome_radius     = float(dome_radius)
+        self._view            = self._dome_radius * 4.0
+        self._ctrl            = sim_control or SimControl()
+        self._event_log: list[tuple[str, str, float]] = []
+        self._radar_angle     = 0.0
+        self._t_start_wall    = time.time()
+        self._last_blink      = time.time()
+        self._blink_state     = False
 
-        plt.ion()
-        self._fig = plt.figure(figsize=(14, 8.8), dpi=96)
-        self._fig.patch.set_facecolor(C["bg"])
+        # ── Window chrome ─────────────────────────────────────────────────
+        self.setWindowTitle("ANTI-DRONE DEFENSE SYSTEM  —  C-UAS COMMAND")
+        self.resize(1360, 850)
+        self.setStyleSheet(f"""
+            QMainWindow, QWidget {{ background-color: {C['bg']}; }}
+            QLabel {{ color: {C['text']}; font-family: 'Consolas', 'Courier New', monospace; }}
+        """)
 
-        try:
-            mgr = self._fig.canvas.manager
-            mgr.set_window_title("ANTI-DRONE DEFENSE SYSTEM  —  C-UAS COMMAND")
-            mgr.window.wm_geometry("980x660+940+0")
-        except Exception:
-            pass
+        pg.setConfigOptions(antialias=True, useOpenGL=False, background=C["panel"],
+                            foreground=C["text"])
 
-        # Remove any leftover toolmanager tools
-        try:
-            tm = self._fig.canvas.manager.toolmanager
-            for t in ("zoom", "pan", "subplots", "save", "help"):
-                try:
-                    tm.remove_tool(t)
-                except Exception:
-                    pass
-        except Exception:
-            pass
+        central = QtWidgets.QWidget(self)
+        self.setCentralWidget(central)
+        root = QtWidgets.QVBoxLayout(central)
+        root.setContentsMargins(6, 4, 6, 6)
+        root.setSpacing(4)
 
-        # ── 4-row layout: header | viz | event-log | controls ─────────────────
-        gs = self._fig.add_gridspec(
-            4, 1,
-            height_ratios=[0.30, 5.6, 0.42, 3.2],
-            hspace=0.0,
-            left=0.01, right=0.99, top=0.99, bottom=0.01,
-        )
+        self._build_header(root)
+        self._build_main_viz(root)
+        self._build_event_log(root)
+        self._build_mission_panel(root)
+        self._build_controls_row(root)
 
-        # Row 0 — header bar
-        self._ax_header = self._fig.add_subplot(gs[0])
-        self._build_header()
+        # Sweep / blink animation tied to a 60 Hz QTimer (independent of state push).
+        self._anim_timer = QtCore.QTimer(self)
+        self._anim_timer.timeout.connect(self._on_anim_tick)
+        self._anim_timer.start(16)
+        self._last_anim = time.time()
 
-        # Row 1 — radar (left 55%) | altitude + telemetry (right 45%)
-        viz_gs = gs[1].subgridspec(1, 2, wspace=0.04, width_ratios=[11, 9])
-        self._ax_radar = self._fig.add_subplot(viz_gs[0])
-        right_gs = viz_gs[1].subgridspec(2, 1, hspace=0.05, height_ratios=[5, 4])
-        self._ax_side  = self._fig.add_subplot(right_gs[0])
-        self._ax_telem = self._fig.add_subplot(right_gs[1])
+        # FPS update timer (every 250 ms — cheap label update)
+        self._fps_timer = QtCore.QTimer(self)
+        self._fps_timer.timeout.connect(self._refresh_fps_label)
+        self._fps_timer.start(250)
 
-        # Row 2 — event log strip
-        self._ax_log = self._fig.add_subplot(gs[2])
-        self._build_event_log_ax()
+        self.show()
 
-        # Row 3 — mission select (top) + controls (bottom)
-        ctrl_gs = gs[3].subgridspec(2, 1, height_ratios=[1.3, 0.9], hspace=0.22)
+    # ── Header ────────────────────────────────────────────────────────────
+    def _build_header(self, root: QtWidgets.QVBoxLayout) -> None:
+        bar = QtWidgets.QFrame()
+        bar.setFixedHeight(44)
+        bar.setStyleSheet(
+            f"QFrame {{ background-color: {C['panel']}; "
+            f"border-top: 2px solid {C['primary']}; "
+            f"border-bottom: 1px solid {C['border']}; }}")
+        h = QtWidgets.QHBoxLayout(bar)
+        h.setContentsMargins(10, 4, 10, 4)
 
-        self._setup_radar_ax()
-        self._setup_side_ax()
-        self._setup_telem_ax()
-        self._setup_mission_panel(ctrl_gs[0])
-        self._setup_controls(ctrl_gs[1])
+        title = QtWidgets.QLabel("◈  ANTI-DRONE DEFENSE SYSTEM")
+        title.setStyleSheet(f"color: {C['white']}; font-size: 13px; font-weight: bold;")
+        sub = QtWidgets.QLabel("C-UAS COMMAND & CONTROL  v1.0")
+        sub.setStyleSheet(f"color: {C['textdim']}; font-size: 8px;")
+        title_box = QtWidgets.QVBoxLayout()
+        title_box.setContentsMargins(0, 0, 0, 0)
+        title_box.addWidget(title); title_box.addWidget(sub)
+        title_w = QtWidgets.QWidget(); title_w.setLayout(title_box)
+        h.addWidget(title_w, stretch=1)
+
+        self._hdr_status = QtWidgets.QLabel("●  STANDBY")
+        self._hdr_status.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self._hdr_status.setStyleSheet(
+            f"color: {C['primary']}; font-size: 12px; font-weight: bold;")
+        h.addWidget(self._hdr_status, stretch=2)
+
+        right_box = QtWidgets.QVBoxLayout()
+        right_box.setContentsMargins(0, 0, 0, 0)
+        self._hdr_time = QtWidgets.QLabel("T+  00:00")
+        self._hdr_time.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        self._hdr_time.setStyleSheet(f"color: {C['text']}; font-size: 12px;")
+        self._hdr_speed = QtWidgets.QLabel("SIM  1.0×   FPS --")
+        self._hdr_speed.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        self._hdr_speed.setStyleSheet(f"color: {C['textdim']}; font-size: 8px;")
+        right_box.addWidget(self._hdr_time); right_box.addWidget(self._hdr_speed)
+        right_w = QtWidgets.QWidget(); right_w.setLayout(right_box)
+        h.addWidget(right_w, stretch=1)
+
+        root.addWidget(bar)
+
+    # ── Main viz row ──────────────────────────────────────────────────────
+    def _build_main_viz(self, root: QtWidgets.QVBoxLayout) -> None:
+        """Layout: [ radar PPI ] | [ altitude (top) / telemetry (bottom) ]."""
+        # Left: radar PPI in its own FPS-instrumented GraphicsLayoutWidget
+        self._gw_radar = _FpsGraphicsLayoutWidget()
+        self._gw_radar.setBackground(C["bg"])
+        self._gw_radar.ci.setSpacing(0)
+        self._gw_radar.ci.setContentsMargins(2, 2, 2, 2)
+        self._ax_radar = self._gw_radar.addPlot(row=0, col=0)
+        self._setup_radar_ax(self._ax_radar)
+
+        # Right top: altitude in its own GraphicsLayoutWidget
+        self._gw_side = pg.GraphicsLayoutWidget()
+        self._gw_side.setBackground(C["bg"])
+        self._gw_side.ci.setSpacing(0)
+        self._gw_side.ci.setContentsMargins(2, 2, 2, 2)
+        self._ax_side = self._gw_side.addPlot(row=0, col=0)
+        self._setup_side_ax(self._ax_side)
+
+        # Right bottom: telemetry panel (Qt widget — crisp text)
+        self._telem_panel = self._build_telem_panel()
+        self._telem_panel.setMinimumHeight(140)
+
+        # Stack altitude + telemetry vertically on the right
+        right_col = QtWidgets.QWidget()
+        right_v = QtWidgets.QVBoxLayout(right_col)
+        right_v.setContentsMargins(0, 0, 0, 0); right_v.setSpacing(4)
+        right_v.addWidget(self._gw_side, stretch=5)
+        right_v.addWidget(self._telem_panel, stretch=4)
+
+        # Horizontal split: radar | right column
+        split = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
+        split.addWidget(self._gw_radar)
+        split.addWidget(right_col)
+        split.setStretchFactor(0, 11)
+        split.setStretchFactor(1, 9)
+        split.setHandleWidth(2)
+        split.setStyleSheet(
+            f"QSplitter::handle {{ background-color: {C['border']}; }}")
+
+        root.addWidget(split, stretch=20)
         self._init_artists()
-        plt.pause(0.01)
 
-    # ── Header bar ────────────────────────────────────────────────────────────
-    def _build_header(self):
-        ax = self._ax_header
-        _dark_ax(ax, border=False)
-        ax.set_facecolor(C["panel"])
-        # Top accent line and bottom separator
-        ax.plot([0, 1], [1, 1], color=C["primary"], linewidth=2.5,
-                transform=ax.transAxes, clip_on=False)
-        ax.plot([0, 1], [0, 0], color=C["border"], linewidth=0.8,
-                transform=ax.transAxes, clip_on=False)
-
-        ax.text(0.008, 0.72, "◈  ANTI-DRONE DEFENSE SYSTEM",
-                color=C["white"], fontsize=11, fontweight="bold",
-                va="top", transform=ax.transAxes)
-        ax.text(0.008, 0.12, "C-UAS COMMAND & CONTROL  v1.0",
-                color=C["textdim"], fontsize=7,
-                va="bottom", transform=ax.transAxes)
-
-        self._hdr_status = ax.text(
-            0.50, 0.52, "●  STANDBY",
-            color=C["primary"], fontsize=10, fontweight="bold",
-            va="center", ha="center", transform=ax.transAxes)
-
-        self._hdr_time = ax.text(
-            0.985, 0.72, "T+  00:00",
-            color=C["text"], fontsize=10, va="top", ha="right",
-            transform=ax.transAxes)
-        self._hdr_speed = ax.text(
-            0.985, 0.12, "SIM  1.0×",
-            color=C["textdim"], fontsize=7, va="bottom", ha="right",
-            transform=ax.transAxes)
-
-    # ── Event log strip ───────────────────────────────────────────────────────
-    def _build_event_log_ax(self):
-        ax = self._ax_log
-        _dark_ax(ax, border=False)
-        ax.plot([0, 1], [1, 1], color=C["border"], linewidth=0.7,
-                transform=ax.transAxes, clip_on=False)
-        ax.plot([0, 1], [0, 0], color=C["border"], linewidth=0.7,
-                transform=ax.transAxes, clip_on=False)
-        ax.text(0.004, 0.88, "EVENT LOG",
-                color=C["textdim"], fontsize=6, fontweight="bold",
-                va="top", transform=ax.transAxes)
-        self._log_text = ax.text(
-            0.012, 0.38, "─  No events",
-            color=C["textdim"], fontsize=8,
-            va="center", transform=ax.transAxes)
-
-    # ── Radar panel ───────────────────────────────────────────────────────────
-    def _setup_radar_ax(self):
-        ax = self._ax_radar
-        v  = self._view
-        R  = self._dome_radius
-
-        ax.set_facecolor(C["panel"])
-        ax.set_xlim(-v, v)
-        ax.set_ylim(-v, v)
-        ax.set_aspect("equal")
-        ax.tick_params(labelbottom=False, labelleft=False, bottom=False, left=False)
-        for sp in ax.spines.values():
-            sp.set_visible(True)
-            sp.set_color(C["border"])
-            sp.set_linewidth(0.8)
-
-        ax.set_title("RADAR  —  TOP DOWN", color=C["primary"],
-                     fontsize=9, pad=4, loc="left", fontweight="bold")
-
-        # 4 crosshair lines only
-        ax.axhline(0, color=C["dim"], linewidth=0.6, zorder=0)
-        ax.axvline(0, color=C["dim"], linewidth=0.6, zorder=0)
+    def _setup_radar_ax(self, ax: pg.PlotItem) -> None:
+        v = self._view
+        R = self._dome_radius
+        ax.setAspectLocked(True, ratio=1.0)
+        ax.setXRange(-v, v, padding=0)
+        ax.setYRange(-v, v, padding=0)
+        ax.hideAxis("bottom"); ax.hideAxis("left")
+        ax.setMouseEnabled(x=False, y=False)
+        ax.setMenuEnabled(False)
+        ax.setTitle('<span style="color:#00e676; font-family:Consolas;">'
+                    'RADAR  —  TOP DOWN</span>', size="9pt")
+        # Crosshairs (horizontal + vertical through origin)
+        for ang in (0, 90):
+            ax.addItem(pg.InfiniteLine(pos=0, angle=ang,
+                       pen=pg.mkPen(QtGui.QColor(C["dim"]), width=0.6)))
+        # Half-quadrant guides
         for frac in (0.5, -0.5):
-            ax.axhline(v * frac, color=C["dim"], linewidth=0.3, linestyle=":", zorder=0)
-            ax.axvline(v * frac, color=C["dim"], linewidth=0.3, linestyle=":", zorder=0)
+            for ang in (0, 90):
+                ln = pg.InfiniteLine(pos=v*frac, angle=ang,
+                                     pen=pg.mkPen(QtGui.QColor(C["dim"]),
+                                                   width=0.4, style=QtCore.Qt.PenStyle.DotLine))
+                ax.addItem(ln)
 
-        # Cardinal labels inside panel
-        _kw = dict(fontsize=8, fontweight="bold", ha="center", va="center", zorder=3)
-        ax.text( 0,  v * 0.94, "N▲", color=C["textdim"], **_kw)
-        ax.text( 0, -v * 0.94, "▼S", color=C["textdim"], **_kw)
-        ax.text( v * 0.94, 0,  "E►", color=C["textdim"], **_kw)
-        ax.text(-v * 0.94, 0,  "◄W", color=C["textdim"], **_kw)
-
-        # Range rings — labels at 3 o'clock
+        # Range rings
         ring_specs = [
-            (R * 0.25, C["dim"],     0.5, None),
-            (R * 0.5,  C["dim"],     0.6, f"{R*0.5:.0f}m"),
-            (R,        C["primary"], 2.5, f"{R:.0f}m  DOME"),
-            (R * 2.0,  C["dim"],     0.5, f"{R*2:.0f}m"),
-            (R * 3.0,  C["dim"],     0.4, None),
+            (R*0.25, C["dim"],     0.5, None,             False),
+            (R*0.50, C["dim"],     0.6, f"{R*0.5:.0f}m",  False),
+            (R,      C["primary"], 2.5, f"{R:.0f}m  DOME", True),
+            (R*2.0,  C["dim"],     0.5, f"{R*2:.0f}m",    False),
+            (R*3.0,  C["dim"],     0.4, None,             False),
         ]
-        for r, col, lw, label in ring_specs:
+        theta = np.linspace(0, 2*math.pi, 256)
+        for r, col, lw, label, dome in ring_specs:
             if r > v * 0.98:
                 continue
-            ls = "-" if r == R else "--"
-            ax.add_patch(plt.Circle((0, 0), r, color=col, fill=False,
-                                    linewidth=lw, linestyle=ls, zorder=1))
-            if r == R:
-                ax.add_patch(plt.Circle((0, 0), r, color=C["primary"],
-                                        alpha=0.03, linewidth=0, zorder=0))
+            xs = r * np.cos(theta); ys = r * np.sin(theta)
+            pen = pg.mkPen(QtGui.QColor(col), width=lw)
+            if not dome:
+                pen.setStyle(QtCore.Qt.PenStyle.DashLine)
+            ax.plot(xs, ys, pen=pen)
             if label:
-                ax.text(r + v * 0.012, 0, label,
-                        color=C["textdim"], fontsize=7, va="center", zorder=2)
+                t = pg.TextItem(text=label, color=C["textdim"], anchor=(0, 0.5))
+                t.setPos(r + v*0.012, 0)
+                font = QtGui.QFont("Consolas", 7)
+                t.setFont(font)
+                ax.addItem(t)
 
-    # ── Altitude panel ────────────────────────────────────────────────────────
-    def _setup_side_ax(self):
-        ax = self._ax_side
-        R  = self._dome_radius
+        # Cardinal labels
+        for x, y, txt in [(0, v*0.93, "N▲"), (0, -v*0.93, "▼S"),
+                          (v*0.93, 0, "E►"), (-v*0.93, 0, "◄W")]:
+            t = pg.TextItem(text=txt, color=C["textdim"], anchor=(0.5, 0.5))
+            t.setFont(QtGui.QFont("Consolas", 8, QtGui.QFont.Weight.Bold))
+            t.setPos(x, y); ax.addItem(t)
 
-        ax.set_facecolor(C["panel"])
-        ax.set_xlim(-self._view, self._view)
-        ax.set_ylim(-R * 0.05, R * 1.8)
-        for sp in ax.spines.values():
-            sp.set_visible(True)
-            sp.set_color(C["border"])
-            sp.set_linewidth(0.8)
+    def _setup_side_ax(self, ax: pg.PlotItem) -> None:
+        R = self._dome_radius
+        ax.setXRange(-self._view, self._view, padding=0)
+        ax.setYRange(-R*0.05, R*1.8, padding=0)
+        ax.setMouseEnabled(x=False, y=False)
+        ax.setMenuEnabled(False)
+        ax.setTitle('<span style="color:#00e5ff; font-family:Consolas;">'
+                    'ALTITUDE  —  X / Z</span>', size="9pt")
+        ax.hideAxis("bottom")
+        ax.showAxis("right")
+        ay = ax.getAxis("right")
+        ay.setTextPen(pg.mkPen(QtGui.QColor(C["textdim"])))
+        ay.setPen(pg.mkPen(QtGui.QColor(C["border"])))
+        ay.setTicks([[(0, "0m"), (R*0.5, f"{R*0.5:.0f}m"),
+                      (R, f"{R:.0f}m"), (R*1.5, f"{R*1.5:.0f}m")]])
+        ax.hideAxis("left")
+        # Ground line
+        ax.addItem(pg.InfiniteLine(pos=0, angle=0,
+                                   pen=pg.mkPen(QtGui.QColor(C["dim"]), width=0.8)))
+        # Dome arc + base
+        theta = np.linspace(0, math.pi, 80)
+        self._dome_arc = ax.plot(R*np.cos(theta), R*np.sin(theta),
+                                 pen=pg.mkPen(QtGui.QColor(C["amber"]), width=1.8))
+        self._dome_base = ax.plot([-R, R], [0, 0],
+                                  pen=pg.mkPen(QtGui.QColor(C["amber"]), width=1.8))
 
-        ax.set_title("ALTITUDE  —  X / Z", color=C["cyan"],
-                     fontsize=9, pad=4, loc="left", fontweight="bold")
+    # ── Telemetry panel (Qt widget — crisp text) ──────────────────────────
+    def _build_telem_panel(self) -> QtWidgets.QWidget:
+        frame = QtWidgets.QFrame()
+        frame.setStyleSheet(
+            f"QFrame {{ background-color: {C['panel']}; "
+            f"border: 1px solid {C['border']}; }}"
+            f"QLabel {{ font-family: 'Consolas', 'Courier New', monospace; "
+            f"font-size: 9px; }}")
+        v = QtWidgets.QVBoxLayout(frame)
+        v.setContentsMargins(8, 6, 8, 6); v.setSpacing(3)
 
-        ax.tick_params(left=False, bottom=False, labelbottom=False)
-        ax.yaxis.tick_right()
-        ax.yaxis.set_tick_params(labelright=True, labelleft=False,
-                                  labelsize=6, labelcolor=C["textdim"])
-        ax.set_yticks([0, R * 0.5, R, R * 1.5])
-        ax.set_yticklabels([f"{int(z)}m" for z in [0, R * 0.5, R, R * 1.5]])
-
-        ax.axhline(0, color=C["dim"], linewidth=0.8, zorder=0)
-        ax.grid(True, color=C["dim"], linewidth=0.3, linestyle=":", alpha=0.4, zorder=0)
-        ax.text(-self._view * 0.94, -R * 0.03, "GND",
-                color=C["textdim"], fontsize=6, va="center")
-
-    # ── Telemetry panel ───────────────────────────────────────────────────────
-    def _setup_telem_ax(self):
-        ax = self._ax_telem
-        ax.set_facecolor(C["panel"])
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        for sp in ax.spines.values():
-            sp.set_visible(True)
-            sp.set_color(C["border"])
-            sp.set_linewidth(0.8)
-        ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
-
-        _bb_i = dict(boxstyle="round,pad=0.3", facecolor="#06100e",
-                     edgecolor=C["border"], alpha=0.95)
-        _bb_c = dict(boxstyle="round,pad=0.3", facecolor="#04080f",
-                     edgecolor=C["border"], alpha=0.95)
-        _bb_r = dict(boxstyle="round,pad=0.3", facecolor="#040f08",
-                     edgecolor=C["border"], alpha=0.95)
-
-        self._telem_intruder = ax.text(
-            0.025, 0.97,
+        self._telem_intruder = QtWidgets.QLabel(
             "─ INTRUDER ──────────────────────────────\n"
             "  RNG  ---        ALT  ---        SPD  ---\n"
-            "  BRG  ---        TYPE  ─────────────────",
-            color=C["red"], fontsize=7.5, va="top",
-            transform=ax.transAxes, bbox=_bb_i)
+            "  BRG  ---        TYPE  ─────────────────")
+        self._telem_intruder.setStyleSheet(f"color: {C['red']};")
+        v.addWidget(self._telem_intruder)
 
-        self._telem_intercept = ax.text(
-            0.025, 0.62,
+        self._telem_intercept = QtWidgets.QLabel(
             "─ INTERCEPTOR ───────────────────────────\n"
             "  SEP  ---        TTI  ---     SPD  ---\n"
-            "  STATUS  STANDBY",
-            color=C["blue"], fontsize=7.5, va="top",
-            transform=ax.transAxes, bbox=_bb_c)
+            "  STATUS  STANDBY")
+        self._telem_intercept.setStyleSheet(f"color: {C['blue']};")
+        v.addWidget(self._telem_intercept)
 
-        self._telem_radar = ax.text(
-            0.025, 0.29,
+        self._telem_radar = QtWidgets.QLabel(
             "─ RADAR ─────────────────────────────────\n"
             "  CONF  ---%       SNR  ---dB\n"
-            "  TRACK  SEARCHING    LOCK  PENDING",
-            color=C["primary"], fontsize=7.5, va="top",
-            transform=ax.transAxes, bbox=_bb_r)
+            "  TRACK  SEARCHING    LOCK  PENDING")
+        self._telem_radar.setStyleSheet(f"color: {C['primary']};")
+        v.addWidget(self._telem_radar)
 
-        # Threat bar
-        ax.text(0.025, 0.065, "THREAT",
-                color=C["textdim"], fontsize=6.5, va="center",
-                transform=ax.transAxes)
-        self._threat_pct = ax.text(
-            0.975, 0.065, "0%",
-            color=C["textdim"], fontsize=7, va="center", ha="right",
-            transform=ax.transAxes)
-        # Background track
-        ax.add_patch(mpatches.Rectangle(
-            (0.175, 0.022), 0.79, 0.068,
-            facecolor=C["dim"], edgecolor="none", transform=ax.transAxes))
-        # Fill (updated each frame)
-        self._threat_bar = mpatches.Rectangle(
-            (0.175, 0.022), 0.001, 0.068,
-            facecolor=C["primary"], edgecolor="none", transform=ax.transAxes)
-        ax.add_patch(self._threat_bar)
+        # Threat row
+        threat_row = QtWidgets.QHBoxLayout()
+        thlbl = QtWidgets.QLabel("THREAT")
+        thlbl.setStyleSheet(f"color: {C['textdim']}; font-size: 8px;")
+        self._threat_bar = QtWidgets.QProgressBar()
+        self._threat_bar.setRange(0, 100); self._threat_bar.setValue(0)
+        self._threat_bar.setTextVisible(False)
+        self._threat_bar.setFixedHeight(10)
+        self._threat_bar.setStyleSheet(
+            f"QProgressBar {{ background-color: {C['dim']}; border: 0px; }}"
+            f"QProgressBar::chunk {{ background-color: {C['primary']}; }}")
+        self._threat_pct = QtWidgets.QLabel("0%")
+        self._threat_pct.setStyleSheet(f"color: {C['textdim']}; font-size: 9px;")
+        self._threat_pct.setFixedWidth(36)
+        self._threat_pct.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        threat_row.addWidget(thlbl); threat_row.addWidget(self._threat_bar, 1)
+        threat_row.addWidget(self._threat_pct)
+        v.addLayout(threat_row)
+        return frame
 
-    # ── Mission select panel ──────────────────────────────────────────────────
-    def _setup_mission_panel(self, mission_spec):
-        mgs = mission_spec.subgridspec(2, 11, wspace=0.10, hspace=0.32)
+    # ── Event log strip ───────────────────────────────────────────────────
+    def _build_event_log(self, root: QtWidgets.QVBoxLayout) -> None:
+        bar = QtWidgets.QFrame()
+        bar.setFixedHeight(36)
+        bar.setStyleSheet(
+            f"QFrame {{ background-color: {C['panel']}; "
+            f"border-top: 1px solid {C['border']}; "
+            f"border-bottom: 1px solid {C['border']}; }}")
+        h = QtWidgets.QHBoxLayout(bar)
+        h.setContentsMargins(10, 2, 10, 2)
+        head = QtWidgets.QLabel("EVENT LOG")
+        head.setStyleSheet(f"color: {C['textdim']}; font-size: 7px; font-weight: bold;")
+        head.setFixedWidth(70)
+        self._log_text = QtWidgets.QLabel("─  No events")
+        self._log_text.setStyleSheet(
+            f"color: {C['textdim']}; font-size: 9px; "
+            f"font-family: 'Consolas', 'Courier New', monospace;")
+        h.addWidget(head); h.addWidget(self._log_text, 1)
+        root.addWidget(bar)
 
-        _I_BASE  = "#0e1a0e";  _I_SEL = "#1a4020";  _I_HOV = "#163a1a"
-        _S_BASE  = "#0a0f22";  _S_SEL = "#0f1a48";  _S_HOV = "#0d162e"
-        _P_BASE  = "#110e05";  _P_SEL = "#201a06";  _P_HOV = "#1a1408"
-        _D_BASE  = "#0e0a1a";  _D_SEL = "#1a0e2e";  _D_HOV = "#160c24"
+    # ── Mission select panel ──────────────────────────────────────────────
+    def _build_mission_panel(self, root: QtWidgets.QVBoxLayout) -> None:
+        frame = QtWidgets.QFrame()
+        frame.setStyleSheet(f"QFrame {{ background-color: {C['bg']}; }}")
+        grid = QtWidgets.QGridLayout(frame)
+        grid.setContentsMargins(2, 4, 2, 2); grid.setSpacing(4)
 
-        self._mission_btns = {}
-        for i, (key, label, _) in enumerate(_INTRUDER_LABELS):
-            ax  = self._fig.add_subplot(mgs[0, i])
-            col = _I_SEL if key == "shahed136" else _I_BASE
-            btn = Button(ax, label, color=col, hovercolor=_I_HOV)
-            btn.label.set_color(C["primary"]); btn.label.set_fontfamily("monospace")
-            btn.label.set_fontsize(8)
-            for sp in ax.spines.values(): sp.set_color("#2a6a2a"); sp.set_linewidth(1.4)
-            btn.on_clicked(lambda _, k=key: self._on_mission(k))
-            self._mission_btns[key] = btn
+        # Row 0: 3 intruders + 5 speeds
+        self._mission_btns: dict[str, QtWidgets.QPushButton] = {}
+        for i, (key, label) in enumerate(_INTRUDER_LABELS):
+            b = QtWidgets.QPushButton(label)
+            b.setCheckable(True); b.setChecked(key == "shahed136")
+            b.setStyleSheet(_btn_style(
+                C["primary"], "#2a6a2a", "#0e1a0e", "#163a1a", "#1a4020"))
+            b.clicked.connect(lambda _, k=key: self._on_mission(k))
+            self._mission_btns[key] = b
+            grid.addWidget(b, 0, i)
 
-        self._speed_btns = {}
+        self._speed_btns: dict[float, QtWidgets.QPushButton] = {}
         for i, (spd, lbl) in enumerate(_SPEEDS):
-            ax  = self._fig.add_subplot(mgs[0, 4 + i])
-            col = _S_SEL if spd == 1.0 else _S_BASE
-            btn = Button(ax, lbl, color=col, hovercolor=_S_HOV)
-            btn.label.set_color(C["cyan"]); btn.label.set_fontfamily("monospace")
-            btn.label.set_fontsize(8)
-            for sp in ax.spines.values(): sp.set_color("#1a4a8a"); sp.set_linewidth(1.4)
-            btn.on_clicked(lambda _, s=spd: self._on_speed_select(s))
-            self._speed_btns[spd] = btn
+            b = QtWidgets.QPushButton(lbl)
+            b.setCheckable(True); b.setChecked(spd == 1.0)
+            b.setStyleSheet(_btn_style(
+                C["cyan"], "#1a4a8a", "#0a0f22", "#0d162e", "#0f1a48"))
+            b.clicked.connect(lambda _, s=spd: self._on_speed_select(s))
+            self._speed_btns[spd] = b
+            grid.addWidget(b, 0, 4 + i)
 
-        self._pattern_btns = {}
-        for i, (key, lbl, _) in enumerate(_PATTERN_LABELS):
-            ax  = self._fig.add_subplot(mgs[1, i])
-            col = _P_SEL if key == "direct" else _P_BASE
-            btn = Button(ax, lbl, color=col, hovercolor=_P_HOV)
-            btn.label.set_color(C["amber"]); btn.label.set_fontfamily("monospace")
-            btn.label.set_fontsize(7)
-            for sp in ax.spines.values(): sp.set_color("#4a4010"); sp.set_linewidth(1.4)
-            btn.on_clicked(lambda _, k=key: self._on_pattern_select(k))
-            self._pattern_btns[key] = btn
+        # Row 1: 3 patterns + 3 pads + hint
+        self._pattern_btns: dict[str, QtWidgets.QPushButton] = {}
+        for i, (key, lbl) in enumerate(_PATTERN_LABELS):
+            b = QtWidgets.QPushButton(lbl)
+            b.setCheckable(True); b.setChecked(key == "direct")
+            b.setStyleSheet(_btn_style(
+                C["amber"], "#4a4010", "#110e05", "#1a1408", "#201a06"))
+            b.clicked.connect(lambda _, k=key: self._on_pattern_select(k))
+            self._pattern_btns[key] = b
+            grid.addWidget(b, 1, i)
 
-        self._pad_btns = {}
+        self._pad_btns: dict[str, QtWidgets.QPushButton] = {}
         for i, (key, lbl) in enumerate(_PADS):
-            ax  = self._fig.add_subplot(mgs[1, 4 + i])
-            col = _D_SEL if key == "mid" else _D_BASE
-            btn = Button(ax, lbl, color=col, hovercolor=_D_HOV)
-            btn.label.set_color("#cc99ff"); btn.label.set_fontfamily("monospace")
-            btn.label.set_fontsize(7)
-            for sp in ax.spines.values(): sp.set_color("#4a1a7a"); sp.set_linewidth(1.4)
-            btn.on_clicked(lambda _, k=key: self._on_pad_select(k))
-            self._pad_btns[key] = btn
+            b = QtWidgets.QPushButton(lbl)
+            b.setCheckable(True); b.setChecked(key == "mid")
+            b.setStyleSheet(_btn_style(
+                "#cc99ff", "#4a1a7a", "#0e0a1a", "#160c24", "#1a0e2e"))
+            b.clicked.connect(lambda _, k=key: self._on_pad_select(k))
+            self._pad_btns[key] = b
+            grid.addWidget(b, 1, 4 + i)
 
-        # Hint text col 8-10
-        ax_hint = self._fig.add_subplot(mgs[1, 8:])
-        _dark_ax(ax_hint, border=False)
-        ax_hint.text(0.05, 0.5,
-                     "Select intruder · pattern · pad · speed\n"
-                     "then  ▶ START  to launch the 3-D sim",
-                     transform=ax_hint.transAxes,
-                     color=C["textdim"], fontsize=7, va="center")
+        hint = QtWidgets.QLabel(
+            "Select intruder · pattern · pad · speed\n"
+            "then  ▶ START  to launch the 3-D sim")
+        hint.setStyleSheet(
+            f"color: {C['textdim']}; font-size: 8px; "
+            f"font-family: 'Consolas', 'Courier New', monospace;")
+        hint.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        grid.addWidget(hint, 1, 8, 1, 3)
 
-    # ── Controls row ──────────────────────────────────────────────────────────
-    def _setup_controls(self, controls_spec):
-        cgs = controls_spec.subgridspec(1, 7, wspace=0.12)
+        # Even column stretch
+        for c in range(11):
+            grid.setColumnStretch(c, 1)
+        root.addWidget(frame, stretch=3)
 
-        ax_pause = self._fig.add_subplot(cgs[0, 0])
-        ax_reset = self._fig.add_subplot(cgs[0, 1])
-        ax_start = self._fig.add_subplot(cgs[0, 2])
-        ax_abort = self._fig.add_subplot(cgs[0, 3])
-        ax_sep   = self._fig.add_subplot(cgs[0, 4])
-        ax_plus  = self._fig.add_subplot(cgs[0, 5])
-        ax_minus = self._fig.add_subplot(cgs[0, 6])
+    # ── Controls row ──────────────────────────────────────────────────────
+    def _build_controls_row(self, root: QtWidgets.QVBoxLayout) -> None:
+        bar = QtWidgets.QFrame()
+        bar.setFixedHeight(46)
+        bar.setStyleSheet(f"QFrame {{ background-color: {C['bg']}; }}")
+        h = QtWidgets.QHBoxLayout(bar)
+        h.setContentsMargins(2, 4, 2, 2); h.setSpacing(6)
 
-        # Separator label
-        _dark_ax(ax_sep, border=False)
-        ax_sep.text(0.5, 0.65, "3-D CAM", color=C["textdim"],
-                    fontsize=6, ha="center", va="center",
-                    transform=ax_sep.transAxes)
+        self._btn_pause = QtWidgets.QPushButton("|| PAUSE")
+        self._btn_reset = QtWidgets.QPushButton("↺  RESET")
+        self._btn_start = QtWidgets.QPushButton("▶  START")
+        self._btn_abort = QtWidgets.QPushButton("◼  ABORT")
+        sep_lbl  = QtWidgets.QLabel("3-D CAM")
+        sep_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        sep_lbl.setStyleSheet(f"color: {C['textdim']}; font-size: 8px;")
+        self._btn_zoom_in  = QtWidgets.QPushButton("+")
+        self._btn_zoom_out = QtWidgets.QPushButton("−")
 
-        self._btn_pause = Button(ax_pause, "|| PAUSE",  color="#0a1808", hovercolor="#112010")
-        self._btn_reset = Button(ax_reset, "↺  RESET",  color="#141008", hovercolor="#201808")
-        self._btn_start = Button(ax_start, "▶  START",  color="#0d2010", hovercolor="#163015")
-        self._btn_abort = Button(ax_abort, "◼  ABORT",  color="#1e0508", hovercolor="#2e0810")
-        self._btn_zoom_in  = Button(ax_plus,  "+",      color="#061212", hovercolor="#0c2020")
-        self._btn_zoom_out = Button(ax_minus, "−",      color="#061212", hovercolor="#0c2020")
+        self._btn_pause.setStyleSheet(_btn_style(C["primary"], C["primary"], "#0a1808", "#112010"))
+        self._btn_reset.setStyleSheet(_btn_style(C["amber"],   C["amber"],   "#141008", "#201808"))
+        self._btn_start.setStyleSheet(_btn_style(C["white"],   C["primary"], "#0d2010", "#163015"))
+        self._btn_abort.setStyleSheet(_btn_style(C["red"],     C["red"],     "#1e0508", "#2e0810"))
+        self._btn_zoom_in.setStyleSheet(_btn_style(C["cyan"],  C["cyan"],    "#061212", "#0c2020"))
+        self._btn_zoom_out.setStyleSheet(_btn_style(C["cyan"], C["cyan"],    "#061212", "#0c2020"))
 
-        _styles = {
-            self._btn_pause:    (C["primary"], 9,  C["primary"]),
-            self._btn_reset:    (C["amber"],   9,  C["amber"]),
-            self._btn_start:    (C["white"],   9,  C["primary"]),
-            self._btn_abort:    (C["red"],     9,  C["red"]),
-            self._btn_zoom_in:  (C["cyan"],    12, C["cyan"]),
-            self._btn_zoom_out: (C["cyan"],    12, C["cyan"]),
-        }
-        for btn, (col, sz, border) in _styles.items():
-            btn.label.set_color(col)
-            btn.label.set_fontfamily("monospace")
-            btn.label.set_fontsize(sz)
-            for sp in btn.ax.spines.values():
-                sp.set_color(border); sp.set_linewidth(1.5)
+        for w, s in ((self._btn_pause, 3), (self._btn_reset, 3),
+                     (self._btn_start, 3), (self._btn_abort, 3),
+                     (sep_lbl, 1), (self._btn_zoom_in, 1), (self._btn_zoom_out, 1)):
+            h.addWidget(w, stretch=s)
 
-        self._btn_start.label.set_fontweight("bold")
+        self._btn_pause.clicked.connect(self._on_pause)
+        self._btn_reset.clicked.connect(self._on_reset)
+        self._btn_start.clicked.connect(self._on_start)
+        self._btn_abort.clicked.connect(self._on_abort)
+        self._btn_zoom_in.clicked.connect(lambda _: self._on_zoom("in"))
+        self._btn_zoom_out.clicked.connect(lambda _: self._on_zoom("out"))
 
-        self._btn_pause.on_clicked(self._on_pause)
-        self._btn_reset.on_clicked(self._on_reset)
-        self._btn_start.on_clicked(self._on_start)
-        self._btn_abort.on_clicked(self._on_abort)
-        self._btn_zoom_in.on_clicked(self._on_zoom_in)
-        self._btn_zoom_out.on_clicked(self._on_zoom_out)
+        root.addWidget(bar)
 
-    # ── Button callbacks (data logic unchanged) ────────────────────────────────
-    def _on_pause(self, _):
-        if not self._ctrl:
-            return
-        self._ctrl.paused = not self._ctrl.paused
-        self._btn_pause.label.set_text(">  RESUME" if self._ctrl.paused else "|| PAUSE")
-        self._btn_pause.ax.set_facecolor("#2a0610" if self._ctrl.paused else "#0a1808")
-        self._fig.canvas.draw_idle()
-
-    def _on_reset(self, _):
-        if not self._ctrl:
-            return
-        self._ctrl.restart = True
-        self._btn_reset.ax.set_facecolor("#241a06")
-        self._fig.canvas.draw_idle()
-
-    def _on_abort(self, _):
-        if not self._ctrl:
-            return
-        self._ctrl.stopped = True
-        self._btn_abort.label.set_text("◼  ABORTED")
-        self._btn_abort.ax.set_facecolor("#3a0810")
-        self._fig.canvas.draw_idle()
-
-    def _on_zoom_in(self, _):
-        if self._ctrl:
-            self._ctrl.camera_zoom_pending = "in"
-        self._fig.canvas.draw_idle()
-
-    def _on_zoom_out(self, _):
-        if self._ctrl:
-            self._ctrl.camera_zoom_pending = "out"
-        self._fig.canvas.draw_idle()
-
-    def _on_mission(self, key: str):
-        if not self._ctrl:
-            return
-        self._ctrl.pending_intruder = key
-        for k, btn in self._mission_btns.items():
-            c = "#1a4020" if k == key else "#0e1a0e"
-            btn.color = c; btn.ax.set_facecolor(c)
-        self._fig.canvas.draw_idle()
-
-    def _on_start(self, _):
-        if not self._ctrl:
-            return
-        self._ctrl.selected_mission = self._ctrl.pending_intruder
-        self._btn_start.ax.set_facecolor("#163520")
-        self._fig.canvas.draw_idle()
-
-    def _on_pattern_select(self, key: str):
-        if not self._ctrl:
-            return
-        self._ctrl.selected_pattern = key
-        for k, btn in self._pattern_btns.items():
-            c = "#201a06" if k == key else "#110e05"
-            btn.color = c; btn.ax.set_facecolor(c)
-        self._fig.canvas.draw_idle()
-
-    def _on_speed_select(self, speed: float):
-        if not self._ctrl:
-            return
-        self._ctrl.selected_speed = speed
-        for spd, btn in self._speed_btns.items():
-            c = "#0f1a48" if spd == speed else "#0a0f22"
-            btn.color = c; btn.ax.set_facecolor(c)
-        self._fig.canvas.draw_idle()
-
-    def _on_pad_select(self, key: str):
-        if not self._ctrl:
-            return
-        self._ctrl.selected_pad = key
-        for k, btn in self._pad_btns.items():
-            c = "#1a0e2e" if k == key else "#0e0a1a"
-            btn.color = c; btn.ax.set_facecolor(c)
-        self._fig.canvas.draw_idle()
-
-    # ── Initial artists ───────────────────────────────────────────────────────
-    def _init_artists(self):
+    # ── Initial radar/altitude artists ────────────────────────────────────
+    def _init_artists(self) -> None:
         ax = self._ax_radar
         R  = self._dome_radius
 
-        self._dome_circle = mpatches.Circle(
-            (0, 0), R, color=C["primary"], fill=False, linewidth=2.5, zorder=4)
-        ax.add_patch(self._dome_circle)
+        # Dome ring
+        theta = np.linspace(0, 2*math.pi, 256)
+        self._dome_circle = ax.plot(
+            R*np.cos(theta), R*np.sin(theta),
+            pen=pg.mkPen(QtGui.QColor(C["primary"]), width=2.5))
 
-        # Phosphor sweep — 12 fan lines with exponential alpha
-        self._sweep_fans = []
+        # Phosphor sweep — 12 fan lines, decreasing alpha
+        self._sweep_fans: list[pg.PlotDataItem] = []
         for i in range(12):
-            alpha = max(0.04, 0.82 - i * 0.07)
-            g_val = max(0.12, 0.90 - i * 0.07)
+            alpha = max(40, int(255 * (0.82 - i * 0.07)))
+            g_val = max(40, int(255 * (0.90 - i * 0.07)))
             lw    = max(0.5, 2.0 - i * 0.12)
-            line, = ax.plot([], [], color=(0.04, g_val, 0.10),
-                            linewidth=lw, alpha=alpha, zorder=3)
-            self._sweep_fans.append(line)
+            pen   = pg.mkPen(QtGui.QColor(10, g_val, 26, alpha), width=lw)
+            self._sweep_fans.append(ax.plot([], [], pen=pen))
 
-        self._radar_marker, = ax.plot([], [], "s", color=C["primary"],
-                                       markersize=6, zorder=5)
-        self._radar_label   = ax.text(0, 0, "RADAR", color=C["primary"],
-                                       fontsize=6, visible=False, zorder=5)
+        # Radar marker
+        self._radar_marker = pg.ScatterPlotItem(
+            size=8, symbol="s",
+            pen=pg.mkPen(QtGui.QColor(C["primary"]), width=1.5),
+            brush=pg.mkBrush(QtGui.QColor(C["primary"])))
+        ax.addItem(self._radar_marker)
 
-        # Intruder
-        self._intruder_trail_r, = ax.plot([], [], color="#cc1100",
-                                           alpha=0.5, linewidth=1.5, zorder=5)
-        self._intruder_dot_r,   = ax.plot([], [], "D", color=C["red"],
-                                           markersize=10, zorder=6)
-        self._intruder_label_r  = ax.text(0, 0, "INTRUDER", color=C["red"],
-                                           fontsize=7, visible=False, zorder=6)
-
-        # Interceptor
-        self._intercept_trail_r, = ax.plot([], [], color="#1a50cc",
-                                            alpha=0.5, linewidth=1.5, zorder=5)
-        self._intercept_dot_r,   = ax.plot([], [], "^", color=C["blue"],
-                                            markersize=11, zorder=6)
-        self._intercept_label_r  = ax.text(0, 0, "INTERCEPTOR", color=C["blue"],
-                                            fontsize=7, visible=False, zorder=6)
+        # Fading PPI trails
+        self._intruder_ppi   = _FadingTrail(ax, "#ff1744", size=4,
+                                            head_size=11, head_symbol="d")
+        self._intercept_ppi  = _FadingTrail(ax, "#2979ff", size=4,
+                                            head_size=12, head_symbol="t1")
 
         # Prediction line + cross
-        self._pred_line, = ax.plot([], [], color=C["amber"], linewidth=1.5,
-                                    linestyle="--", alpha=0.85, zorder=5)
-        self._pred_dot,  = ax.plot([], [], "x", color=C["amber"],
-                                    markersize=12, mew=2, zorder=6)
+        self._pred_line = ax.plot([], [], pen=pg.mkPen(
+            QtGui.QColor(C["amber"]), width=1.5,
+            style=QtCore.Qt.PenStyle.DashLine))
+        self._pred_dot = pg.ScatterPlotItem(
+            size=12, symbol="x",
+            pen=pg.mkPen(QtGui.QColor(C["amber"]), width=2),
+            brush=None)
+        ax.addItem(self._pred_dot)
 
-        # Status badge — top-left of radar panel
-        self._status_badge = ax.text(
-            -self._view * 0.96, self._view * 0.93, "●  STATUS: STANDBY",
-            color=C["primary"], fontsize=8, fontweight="bold",
-            ha="left", va="top", zorder=7,
-            bbox=dict(facecolor="#010f05", alpha=0.95,
-                      edgecolor=C["border"], pad=4,
-                      boxstyle="round,pad=0.4"))
+        # Status badge
+        self._status_badge = pg.TextItem(
+            text="●  STATUS: STANDBY",
+            color=C["primary"], anchor=(0, 0),
+            border=pg.mkPen(QtGui.QColor(C["border"])),
+            fill=pg.mkBrush(QtGui.QColor("#010f05")))
+        self._status_badge.setFont(QtGui.QFont("Consolas", 9, QtGui.QFont.Weight.Bold))
+        self._status_badge.setPos(-self._view*0.96, self._view*0.93)
+        ax.addItem(self._status_badge)
 
-        self._paused_text = ax.text(
-            0, 0, "── PAUSED ──",
-            color=C["amber"], fontsize=17, ha="center", va="center",
-            fontweight="bold", zorder=9,
-            bbox=dict(facecolor=C["bg"], alpha=0.85, edgecolor=C["amber"]),
-            visible=False)
+        # PAUSED overlay
+        self._paused_text = pg.TextItem(
+            text="── PAUSED ──", color=C["amber"], anchor=(0.5, 0.5),
+            border=pg.mkPen(QtGui.QColor(C["amber"])),
+            fill=pg.mkBrush(QtGui.QColor(C["bg"])))
+        self._paused_text.setFont(QtGui.QFont("Consolas", 18, QtGui.QFont.Weight.Bold))
+        self._paused_text.setPos(0, 0)
+        self._paused_text.setVisible(False)
+        ax.addItem(self._paused_text)
 
-        self._debrief_text = ax.text(
-            0, 0, "",
-            color=C["primary"], fontsize=11, ha="center", va="center",
-            fontweight="bold", linespacing=1.6, zorder=10,
-            bbox=dict(facecolor="#020a04", alpha=0.96,
-                      edgecolor=C["primary"], pad=14,
-                      boxstyle="round,pad=0.6"),
-            visible=False)
+        # Debrief overlay
+        self._debrief_text = pg.TextItem(
+            text="", color=C["primary"], anchor=(0.5, 0.5),
+            border=pg.mkPen(QtGui.QColor(C["primary"])),
+            fill=pg.mkBrush(QtGui.QColor("#020a04")))
+        self._debrief_text.setFont(QtGui.QFont("Consolas", 11, QtGui.QFont.Weight.Bold))
+        self._debrief_text.setPos(0, 0)
+        self._debrief_text.setVisible(False)
+        ax.addItem(self._debrief_text)
 
-        # ── Altitude view artists ─────────────────────────────────────────────
-        ax2   = self._ax_side
-        theta = np.linspace(0, math.pi, 80)
-        self._dome_arc,  = ax2.plot(R * np.cos(theta), R * np.sin(theta),
-                                     color=C["amber"], linewidth=1.8, alpha=0.8)
-        self._dome_base, = ax2.plot([-R, R], [0, 0],
-                                     color=C["amber"], linewidth=1.8, alpha=0.8)
+        # Altitude trails
+        self._intruder_alt   = _FadingTrail(self._ax_side, "#ff1744", size=4,
+                                            head_size=11, head_symbol="d")
+        self._intercept_alt  = _FadingTrail(self._ax_side, "#2979ff", size=4,
+                                            head_size=12, head_symbol="t1")
 
-        self._intruder_trail_s,  = ax2.plot([], [], color="#cc1100", alpha=0.5, linewidth=1.5)
-        self._intruder_dot_s,    = ax2.plot([], [], "D", color=C["red"], markersize=10)
-        self._intruder_label_s   = ax2.text(0, 0, "", color=C["red"],
-                                             fontsize=7, visible=False)
-        self._intercept_trail_s, = ax2.plot([], [], color="#1a50cc", alpha=0.5, linewidth=1.5)
-        self._intercept_dot_s,   = ax2.plot([], [], "^", color=C["blue"], markersize=11)
-        self._intercept_label_s  = ax2.text(0, 0, "", color=C["blue"],
-                                             fontsize=7, visible=False)
+    # ── Animation tick (sweep + blink) ────────────────────────────────────
+    def _on_anim_tick(self) -> None:
+        now = time.time()
+        dt  = min(now - self._last_anim, 0.2)
+        self._last_anim = now
+        if now - self._last_blink >= 1.0:
+            self._blink_state = not self._blink_state
+            self._last_blink = now
 
-    # ── State helpers ─────────────────────────────────────────────────────────
+        # Sweep fans
+        self._radar_angle = (self._radar_angle + 72.0 * dt) % 360
+        rs = getattr(self, "_radar_station", [0, 0, 0])
+        sweep_len = self._view * 1.02
+        for i, fan in enumerate(self._sweep_fans):
+            angle = (self._radar_angle - i * 8) % 360
+            rad   = math.radians(angle)
+            fan.setData(
+                [rs[0], rs[0] + sweep_len * math.cos(rad)],
+                [rs[1], rs[1] + sweep_len * math.sin(rad)])
+        self._radar_marker.setData(x=[rs[0]], y=[rs[1]])
+
+        # Trails fade continuously even when no new state arrives
+        self._intruder_ppi.render(now)
+        self._intercept_ppi.render(now)
+        self._intruder_alt.render(now)
+        self._intercept_alt.render(now)
+
+    def _refresh_fps_label(self) -> None:
+        # True render rate: measured from actual paintEvent timestamps on the
+        # radar GraphicsLayoutWidget, NOT the QTimer firing rate. If Qt drops
+        # paints under load this label reflects it; a timer-tick counter would not.
+        pts = self._gw_radar._paint_times
+        n = len(pts)
+        if n < 2:
+            return
+        span = pts[-1] - pts[0]
+        if span <= 0:
+            return
+        fps = (n - 1) / span
+        # Update FPS portion of the speed label without losing the speed value.
+        cur = self._hdr_speed.text()
+        if "  FPS" in cur:
+            cur = cur.split("  FPS")[0]
+        self._hdr_speed.setText(f"{cur}  FPS {fps:4.1f}")
+
+    # ── Button callbacks ──────────────────────────────────────────────────
+    def _on_pause(self):
+        self._ctrl.paused = not self._ctrl.paused
+        self._btn_pause.setText(">  RESUME" if self._ctrl.paused else "|| PAUSE")
+
+    def _on_reset(self):
+        self._ctrl.restart = True
+
+    def _on_abort(self):
+        self._ctrl.stopped = True
+        self._btn_abort.setText("◼  ABORTED")
+
+    def _on_zoom(self, direction: str):
+        self._ctrl.camera_zoom_pending = direction
+
+    def _on_mission(self, key: str):
+        self._ctrl.pending_intruder = key
+        for k, b in self._mission_btns.items():
+            b.setChecked(k == key)
+
+    def _on_start(self):
+        self._ctrl.selected_mission = self._ctrl.pending_intruder
+
+    def _on_pattern_select(self, key: str):
+        self._ctrl.selected_pattern = key
+        for k, b in self._pattern_btns.items():
+            b.setChecked(k == key)
+
+    def _on_speed_select(self, speed: float):
+        self._ctrl.selected_speed = speed
+        for s, b in self._speed_btns.items():
+            b.setChecked(s == speed)
+
+    def _on_pad_select(self, key: str):
+        self._ctrl.selected_pad = key
+        for k, b in self._pad_btns.items():
+            b.setChecked(k == key)
+
+    # ── State helpers ─────────────────────────────────────────────────────
     def _clear_trails(self):
-        self._intruder_trail.clear()
-        self._interceptor_trail.clear()
-        self._intruder_alt_trail.clear()
-        self._interceptor_alt_trail.clear()
+        self._intruder_ppi.clear()
+        self._intercept_ppi.clear()
+        self._intruder_alt.clear()
+        self._intercept_alt.clear()
         self._event_log.clear()
 
     def _reset_buttons(self):
         self._ctrl.stopped = False
         self._ctrl.restart = False
-        self._btn_abort.label.set_text("◼  ABORT")
-        self._btn_abort.ax.set_facecolor("#1e0508")
-        self._btn_reset.ax.set_facecolor("#141008")
-        self._btn_start.ax.set_facecolor("#0d2010")
-        self._btn_pause.label.set_text("|| PAUSE")
-        self._btn_pause.ax.set_facecolor("#0a1808")
-        self._ctrl.paused = False
-        for btn in self._mission_btns.values():
-            btn.ax.set_facecolor("#0e1a0e")
+        self._ctrl.paused  = False
+        self._btn_abort.setText("◼  ABORT")
+        self._btn_pause.setText("|| PAUSE")
 
-    # ── Main update ───────────────────────────────────────────────────────────
-    def update(self, sim_state: dict):
+    # ── Main update entry point ───────────────────────────────────────────
+    def update(self, sim_state: dict) -> None:                  # noqa: C901
         msg_type = sim_state.get("type")
 
         if msg_type == "mission_start":
             self._clear_trails()
-            self._debrief_text.set_visible(False)
+            self._debrief_text.setVisible(False)
             self._reset_buttons()
-            try:
-                self._fig.canvas.draw_idle()
-            except Exception:
-                pass
             return
-
         if msg_type in ("reset", "show_menu"):
             self._clear_trails()
-            self._debrief_text.set_visible(False)
-            for btn in self._mission_btns.values():
-                btn.ax.set_facecolor("#0e1a0e")
-            try:
-                self._fig.canvas.draw_idle()
-            except Exception:
-                pass
+            self._debrief_text.setVisible(False)
             return
-
         if msg_type == "debrief":
             self._show_debrief(sim_state)
             return
 
         now = time.time()
-        dt  = min(now - self._last_draw, 0.5)   # cap first-frame / resume spike
-        if dt < 0.067:                           # ~15 FPS cap
-            return
-        self._last_draw = now
-
-        if now - self._last_blink >= 1.0:
-            self._blink_state = not self._blink_state
-            self._last_blink  = now
-
         status          = sim_state.get("dome_status", "CLEAR")
         intruder_pos    = sim_state.get("intruder_pos")
         interceptor_pos = sim_state.get("interceptor_pos")
-        radar_return    = sim_state.get("radar_return", {})
+        radar_return    = sim_state.get("radar_return", {}) or {}
         predicted_ic    = sim_state.get("predicted_intercept")
-        events          = sim_state.get("events", [])
+        events          = sim_state.get("events", []) or []
         sim_time        = sim_state.get("mission_time", 0.0)
         sim_speed       = sim_state.get("sim_speed", 1.0)
+        self._radar_station = sim_state.get("radar_station", [0, 0, 0])
 
         for ev in events:
             self._event_log.append((ev, status, sim_time))
@@ -718,149 +793,86 @@ class Dashboard:
 
         dome_fg = _STATUS_COLOR.get(status, C["primary"])
 
-        # ── Header ────────────────────────────────────────────────────────────
+        # ── Header ────────────────────────────────────────────────────────
         dot = "●" if self._blink_state else "○"
-        self._hdr_status.set_text(f"{dot}  {status}")
-        self._hdr_status.set_color(dome_fg)
+        self._hdr_status.setText(f"{dot}  {status}")
+        self._hdr_status.setStyleSheet(
+            f"color: {dome_fg}; font-size: 12px; font-weight: bold;")
         mins = int(sim_time) // 60; secs = int(sim_time) % 60
-        self._hdr_time.set_text(f"T+  {mins:02d}:{secs:02d}")
-        self._hdr_speed.set_text(f"SIM  {sim_speed:.2g}×")
+        self._hdr_time.setText(f"T+  {mins:02d}:{secs:02d}")
+        # Keep FPS suffix; only replace the "SIM" portion.
+        cur = self._hdr_speed.text()
+        suffix = ""
+        if "  FPS" in cur:
+            suffix = "  FPS" + cur.split("  FPS", 1)[1]
+        self._hdr_speed.setText(f"SIM  {sim_speed:.2g}×{suffix}")
 
-        # ── Event log ─────────────────────────────────────────────────────────
+        # ── Event log ─────────────────────────────────────────────────────
         if self._event_log:
-            _ev_col = {"CLEAR": C["primary"], "TRACKING": C["amber"],
-                       "BREACH": C["red"],    "INTERCEPTED": C["cyan"]}
+            ev_col = {"CLEAR": C["primary"], "TRACKING": C["amber"],
+                      "BREACH": C["red"],    "INTERCEPTED": C["cyan"]}
             parts = []
-            for ev, st, t in self._event_log[-4:]:
+            for ev, _st, t in self._event_log[-4:]:
                 m2 = int(t) // 60; s2 = int(t) % 60
                 parts.append(f"[T+{m2:02d}:{s2:02d}]  {ev}")
-            self._log_text.set_text("   ·   ".join(parts))
-            self._log_text.set_color(_ev_col.get(status, C["textdim"]))
+            self._log_text.setText("   ·   ".join(parts))
+            self._log_text.setStyleSheet(
+                f"color: {ev_col.get(status, C['textdim'])}; font-size: 9px; "
+                f"font-family: 'Consolas', 'Courier New', monospace;")
 
-        # ── Dome ring color ────────────────────────────────────────────────────
-        self._dome_circle.set_color(dome_fg)
+        # ── Dome ring color & altitude arc ────────────────────────────────
+        self._dome_circle.setPen(pg.mkPen(QtGui.QColor(dome_fg), width=2.5))
         arc_col = dome_fg if status != "CLEAR" else C["amber"]
-        self._dome_arc.set_color(arc_col)
-        self._dome_base.set_color(arc_col)
+        self._dome_arc.setPen(pg.mkPen(QtGui.QColor(arc_col), width=1.8))
+        self._dome_base.setPen(pg.mkPen(QtGui.QColor(arc_col), width=1.8))
 
-        # ── Status badge ──────────────────────────────────────────────────────
-        self._status_badge.set_text(f"●  STATUS: {status}")
-        self._status_badge.set_color(dome_fg)
-        self._status_badge.get_bbox_patch().set_edgecolor(dome_fg)
+        # ── Status badge ──────────────────────────────────────────────────
+        self._status_badge.setText(f"●  STATUS: {status}")
+        self._status_badge.setColor(QtGui.QColor(dome_fg))
 
-        # ── Phosphor sweep — time-based so speed is FPS-independent ─────────
-        self._radar_angle = (self._radar_angle + 72.0 * dt) % 360
-        rs = sim_state.get("radar_station", [0, 0, 0])
-        sweep_len = self._view * 1.02
-        for i, fan in enumerate(self._sweep_fans):
-            angle = (self._radar_angle - i * 8) % 360
-            rad   = math.radians(angle)
-            fan.set_data(
-                [rs[0], rs[0] + sweep_len * math.cos(rad)],
-                [rs[1], rs[1] + sweep_len * math.sin(rad)])
-        self._radar_marker.set_data([rs[0]], [rs[1]])
-        self._radar_label.set_position(
-            (rs[0] + self._dome_radius * 0.05, rs[1] + self._dome_radius * 0.05))
-        self._radar_label.set_visible(True)
-
-        # ── Intruder ──────────────────────────────────────────────────────────
+        # ── Intruder trail ────────────────────────────────────────────────
         if intruder_pos:
-            self._intruder_trail.append(intruder_pos[:2])
-            self._intruder_trail = self._intruder_trail[-60:]
-            self._intruder_trail_r.set_data(
-                [p[0] for p in self._intruder_trail],
-                [p[1] for p in self._intruder_trail])
-            self._intruder_dot_r.set_data([intruder_pos[0]], [intruder_pos[1]])
-            off = self._dome_radius * 0.04
-            self._intruder_label_r.set_position(
-                (intruder_pos[0] + off, intruder_pos[1] + off))
-            self._intruder_label_r.set_visible(True)
+            self._intruder_ppi.append(intruder_pos[0], intruder_pos[1], now)
+            self._intruder_alt.append(intruder_pos[0], intruder_pos[2], now)
         else:
-            self._intruder_trail_r.set_data([], [])
-            self._intruder_dot_r.set_data([], [])
-            self._intruder_label_r.set_visible(False)
+            self._intruder_ppi.hide(); self._intruder_alt.hide()
 
-        # ── Interceptor ───────────────────────────────────────────────────────
+        # ── Interceptor trail ─────────────────────────────────────────────
         if interceptor_pos:
-            self._interceptor_trail.append(interceptor_pos[:2])
-            self._interceptor_trail = self._interceptor_trail[-60:]
-            self._intercept_trail_r.set_data(
-                [p[0] for p in self._interceptor_trail],
-                [p[1] for p in self._interceptor_trail])
-            self._intercept_dot_r.set_data([interceptor_pos[0]], [interceptor_pos[1]])
-            off = self._dome_radius * 0.04
-            self._intercept_label_r.set_position(
-                (interceptor_pos[0] + off, interceptor_pos[1] + off))
-            self._intercept_label_r.set_visible(True)
+            self._intercept_ppi.append(interceptor_pos[0], interceptor_pos[1], now)
+            self._intercept_alt.append(interceptor_pos[0], interceptor_pos[2], now)
         else:
-            self._intercept_trail_r.set_data([], [])
-            self._intercept_dot_r.set_data([], [])
-            self._intercept_label_r.set_visible(False)
+            self._intercept_ppi.hide(); self._intercept_alt.hide()
 
-        # ── Prediction ────────────────────────────────────────────────────────
+        # ── Prediction ────────────────────────────────────────────────────
         if interceptor_pos and predicted_ic:
-            self._pred_line.set_data(
+            self._pred_line.setData(
                 [interceptor_pos[0], predicted_ic[0]],
                 [interceptor_pos[1], predicted_ic[1]])
-            self._pred_dot.set_data([predicted_ic[0]], [predicted_ic[1]])
+            self._pred_dot.setData(x=[predicted_ic[0]], y=[predicted_ic[1]])
         else:
-            self._pred_line.set_data([], [])
-            self._pred_dot.set_data([], [])
+            self._pred_line.setData([], [])
+            self._pred_dot.setData([], [])
 
-        self._paused_text.set_visible(bool(self._ctrl and self._ctrl.paused))
+        self._paused_text.setVisible(bool(self._ctrl and self._ctrl.paused))
 
-        # ── Altitude / side view ──────────────────────────────────────────────
-        if intruder_pos:
-            self._intruder_alt_trail.append((intruder_pos[0], intruder_pos[2]))
-            self._intruder_alt_trail = self._intruder_alt_trail[-60:]
-            self._intruder_trail_s.set_data(
-                [p[0] for p in self._intruder_alt_trail],
-                [p[1] for p in self._intruder_alt_trail])
-            self._intruder_dot_s.set_data([intruder_pos[0]], [intruder_pos[2]])
-            self._intruder_label_s.set_text(f"INTR {intruder_pos[2]:.0f}m")
-            off = self._dome_radius * 0.03
-            self._intruder_label_s.set_position(
-                (intruder_pos[0] + off, intruder_pos[2] + off))
-            self._intruder_label_s.set_visible(True)
-        else:
-            self._intruder_trail_s.set_data([], [])
-            self._intruder_dot_s.set_data([], [])
-            self._intruder_label_s.set_visible(False)
-
-        if interceptor_pos:
-            self._interceptor_alt_trail.append((interceptor_pos[0], interceptor_pos[2]))
-            self._interceptor_alt_trail = self._interceptor_alt_trail[-60:]
-            self._intercept_trail_s.set_data(
-                [p[0] for p in self._interceptor_alt_trail],
-                [p[1] for p in self._interceptor_alt_trail])
-            self._intercept_dot_s.set_data([interceptor_pos[0]], [interceptor_pos[2]])
-            self._intercept_label_s.set_text(f"INT {interceptor_pos[2]:.0f}m")
-            off = self._dome_radius * 0.03
-            self._intercept_label_s.set_position(
-                (interceptor_pos[0] + off, interceptor_pos[2] + off))
-            self._intercept_label_s.set_visible(True)
-        else:
-            self._intercept_trail_s.set_data([], [])
-            self._intercept_dot_s.set_data([], [])
-            self._intercept_label_s.set_visible(False)
-
-        # ── Telemetry cards ───────────────────────────────────────────────────
+        # ── Telemetry ─────────────────────────────────────────────────────
         i_key = sim_state.get("intruder_key", "shahed136")
-        _lmap = {"shahed136": "SHAHED-136", "consumer_quad": "CONSUMER QUAD",
-                 "fpv_attack": "FPV ATTACK"}
-        tname = _lmap.get(i_key, i_key.upper())
+        lmap = {"shahed136": "SHAHED-136", "consumer_quad": "CONSUMER QUAD",
+                "fpv_attack": "FPV ATTACK"}
+        tname = lmap.get(i_key, i_key.upper())
 
         if intruder_pos:
             rng  = radar_return.get("range") if radar_return.get("detected") else None
             rstr = f"{rng:.0f}m" if rng else "no lock"
             brg  = math.degrees(math.atan2(intruder_pos[0], intruder_pos[1])) % 360
             ispd = sim_state.get("intruder_speed", 0.0)
-            self._telem_intruder.set_text(
+            self._telem_intruder.setText(
                 f"─ INTRUDER ──────────────────────────────\n"
                 f"  RNG  {rstr:>8}    ALT  {intruder_pos[2]:>5.0f}m    SPD  {ispd:.0f}m/s\n"
                 f"  BRG  {brg:>7.1f}°    TYPE  {tname}")
         else:
-            self._telem_intruder.set_text(
+            self._telem_intruder.setText(
                 "─ INTRUDER ──────────────────────────────\n"
                 "  RNG  ---           ALT  ---       SPD  ---\n"
                 "  BRG  ---           TYPE  ─────────────────")
@@ -871,12 +883,12 @@ class Dashboard:
             xspd  = sim_state.get("interceptor_speed", 0.0)
             tti_s = f"{tti:.1f}s" if tti < 999 else "---"
             st    = "PURSUING" if tti < 999 else "LAUNCHED"
-            self._telem_intercept.set_text(
+            self._telem_intercept.setText(
                 f"─ INTERCEPTOR ───────────────────────────\n"
                 f"  SEP  {sep:>7.0f}m    TTI  {tti_s:>7}    SPD  {xspd:.0f}m/s\n"
                 f"  STATUS  {st}")
         else:
-            self._telem_intercept.set_text(
+            self._telem_intercept.setText(
                 "─ INTERCEPTOR ───────────────────────────\n"
                 "  SEP  ---           TTI  ---      SPD  ---\n"
                 "  STATUS  STANDBY")
@@ -884,12 +896,12 @@ class Dashboard:
         if radar_return.get("detected"):
             conf = sim_state.get("track_confidence", 0.0)
             snr  = radar_return.get("snr", 0.0)
-            self._telem_radar.set_text(
+            self._telem_radar.setText(
                 f"─ RADAR ─────────────────────────────────\n"
                 f"  CONF  {conf*100:.0f}%         SNR  {snr:.1f}dB\n"
                 f"  TRACK  LOCKED        KALMAN  6-STATE")
         else:
-            self._telem_radar.set_text(
+            self._telem_radar.setText(
                 "─ RADAR ─────────────────────────────────\n"
                 "  CONF  ---%          SNR  ---dB\n"
                 "  TRACK  SEARCHING     LOCK  PENDING")
@@ -900,32 +912,27 @@ class Dashboard:
                          / (2 * self._dome_radius))
         else:
             threat = 0.0
-        bar_w   = max(0.001, threat * 0.79)
         bar_col = C["primary"] if threat < 0.5 else (C["amber"] if threat < 0.75 else C["red"])
-        self._threat_bar.set_width(bar_w)
-        self._threat_bar.set_facecolor(bar_col)
-        self._threat_pct.set_text(f"{threat*100:.0f}%")
-        self._threat_pct.set_color(bar_col)
+        self._threat_bar.setValue(int(threat * 100))
+        self._threat_bar.setStyleSheet(
+            f"QProgressBar {{ background-color: {C['dim']}; border: 0px; }}"
+            f"QProgressBar::chunk {{ background-color: {bar_col}; }}")
+        self._threat_pct.setText(f"{threat*100:.0f}%")
+        self._threat_pct.setStyleSheet(f"color: {bar_col}; font-size: 9px;")
 
-        try:
-            self._fig.canvas.draw_idle()
-            self._fig.canvas.flush_events()
-        except Exception:
-            pass
-
-    def _show_debrief(self, state: dict):
+    def _show_debrief(self, state: dict) -> None:
         result   = state.get("result", "---")
         sim_time = state.get("sim_time", 0.0)
         closest  = state.get("closest_approach", float("inf"))
 
-        _result_col  = {"INTERCEPTED": C["primary"], "FAILURE": C["red"],
-                        "TIMEOUT": C["amber"], "ABORTED": C["textdim"]}
-        _result_icon = {"INTERCEPTED": "★  INTERCEPTED  ★",
-                        "FAILURE":     "✗  BREACH — FAILURE  ✗",
-                        "TIMEOUT":     "⏱  TIME EXPIRED  ⏱",
-                        "ABORTED":     "■  MISSION ABORTED  ■"}
-        col  = _result_col.get(result, "white")
-        icon = _result_icon.get(result, f"■  {result}  ■")
+        result_col  = {"INTERCEPTED": C["primary"], "FAILURE": C["red"],
+                       "TIMEOUT": C["amber"], "ABORTED": C["textdim"]}
+        result_icon = {"INTERCEPTED": "★  INTERCEPTED  ★",
+                       "FAILURE":     "✗  BREACH — FAILURE  ✗",
+                       "TIMEOUT":     "⏱  TIME EXPIRED  ⏱",
+                       "ABORTED":     "■  MISSION ABORTED  ■"}
+        col  = result_col.get(result, C["white"])
+        icon = result_icon.get(result, f"■  {result}  ■")
 
         lines = [icon, ""]
         lines.append(f"Duration:      {sim_time:.0f} s")
@@ -933,25 +940,21 @@ class Dashboard:
             lines.append(f"Closest appr:  {closest:.1f} m")
         lines += ["", "─" * 30, "Click a scenario to continue"]
 
-        self._debrief_text.set_text("\n".join(lines))
-        self._debrief_text.set_color(col)
-        self._debrief_text.get_bbox_patch().set_edgecolor(col)
-        self._debrief_text.set_visible(True)
+        self._debrief_text.setText("\n".join(lines))
+        self._debrief_text.setColor(QtGui.QColor(col))
+        self._debrief_text.setVisible(True)
 
+        self._hdr_status.setText(f"■  {result}")
+        self._hdr_status.setStyleSheet(
+            f"color: {col}; font-size: 12px; font-weight: bold;")
+
+    def close(self) -> None:                                    # type: ignore[override]
         try:
-            self._hdr_status.set_text(f"■  {result}")
-            self._hdr_status.set_color(col)
+            self._anim_timer.stop()
+            self._fps_timer.stop()
         except Exception:
             pass
-
         try:
-            self._fig.canvas.draw_idle()
-            self._fig.canvas.flush_events()
-        except Exception:
-            pass
-
-    def close(self):
-        try:
-            plt.close(self._fig)
+            super().close()
         except Exception:
             pass

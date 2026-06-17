@@ -2,3 +2,5 @@ pybullet
 numpy
 matplotlib
 pymavlink
+pyqtgraph>=0.13
+PyQt6>=6.4

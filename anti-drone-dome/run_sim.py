@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """IDE-friendly entry point (some run configs are named ``run_sim``).
 
-Same program as ``main.py``: PyBullet GUI + matplotlib dashboard + terminal menus.
+Same program as ``main.py``: PyBullet GUI + PyQtGraph dashboard + terminal menus.
 
 **Requires PyBullet in your active Python** — activate a venv first, e.g.::
 
