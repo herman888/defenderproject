@@ -4,6 +4,14 @@ LoiteringMunition: Parametrized forward-flying attacker — Shahed-136, consumer
                    quad, or FPV attack drone.  All aerodynamic constants, URDF,
                    scaling, and colour are passed in at construction time from
                    the INTRUDER_TYPES config in scenarios.py.
+
+Stage A flight-controller interface
+────────────────────────────────────
+Drone.apply_setpoint(sp) consumes a guidance.setpoint.GuidanceSetpoint
+(LOCAL_NED, m/s²/m/s/m) and drives PyBullet as a placeholder flight
+controller — mass, gravity comp, and force saturation all live here
+instead of in guidance/. Stage B replaces this method with a MAVLink
+send; guidance/ does not change.
 """
 
 import math
@@ -12,9 +20,41 @@ import time
 import pybullet
 import numpy as np
 
+from config import INTERCEPTOR_MASS, PLACEHOLDER_FC_KV
+from guidance.setpoint import GuidanceSetpoint, ned_to_enu
+
 _TIMESTEP    = 1.0 / 240.0
 _ROTOR_SPEED = 20.0   # rad/s visual spin (quadrotor interceptor)
 _RHO         = 1.225  # kg/m³ air density (shared constant)
+
+
+def placeholder_fc_accel_enu(sp: GuidanceSetpoint,
+                              current_vel_enu: tuple,
+                              k_v: float = PLACEHOLDER_FC_KV) -> tuple:
+    """Pure reference implementation of the placeholder FC's inner velocity
+    loop: a_cmd_enu = k_v·(v_des - v) + a_ff + (0, 0, 9.81).
+
+    Returns the commanded ENU acceleration as a 3-tuple. Position-only
+    setpoints return (0, 0, 0) — callers must run their own position
+    controller for those (Drone.apply_setpoint delegates to Drone.update()).
+
+    Shared between sim/drone.py:Drone.apply_setpoint and the point-mass
+    simulator in tests/test_apn_comparison.py so both interpret a
+    GuidanceSetpoint identically.
+    """
+    if sp is None or sp.is_empty:
+        return (0.0, 0.0, 0.0)
+    a = [0.0, 0.0, 0.0]
+    if sp.velocity is not None:
+        v_des = ned_to_enu(sp.velocity)
+        for i in range(3):
+            a[i] += k_v * (v_des[i] - current_vel_enu[i])
+    if sp.accel is not None:
+        a_acc = ned_to_enu(sp.accel)
+        for i in range(3):
+            a[i] += a_acc[i]
+    a[2] += 9.81   # FC gravity comp
+    return (a[0], a[1], a[2])
 
 
 class Drone:
@@ -47,6 +87,7 @@ class Drone:
         self._rotor_angle = 0.0
         self._smooth_up = np.array([0.0, 0.0, 1.0], dtype=float)
         # Trim from rigid-body mass once URDF is loaded (set in _apply_color path)
+        self._mass_kg  = float(INTERCEPTOR_MASS)
         self._hover_ff = 9.81 * 1.35
 
         self._max_h  = max_h_force
@@ -81,6 +122,7 @@ class Drone:
                 pybullet.getDynamicsInfo(self._body, -1, physicsClientId=self._client)[0]
             )
             if mass > 1e-4:
+                self._mass_kg  = mass
                 self._hover_ff = mass * 9.81 * 1.06
         except Exception:
             pass
@@ -241,33 +283,98 @@ class Drone:
                 physicsClientId=self._client,
             )
 
-    def set_orientation_from_thrust(self, thrust_vec: list):
-        """Tilt body to match the APN thrust direction and spin rotors.
-        Does NOT apply any force — guidance force is applied externally."""
-        MAX_TILT = math.radians(40)
-        pos, _ = pybullet.getBasePositionAndOrientation(self._body, physicsClientId=self._client)
-        vel, _ = pybullet.getBaseVelocity(self._body, physicsClientId=self._client)
-        f   = np.array(thrust_vec, dtype=float)
-        mag = float(np.linalg.norm(f))
-        if mag < 1e-6:
-            self._spin_rotors()
+    # ------------------------------------------------------------------
+    def apply_setpoint(self, sp: GuidanceSetpoint):
+        """Placeholder flight controller: consume a GuidanceSetpoint and
+        drive the PyBullet rigid body to match.
+
+        Routing:
+          • sp.position only     → delegates to self.update() (existing PD path).
+          • sp.velocity / accel  → inner-loop equivalent of a velocity
+                                   controller: a_cmd = k_v·(v_des-v) + a_ff,
+                                   plus gravity comp, then force = a·m.
+          • sp.is_empty          → no-op; caller picks a fallback.
+
+        sp.yaw is informational in Stage A — body yaw is currently derived
+        implicitly from the tilt axis. The real ArduPilot in Stage B will
+        honour it via its attitude controller.
+        """
+        if sp is None or sp.is_empty:
             return
-        up = f / mag
-        if up[2] < math.cos(MAX_TILT):
-            xy = float(np.linalg.norm(up[:2]))
-            if xy > 1e-8:
-                up = np.array([
-                    up[0] / xy * math.sin(MAX_TILT),
-                    up[1] / xy * math.sin(MAX_TILT),
+        if sp.frame != "LOCAL_NED":
+            raise ValueError(f"Unsupported setpoint frame: {sp.frame}")
+
+        # Position-only → route through existing PD (loiter / takeoff).
+        if sp.position is not None and sp.velocity is None and sp.accel is None:
+            self._target = list(ned_to_enu(sp.position))
+            self.update()
+            return
+
+        pos, _ = pybullet.getBasePositionAndOrientation(
+            self._body, physicsClientId=self._client)
+        vel, _ = pybullet.getBaseVelocity(self._body, physicsClientId=self._client)
+
+        # FC inner loop → ENU acceleration command (includes gravity comp).
+        a_cmd_enu = np.array(
+            placeholder_fc_accel_enu(sp, tuple(vel)), dtype=float)
+
+        # Convert accel command to body force via vehicle mass.
+        force = a_cmd_enu * self._mass_kg
+
+        # FC saturates to airframe force envelope.
+        f_mag = float(np.linalg.norm(force))
+        f_max = math.sqrt(self._max_h ** 2 + (self._max_v + self._hover_ff) ** 2)
+        if f_mag > f_max:
+            force = force / f_mag * f_max
+            f_mag = f_max
+
+        # Kinematic tilt so the mesh visually banks into the manoeuvre.
+        MAX_TILT = math.radians(40)
+        UP_SLEW  = 0.26
+        if f_mag > 1e-6:
+            desired_up = force / f_mag
+        else:
+            desired_up = np.array([0.0, 0.0, 1.0])
+
+        self._smooth_up = (1.0 - UP_SLEW) * self._smooth_up + UP_SLEW * desired_up
+        sn = float(np.linalg.norm(self._smooth_up))
+        if sn > 1e-8:
+            self._smooth_up /= sn
+        desired_up = self._smooth_up.copy()
+
+        if desired_up[2] < math.cos(MAX_TILT):
+            xy_n = float(np.linalg.norm(desired_up[:2]))
+            if xy_n > 1e-8:
+                desired_up = np.array([
+                    desired_up[0] / xy_n * math.sin(MAX_TILT),
+                    desired_up[1] / xy_n * math.sin(MAX_TILT),
                     math.cos(MAX_TILT),
                 ])
-        orn = self._align_z_to_vec(up)
+
+        orn = self._align_z_to_vec(desired_up)
         pybullet.resetBasePositionAndOrientation(
-            self._body, list(pos), list(orn), physicsClientId=self._client
+            self._body, list(pos), list(orn), physicsClientId=self._client,
         )
         pybullet.resetBaseVelocity(
-            self._body, list(vel), [0.0, 0.0, 0.0], physicsClientId=self._client
+            self._body, list(vel), [0.0, 0.0, 0.0], physicsClientId=self._client,
         )
+
+        # Airframe speed cap (vehicle limit, not guidance).
+        speed = float(np.linalg.norm(vel))
+        if speed > self._max_spd:
+            sc = self._max_spd / speed
+            pybullet.resetBaseVelocity(
+                self._body,
+                [v * sc for v in vel],
+                [0.0, 0.0, 0.0],
+                physicsClientId=self._client,
+            )
+
+        pybullet.applyExternalForce(
+            self._body, -1, force.tolist(), list(pos),
+            pybullet.WORLD_FRAME, physicsClientId=self._client,
+        )
+
         self._spin_rotors()
 
     # ------------------------------------------------------------------
