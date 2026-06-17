@@ -34,6 +34,8 @@ anti-drone-dome/test_output.txt
 git_status.txt
 git_short.txt
 git_*.log
+commits.txt
+push.log
 anti-drone-dome/winget_*.log
 
 # Repo-root scratch dumps from debugging sessions
