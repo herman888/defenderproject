@@ -8,10 +8,12 @@ import math
 import os
 from datetime import datetime
 
+from config import HOME_LAT, HOME_LON
+
 
 class ACMIWriter:
-    _REF_LAT = 43.0000
-    _REF_LON = -79.0000
+    _REF_LAT = HOME_LAT
+    _REF_LON = HOME_LON
     _METERS_PER_DEG = 111111.0
 
     def __init__(self, missions_dir: str = None):
