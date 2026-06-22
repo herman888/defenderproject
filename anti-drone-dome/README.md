@@ -101,3 +101,24 @@ After you click **▶ START**, look in that panel for:
 - **`3D − ZOOM (slide→1, back→0)`** — one zoom-out step per stroke  
 
 Same behaviour as the **`+` / `−` keys** (with the PyBullet window focused) and the **radar dashboard** zoom strip. Drag to **1**, then back toward **0**, to arm the next pulse (same pattern as red-team **FIRE** in `gym-pybullet-drones`).
+
+---
+
+## InnoMaker USB camera + threat detection
+
+Live **InnoMaker U20CAM** (USB cable only — not FaceTime / iPhone) with YOLO object + drone detection. Threat boxes at **≥65%** confidence.
+
+```bash
+cd anti-drone-dome
+bash run_camera_detect.sh
+```
+
+Preview only (no YOLO):
+
+```bash
+bash run_camera.sh
+```
+
+List cameras: `bash run_camera_detect.sh --list`
+
+First run downloads YOLO weights into `models/` (gitignored). Press **Q** or **Esc** to quit.

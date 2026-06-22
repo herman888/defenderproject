@@ -42,3 +42,7 @@ anti-drone-dome/winget_*.log
 # Repo-root scratch dumps from debugging sessions
 /git_status.txt
 /git_short.txt
+
+# Downloaded YOLO weights (auto-fetched on first camera run)
+anti-drone-dome/models/
+anti-drone-dome/yolov8n.pt
