@@ -1,0 +1,13 @@
+.env
+venv/
+venv-dataprep/
+venv312/
+__pycache__/
+*.pyc
+*.pt
+data/raw_captures/
+data/extracted/
+data/public_raw/
+data/merged/
+data/public/
+models/finetuned/
