@@ -21,7 +21,7 @@ _DEFAULT_BATCH   = 8
 _DEFAULT_EPOCHS  = 100
 _DEFAULT_PATIENCE = 15
 _DEFAULT_IMGSZ   = 640
-_DEFAULT_WORKERS = 2
+_DEFAULT_WORKERS = 4
 
 
 def _ensure_base_weights() -> Path:

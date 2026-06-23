@@ -1,13 +1,20 @@
+﻿# Environment
 .env
-venv/
-venv-dataprep/
-venv312/
+
+# Datasets (download via scripts)
+data/merged/
+data/raw/
+
+# Trained weights (store externally)
+models/finetuned/
+models/yolo11n_drone.pt
+
+# YOLO run outputs
+runs/
+
+# Python
 __pycache__/
 *.pyc
-*.pt
-data/raw_captures/
-data/extracted/
-data/public_raw/
-data/merged/
-data/public/
-models/finetuned/
+*.pyo
+venv*/
+*.egg-info/
