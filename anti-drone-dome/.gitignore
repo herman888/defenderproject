@@ -5,8 +5,7 @@
 data/merged/
 data/raw/
 
-# Trained weights (store externally)
-models/finetuned/
+# Base weights (downloaded automatically)
 models/yolo11n_drone.pt
 
 # YOLO run outputs

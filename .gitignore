@@ -43,6 +43,7 @@ anti-drone-dome/winget_*.log
 /git_status.txt
 /git_short.txt
 
-# Downloaded YOLO weights (auto-fetched on first camera run)
-anti-drone-dome/models/
+# Downloaded/base YOLO weights (auto-fetched on first run)
+anti-drone-dome/models/yolo11n_drone.pt
+anti-drone-dome/models/yolov8n.pt
 anti-drone-dome/yolov8n.pt
