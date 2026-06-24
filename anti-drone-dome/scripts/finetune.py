@@ -1,7 +1,11 @@
 """
-Fine-tune yolo11n_drone.pt on data/merged/data.yaml using the ultralytics Python API.
+Fine-tune a YOLO11 model on data/merged/data.yaml using the ultralytics Python API.
 
-Input:  data/merged/data.yaml (output of merge_datasets.py) + models/yolo11n_drone.pt.
+Round 1: yolo11n (nano) at imgsz=640 — proof of concept, 78.8% mAP50.
+Round 2: yolo11s (small) at imgsz=1280 — accuracy upgrade for Pi 5 + Hailo-8L deployment.
+
+Input:  data/merged/data.yaml (output of merge_datasets.py).
+        Default base weights: yolo11s.pt (auto-downloaded by ultralytics if missing).
 Output: models/finetuned/<run_name>/weights/best.pt; prints mAP50, mAP50-95, P, R after training.
 """
 
@@ -16,12 +20,14 @@ REPO_ROOT  = Path(__file__).resolve().parent.parent
 MODELS_DIR = REPO_ROOT / "models"
 DATA_YAML  = REPO_ROOT / "data" / "merged" / "data.yaml"
 
-# GTX 1650 (4 GB VRAM) safe defaults at imgsz=640
-_DEFAULT_BATCH   = 8
-_DEFAULT_EPOCHS  = 100
+# Round 2: YOLO11s at imgsz=1280 on RTX 3050 4GB
+# batch=8 at 1280 uses ~3.5GB; drop to --batch 4 if OOM
+_DEFAULT_BATCH    = 8
+_DEFAULT_EPOCHS   = 100
 _DEFAULT_PATIENCE = 15
-_DEFAULT_IMGSZ   = 640
-_DEFAULT_WORKERS = 4
+_DEFAULT_IMGSZ    = 1280
+_DEFAULT_WORKERS  = 4
+_DEFAULT_MODEL    = "yolo11s.pt"
 
 
 def _ensure_base_weights() -> Path:
@@ -36,9 +42,9 @@ def main() -> None:
     )
     parser.add_argument("--data",    default=str(DATA_YAML),
                         help=f"Path to data.yaml (default: {DATA_YAML})")
-    parser.add_argument("--weights", default=None,
-                        help="Base checkpoint. Default: models/yolo11n_drone.pt "
-                             "(downloaded if missing).")
+    parser.add_argument("--weights", default=_DEFAULT_MODEL,
+                        help=f"Base checkpoint (default: {_DEFAULT_MODEL}, auto-downloaded). "
+                             "Pass models/yolo11n_drone.pt to use round-1 base.")
     parser.add_argument("--name",    default=None,
                         help="Run name for output folder under models/finetuned/. "
                              "Default: finetune_YYYYMMDD_HHMMSS")
@@ -61,12 +67,20 @@ def main() -> None:
         print("Run python scripts/merge_datasets.py first.")
         sys.exit(1)
 
-    weights_path = Path(args.resume) if args.resume else (
-        Path(args.weights) if args.weights else _ensure_base_weights()
-    )
-    if not weights_path.exists():
-        print(f"ERROR: weights not found at {weights_path}")
-        sys.exit(1)
+    if args.resume:
+        weights_path = Path(args.resume)
+        if not weights_path.exists():
+            print(f"ERROR: resume checkpoint not found: {weights_path}")
+            sys.exit(1)
+    else:
+        w = args.weights
+        # ultralytics auto-downloads bare model names like "yolo11s.pt"
+        weights_path = Path(w)
+        if not weights_path.exists() and "/" not in w and "\\" not in w:
+            print(f"Base weights '{w}' not found locally — ultralytics will download it.")
+        elif not weights_path.exists():
+            print(f"ERROR: weights not found at {weights_path}")
+            sys.exit(1)
 
     run_name = args.name or f"finetune_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     out_dir  = MODELS_DIR / "finetuned"

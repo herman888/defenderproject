@@ -59,6 +59,34 @@ ROBOFLOW_DATASETS = {
         "notes":     "FPV racing/attack drone, single class",
         "url":       "https://universe.roboflow.com/object-detection-aw0vm/fpv-drone-4posq",
     },
+    # ── Round 2: fills the 'drone' class (had 0 training examples in round 1) ──
+    "drone-detection-rjhv3": {
+        "workspace": "myspace-5b8mg",
+        "project":   "drone-detection-rjhv3",
+        "version":   2,
+        "license":   "CC BY 4.0",
+        "images":    "~3.4k",
+        "notes":     "Generic drone detection, multiple drone types, daylight",
+        "url":       "https://universe.roboflow.com/myspace-5b8mg/drone-detection-rjhv3",
+    },
+    "drone-dataset-6w7eq": {
+        "workspace": "artificial-intelligence-nzz1a",
+        "project":   "drone-dataset-6w7eq",
+        "version":   1,
+        "license":   "CC BY 4.0",
+        "images":    "~1.3k",
+        "notes":     "Generic consumer/commercial drone images",
+        "url":       "https://universe.roboflow.com/artificial-intelligence-nzz1a/drone-dataset-6w7eq",
+    },
+    "thermal-drone-dataset": {
+        "workspace": "new-workspace-at15m",
+        "project":   "thermal_drone_dataset",
+        "version":   1,
+        "license":   "CC BY 4.0",
+        "images":    "~600",
+        "notes":     "Thermal/IR drone images — low light and night detection",
+        "url":       "https://universe.roboflow.com/new-workspace-at15m/thermal_drone_dataset",
+    },
 }
 
 # ── FPV dataset candidates (for user to pick from) ───────────────────────────
@@ -216,6 +244,8 @@ def main() -> None:
                         help="Print FPV dataset candidates and exit.")
     parser.add_argument("--skip-shahed", action="store_true",
                         help="Skip Shahed dataset downloads.")
+    parser.add_argument("--round2", action="store_true",
+                        help="Download round-2 datasets: generic drone + thermal IR (fills 'drone' class).")
     parser.add_argument("--dry-run", action="store_true",
                         help="Print what would be downloaded without doing it.")
     args = parser.parse_args()
@@ -280,6 +310,18 @@ Then set it:
     else:
         if _roboflow_download(api_key, fpv_name, fpv, fpv_out):
             _append_source(fpv_name, fpv)
+
+    # ── Round 2: generic drone + thermal datasets ──────────────────────────────
+    if args.round2:
+        print("\n── Round 2 datasets (fills 'drone' class + thermal IR) ──────────")
+        for name in ("drone-detection-rjhv3", "drone-dataset-6w7eq", "thermal-drone-dataset"):
+            meta = ROBOFLOW_DATASETS[name]
+            out  = PUBLIC_DIR / name
+            if args.dry_run:
+                print(f"  Would download: {meta['workspace']}/{meta['project']} → {out}")
+                continue
+            if _roboflow_download(api_key, name, meta, out):
+                _append_source(name, meta)
 
     print(f"\nSources log: {SOURCES_MD}")
     print("Next: python scripts/convert_dut.py  (after manual DUT download)")
