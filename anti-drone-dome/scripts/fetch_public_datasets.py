@@ -311,9 +311,9 @@ Then set it:
         if _roboflow_download(api_key, fpv_name, fpv, fpv_out):
             _append_source(fpv_name, fpv)
 
-    # ── Round 2: generic drone + thermal datasets ──────────────────────────────
+    # Round 2: generic drone + thermal datasets
     if args.round2:
-        print("\n── Round 2 datasets (fills 'drone' class + thermal IR) ──────────")
+        print("\n--- Round 2 datasets (fills 'drone' class + thermal IR) ---")
         for name in ("drone-detection-rjhv3", "drone-dataset-6w7eq", "thermal-drone-dataset"):
             meta = ROBOFLOW_DATASETS[name]
             out  = PUBLIC_DIR / name

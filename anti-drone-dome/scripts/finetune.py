@@ -1,11 +1,13 @@
 """
 Fine-tune a YOLO11 model on data/merged/data.yaml using the ultralytics Python API.
 
-Round 1: yolo11n (nano) at imgsz=640 — proof of concept, 78.8% mAP50.
-Round 2: yolo11s (small) at imgsz=1280 — accuracy upgrade for Pi 5 + Hailo-8L deployment.
+Round 1: yolo11n (nano) at imgsz=640  -- proof of concept, 78.8% mAP50.
+Round 2: yolo11n (nano) at imgsz=640  -- deployment target is Pi 5 + Hailo-8L (13 TOPS).
+         YOLO11n is the right choice: Hailo ships a pre-compiled yolo11n.hef, runs ~50-70 FPS
+         at 640px on Hailo-8L vs ~25 FPS for yolo11s. At 200+ km/h target speeds, FPS > size.
 
 Input:  data/merged/data.yaml (output of merge_datasets.py).
-        Default base weights: yolo11s.pt (auto-downloaded by ultralytics if missing).
+        Default base weights: yolo11n.pt (auto-downloaded by ultralytics if missing).
 Output: models/finetuned/<run_name>/weights/best.pt; prints mAP50, mAP50-95, P, R after training.
 """
 
@@ -20,14 +22,14 @@ REPO_ROOT  = Path(__file__).resolve().parent.parent
 MODELS_DIR = REPO_ROOT / "models"
 DATA_YAML  = REPO_ROOT / "data" / "merged" / "data.yaml"
 
-# Round 2: YOLO11s at imgsz=1280 on RTX 3050 4GB
-# batch=8 at 1280 uses ~3.5GB; drop to --batch 4 if OOM
-_DEFAULT_BATCH    = 8
+# Round 2: YOLO11n at imgsz=640 -- fast edge deployment on Pi 5 + Hailo-8L
+# batch=-1 lets ultralytics auto-size to ~60% VRAM (safe on 4GB RTX 3050)
+_DEFAULT_BATCH    = -1
 _DEFAULT_EPOCHS   = 100
 _DEFAULT_PATIENCE = 15
-_DEFAULT_IMGSZ    = 1280
+_DEFAULT_IMGSZ    = 640
 _DEFAULT_WORKERS  = 4
-_DEFAULT_MODEL    = "yolo11s.pt"
+_DEFAULT_MODEL    = "yolo11n.pt"
 
 
 def _ensure_base_weights() -> Path:
@@ -43,8 +45,7 @@ def main() -> None:
     parser.add_argument("--data",    default=str(DATA_YAML),
                         help=f"Path to data.yaml (default: {DATA_YAML})")
     parser.add_argument("--weights", default=_DEFAULT_MODEL,
-                        help=f"Base checkpoint (default: {_DEFAULT_MODEL}, auto-downloaded). "
-                             "Pass models/yolo11n_drone.pt to use round-1 base.")
+                        help=f"Base checkpoint (default: {_DEFAULT_MODEL}, auto-downloaded). ")
     parser.add_argument("--name",    default=None,
                         help="Run name for output folder under models/finetuned/. "
                              "Default: finetune_YYYYMMDD_HHMMSS")
