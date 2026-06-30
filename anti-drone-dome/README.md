@@ -122,3 +122,17 @@ bash run_camera.sh
 List cameras: `bash run_camera_detect.sh --list`
 
 First run downloads YOLO weights into `models/` (gitignored). Press **Q** or **Esc** to quit.
+
+---
+
+## Physical drones — Betaflight firmware
+
+Two quads in the lab use different FCs: **Omnibus F4** (CRSF, original drone) and **Fury F4 OSD** (Spektrum / DX4e). Flash, recover, and compare targets in **`docs/FIRMWARE.md`**.
+
+Quick start:
+
+```bash
+cd anti-drone-dome/scripts
+bash setup_omnibus_f4.sh        # Omnibus — diagnose / --flash
+bash setup_fury_f4.sh           # Fury — diagnose / --flash
+```
