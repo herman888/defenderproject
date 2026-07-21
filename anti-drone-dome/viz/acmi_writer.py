@@ -1,12 +1,12 @@
 """
-Writes Tacview-compatible ACMI 2.1 files in real time.
+Writes Tacview-compatible ACMI 2.2 files in real time.
 Tacview (free version from tacview.net) can load this file live
 while the sim is running for professional 3D mission visualization.
 """
 
 import math
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 from config import HOME_LAT, HOME_LON
 
@@ -25,6 +25,7 @@ class ACMIWriter:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         self._filename = f"session_{ts}.acmi"
         self._filepath = os.path.join(missions_dir, self._filename)
+        self._reference_time = datetime.now(timezone.utc)
         self._f = open(self._filepath, "w", encoding="utf-8")
         self._update_count = 0
         self._write_header()
@@ -39,9 +40,10 @@ class ACMIWriter:
         )
 
     def _write_header(self):
-        self._f.write("FileType=text/acmi/tabular\n")
-        self._f.write("FileVersion=2.0\n")
-        self._f.write("0,ReferenceTime=2024-01-01T00:00:00Z\n")
+        self._f.write("FileType=text/acmi/tacview\n")
+        self._f.write("FileVersion=2.2\n")
+        reference = self._reference_time.isoformat().replace("+00:00", "Z")
+        self._f.write(f"0,ReferenceTime={reference}\n")
         self._f.write(f"0,ReferenceLatitude={self._REF_LAT}\n")
         self._f.write(f"0,ReferenceLongitude={self._REF_LON}\n")
         self._f.write("0,Title=Anti-Drone Dome Defense\n")
@@ -57,7 +59,10 @@ class ACMIWriter:
 
     def _to_latlon(self, x, y, z):
         lat = self._REF_LAT + (y / self._METERS_PER_DEG)
-        lon = self._REF_LON + (x / self._METERS_PER_DEG)
+        longitude_scale = self._METERS_PER_DEG * math.cos(
+            math.radians(self._REF_LAT)
+        )
+        lon = self._REF_LON + (x / longitude_scale)
         return lat, lon, z
 
     @staticmethod
@@ -127,3 +132,7 @@ class ACMIWriter:
     @property
     def filename(self) -> str:
         return self._filename
+
+    @property
+    def filepath(self) -> str:
+        return self._filepath

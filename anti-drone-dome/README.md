@@ -55,9 +55,10 @@ If the matplotlib window looks different from someone else’s machine, it’s u
 
 This sim is built for **clarity and spectacle**: two different “brains” share one PyBullet world. The README describes intent; the code lives in `sim/drone.py`.
 
-### Blue interceptor (VTOL quad)
+### Blue interceptor (high-speed C-UAS airframe)
 
-The interceptor is a **world-frame translational controller** dressed up like a quadrotor:
+The interceptor is a **world-frame translational controller** represented by a
+purpose-built high-speed C-UAS airframe:
 
 1. **Position–velocity PD**  
    Desired force is `F = Kp · (r_target − r) − Kd · v` in X, Y, Z.  
@@ -88,6 +89,226 @@ The nose is aligned with **velocity** (or toward the next waypoint when nearly s
 ### Why it feels “cool”
 
 Short answer: **smooth attitude**, **mass-aware hover**, **damped translation**, and **bank that matches thrust** — so the interceptor **carves** toward the threat while the intruder **drives** through the dome airspace on physics-flavoured rails. It is not a full-blown PX4-in-the-loop model, but it is coherent: every tilt you see is tied to the force vector the integrator is using that frame.
+
+## Real maps, weather scenarios, and ML guidance
+
+Mission geometry, the geodetic site, weather, radar quality, and map settings live
+in `scenario_data/southern_ontario.json`. The configured latitude/longitude is a
+placeholder; set it to an approved test location before downloading a map.
+
+```powershell
+python scripts\download_osm_map.py
+python main.py --no-vispy
+```
+
+The first command caches OpenStreetMap roads and buildings locally. The PyBullet
+renderer then projects them into local ENU coordinates and adds building
+collision geometry. Simulation remains offline after the cache is downloaded.
+Map data is copyright OpenStreetMap contributors and is available under the
+Open Database License: https://www.openstreetmap.org/copyright.
+
+### Integrated command center
+
+The embedded tactical 3-D pane is an explicitly labeled **PyBullet Tiny
+Renderer CPU preview**. It uses real cached OSM geometry and structural terrain
+relief, but it is not a photorealistic or real-time production renderer. The
+header reports both Qt UI refresh rate, tactical-video update rate, and the
+simulation real-time factor (RTF). The versioned UDP tactical stream is the
+boundary for an Unreal Engine + Cesium presentation layer; PyBullet remains the
+authoritative physics/ML process.
+
+`python main.py` now opens one operational command-center window by default.
+
+### GPU acceleration and production runtime
+
+The simulator now defaults to PyBullet's OpenGL camera path and reports the
+actual requested render and ML compute backends in the command center. Use
+`--render-backend tiny` only for CPU-renderer compatibility, or
+`--render-backend opengl` to require the accelerated path explicitly.
+
+PPO and YOLO accept `--ml-device auto|cpu|cuda`; training accepts the same
+choice through `scripts\train_interceptor.py --device`. A CUDA-capable NVIDIA
+GPU is not sufficient by itself: the virtual environment must contain a
+CUDA-enabled PyTorch wheel. Verify it before relying on GPU execution:
+
+```powershell
+.\.venv\Scripts\python.exe -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
+python main.py --render-backend opengl --ml-device cuda --ml-model models\interceptor_ppo.zip
+```
+
+PyBullet remains the deterministic physics authority; its rigid-body solver is
+CPU-based. OpenGL accelerates tactical rendering, while CUDA accelerates
+learning and neural inference. Production-quality geospatial presentation is
+still expected to consume `aegis.tactical.v1` in Unreal Engine/Cesium rather
+than treating the embedded PyBullet preview as a photorealistic renderer.
+
+Mission JSONL intentionally excludes raw video frames. Video should be stored
+as a separately encoded artifact; telemetry retains only normalized state,
+sensor detections, timing, backend identity, and event data.
+PyBullet runs headlessly and streams a tactical 3-D view into the same interface
+as the local map, vertical profile, fused radar/EO track, event timeline, weather,
+site identity, guidance mode, and mission controls. This avoids the old collection
+of overlapping dashboard, PyBullet, HUD, and picture-in-picture windows.
+
+Use `--legacy-windows` only when debugging the old standalone 3-D renderers.
+Use `--auto-start` for unattended demonstrations and integration smoke tests.
+
+The integrated view includes selectable **overview**, **Shahed track**,
+**interceptor FPV**, and **top-down** cameras. Track boxes, speed/altitude labels,
+velocity vectors, predicted intercept points, the vertical engagement profile,
+and the live ACMI recording timeline all use the same fused state.
+
+External presentation engines can subscribe to the versioned JSON state stream:
+
+```powershell
+python main.py --telemetry-udp 127.0.0.1:49000
+```
+
+Packets use schema `aegis.tactical.v1` and contain ENU positions/velocities,
+sensor lock state, guidance mode, site identity, and the predicted intercept.
+This is the renderer boundary for an Unreal/Cesium front end; PyBullet and the
+ML stack remain authoritative for the local dynamics and autonomy loop.
+
+The demonstrated use case is **critical-infrastructure airspace protection**:
+detect a low-observable inbound aircraft, correlate radar and electro-optical
+observations into one track, maintain a common operating picture, generate an
+intercept solution, supervise autonomous response, and export the mission for
+Tacview review.
+
+This architecture follows public patterns from modern autonomy platforms:
+map-centric sensor fusion and command workflow; configurable actors, sensors,
+weather, and headless validation as used by CARLA; geospatial 3D Tiles as offered
+by Cesium; and external robotics integration through ROS 2 and MAVLink. PyBullet
+remains the fast local dynamics/test engine. A future photorealistic deployment
+should keep these interfaces and replace only the renderer/physics adapter with
+Unreal, Isaac Sim, or another validated digital-twin backend.
+
+The interception task is also exposed as a Gymnasium environment with randomized
+intruder type, route, wind, and radar noise:
+
+```powershell
+python scripts\train_interceptor.py --steps 500000 --output models\interceptor_ppo
+python main.py --no-vispy --ml-model models\interceptor_ppo.zip
+```
+
+Without `--ml-model`, the existing APN guidance remains the default. `--sitl` can
+still be used for ArduPilot control; use either SITL or an ML policy for a mission,
+not both. Models trained with `--absolute-actions` must also be launched with
+`--ml-absolute-actions`.
+
+### Rendered camera perception
+
+The simulator can render an electro-optical camera through PyBullet and recover
+tracks from its RGB, depth, and segmentation buffers. This lets camera visibility
+and occlusion affect guidance instead of always using perfect world state:
+
+```powershell
+python main.py --no-vispy --camera-perception
+```
+
+The segmentation mode is a deterministic reference sensor for development. To
+put the existing YOLO detector directly in the simulation loop, supply trained
+weights. YOLO detections select image pixels while the depth camera estimates
+range:
+
+```powershell
+python main.py --no-vispy --camera-model models\finetuned\<run>\weights\best.pt
+```
+
+### Robust parallel training
+
+The Gymnasium task randomizes route, aircraft type, wind, radar noise/dropout,
+vehicle mass, actuator response, and battery thrust. PPO training uses parallel
+worker processes and periodically saves checkpoints and evaluates the policy.
+By default it uses **residual RL**: APN supplies the safe base command and PPO
+learns bounded corrections for disturbances. A weak model therefore cannot
+replace the proven pursuit controller with arbitrary flight:
+
+```powershell
+python scripts\train_interceptor.py `
+  --steps 1000000 --envs 4 --checkpoint-every 100000 `
+  --output models\interceptor_ppo_curriculum_v2
+```
+
+Training now defaults to a progressive procedural curriculum. It starts with
+simple direct approaches and gradually introduces randomized threat bearing and
+range, interceptor launch position, crossing/spiral/pop-up/dogleg geometry,
+target evasion, wind, mass, actuator lag, sensor noise, dropout, and latency.
+The v2 observation is translation-invariant: it learns relative position,
+relative velocity, line of sight, closing speed, confidence, wind, battery, and
+sensor age rather than memorizing one launch pad or map coordinate.
+
+The live mission selector exposes six route profiles and three intruder types
+across six weather/EW environments. The trainer samples continuously within and
+between those regimes, so training is not limited to the 54 named UI
+combinations.
+
+Generate a reproducible APN expert dataset for imitation, regression tests, or
+offline analysis:
+
+```powershell
+python scripts\generate_training_dataset.py `
+  --episodes 1000 --output datasets\interceptor_expert_v2
+```
+
+The compressed dataset contains v2 observations, expert actions, episode IDs,
+and scenario IDs. Its manifest records seeds, geometry, latency, outcomes,
+coordinate frame, units, and validation status. Trained policies also receive a
+manifest recording observation/action versions and validation requirements.
+
+Evaluate on held-out maximum-difficulty procedural engagements:
+
+```powershell
+python scripts\benchmark_controllers.py --procedural --episodes 100 `
+  --model models\interceptor_ppo_curriculum_v2.zip `
+  --output reports\apn_vs_curriculum_v2
+```
+
+The included curriculum policy completed 106,496 transitions. On 100 held-out
+procedural engagements, APN and residual PPO both intercepted 100/100. PPO
+preserved the safety baseline but did not yet outperform it, so it should be
+treated as a robustness-trained correction model rather than evidence of
+superior guidance.
+
+### What transfers to real testing
+
+The relative-state policy, disturbance curriculum, deterministic datasets, and
+held-out evaluation are useful foundations for real testing. Simulation alone
+is not deployment evidence. Before any flight use, calibrate dynamics against
+approved flight logs, replay representative radar/EO recordings, validate the
+same policy in software-in-the-loop and hardware-in-the-loop, measure timing and
+coordinate-frame errors, and complete independent safety/range review. Keep APN
+and command limits as the safety envelope until those gates pass.
+
+Use `--absolute-actions` to research a fully learned controller. Absolute mode
+uses APN imitation pretraining first; set `--apn-pretrain-samples 0` to disable it.
+
+Track training with:
+
+```powershell
+tensorboard --logdir runs\rl
+```
+
+### APN versus ML benchmark
+
+Do not judge a learned model by training reward alone. Run every intruder type
+against every route with repeatable randomized seeds:
+
+```powershell
+python scripts\benchmark_controllers.py --episodes 25 `
+  --model models\interceptor_ppo.zip `
+  --output reports\controller_benchmark
+```
+
+The command writes machine-readable JSON with every episode and a CSV summary
+containing intercept rate, closest approach, duration, energy use, and reward.
+Omit `--model` for the APN baseline or add `--include-random` as a sanity check.
+
+The included `models/interceptor_ppo_residual.zip` starter was trained for
+106,496 transitions. In `reports/apn_vs_residual_ppo.csv`, both APN and residual
+PPO intercepted 225/225 randomized attacks; mean mission time was 9.089 s for APN
+and 9.083 s for PPO. Treat this as a verified starter, not proof of a statistically
+meaningful advantage—longer training and hardware replay are still required.
 
 ---
 

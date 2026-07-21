@@ -1,0 +1,228 @@
+{
+  "schema": "aegis.expert-dataset.v2",
+  "observation_version": "v2-relative",
+  "episodes": 12,
+  "samples": 500,
+  "seed": 2026,
+  "difficulty_range": [
+    0.15,
+    1.0
+  ],
+  "expert": "APN",
+  "coordinate_frame": "local ENU",
+  "units": "SI",
+  "episode_results": [
+    {
+      "episode": 0,
+      "seed": 2026,
+      "scenario_id": "crossing-consumer_quad-b050-r0753",
+      "profile": "crossing",
+      "intruder_type": "consumer_quad",
+      "difficulty": 0.15,
+      "intercepted": true,
+      "minimum_separation_m": 14.685946464538574,
+      "duration_s": 10.05,
+      "sensor_latency_s": 0.015660895286167386,
+      "interceptor_start_m": [
+        54.26948010365009,
+        -14.12255631269638,
+        18.61373118268125
+      ]
+    },
+    {
+      "episode": 1,
+      "seed": 2027,
+      "scenario_id": "crossing-consumer_quad-b319-r0648",
+      "profile": "crossing",
+      "intruder_type": "consumer_quad",
+      "difficulty": 0.22727272727272727,
+      "intercepted": true,
+      "minimum_separation_m": 16.234542846679688,
+      "duration_s": 9.600000000000001,
+      "sensor_latency_s": 0.007146980099580497,
+      "interceptor_start_m": [
+        85.46848246939258,
+        24.581641711791452,
+        8.942233903682602
+      ]
+    },
+    {
+      "episode": 2,
+      "seed": 2028,
+      "scenario_id": "crossing-consumer_quad-b033-r0910",
+      "profile": "crossing",
+      "intruder_type": "consumer_quad",
+      "difficulty": 0.30454545454545456,
+      "intercepted": true,
+      "minimum_separation_m": 15.363767623901367,
+      "duration_s": 11.55,
+      "sensor_latency_s": 0.001508523961640762,
+      "interceptor_start_m": [
+        83.66569420771721,
+        -45.5164706639076,
+        13.84097988317761
+      ]
+    },
+    {
+      "episode": 3,
+      "seed": 2029,
+      "scenario_id": "direct-fpv_attack-b194-r0806",
+      "profile": "direct",
+      "intruder_type": "fpv_attack",
+      "difficulty": 0.3818181818181818,
+      "intercepted": true,
+      "minimum_separation_m": 16.479801177978516,
+      "duration_s": 9.35,
+      "sensor_latency_s": 0.010433881730805257,
+      "interceptor_start_m": [
+        -38.48925181458255,
+        67.14049848517715,
+        9.151378257215299
+      ]
+    },
+    {
+      "episode": 4,
+      "seed": 2030,
+      "scenario_id": "direct-consumer_quad-b110-r1039",
+      "profile": "direct",
+      "intruder_type": "consumer_quad",
+      "difficulty": 0.4590909090909091,
+      "intercepted": true,
+      "minimum_separation_m": 16.11137580871582,
+      "duration_s": 15.15,
+      "sensor_latency_s": 0.13824476502388153,
+      "interceptor_start_m": [
+        -128.5651796636998,
+        -6.963546760691801,
+        4.300987412613248
+      ]
+    },
+    {
+      "episode": 5,
+      "seed": 2031,
+      "scenario_id": "nap_earth-consumer_quad-b011-r1135",
+      "profile": "nap_earth",
+      "intruder_type": "consumer_quad",
+      "difficulty": 0.5363636363636364,
+      "intercepted": true,
+      "minimum_separation_m": 16.018348693847656,
+      "duration_s": 15.700000000000001,
+      "sensor_latency_s": 0.14995101677753525,
+      "interceptor_start_m": [
+        205.38146109189523,
+        -186.08846552308734,
+        24.317709014411523
+      ]
+    },
+    {
+      "episode": 6,
+      "seed": 2032,
+      "scenario_id": "crossing-fpv_attack-b040-r0873",
+      "profile": "crossing",
+      "intruder_type": "fpv_attack",
+      "difficulty": 0.6136363636363635,
+      "intercepted": true,
+      "minimum_separation_m": 17.594877243041992,
+      "duration_s": 11.4,
+      "sensor_latency_s": 0.17161839317223543,
+      "interceptor_start_m": [
+        -70.8461883647292,
+        -65.43564582369687,
+        25.72661960362383
+      ]
+    },
+    {
+      "episode": 7,
+      "seed": 2033,
+      "scenario_id": "spiral-consumer_quad-b064-r1040",
+      "profile": "spiral",
+      "intruder_type": "consumer_quad",
+      "difficulty": 0.6909090909090909,
+      "intercepted": true,
+      "minimum_separation_m": 16.41233253479004,
+      "duration_s": 13.5,
+      "sensor_latency_s": 0.23026457167568362,
+      "interceptor_start_m": [
+        10.263081954293314,
+        -34.47022055795355,
+        10.975080391696975
+      ]
+    },
+    {
+      "episode": 8,
+      "seed": 2034,
+      "scenario_id": "nap_earth-consumer_quad-b105-r1179",
+      "profile": "nap_earth",
+      "intruder_type": "consumer_quad",
+      "difficulty": 0.7681818181818182,
+      "intercepted": true,
+      "minimum_separation_m": 14.281951904296875,
+      "duration_s": 13.950000000000001,
+      "sensor_latency_s": 0.16874503929506407,
+      "interceptor_start_m": [
+        22.224282827210736,
+        -357.8490998110019,
+        17.409589048143353
+      ]
+    },
+    {
+      "episode": 9,
+      "seed": 2035,
+      "scenario_id": "crossing-consumer_quad-b112-r1156",
+      "profile": "crossing",
+      "intruder_type": "consumer_quad",
+      "difficulty": 0.8454545454545455,
+      "intercepted": true,
+      "minimum_separation_m": 17.092859268188477,
+      "duration_s": 15.600000000000001,
+      "sensor_latency_s": 0.15105591591079554,
+      "interceptor_start_m": [
+        62.86796512707652,
+        241.68266735542034,
+        25.734801132844357
+      ]
+    },
+    {
+      "episode": 10,
+      "seed": 2036,
+      "scenario_id": "crossing-shahed136-b325-r1041",
+      "profile": "crossing",
+      "intruder_type": "shahed136",
+      "difficulty": 0.9227272727272727,
+      "intercepted": true,
+      "minimum_separation_m": 14.084654808044434,
+      "duration_s": 10.450000000000001,
+      "sensor_latency_s": 0.11684086078619,
+      "interceptor_start_m": [
+        -387.8921960755777,
+        -281.8720293901419,
+        31.41165124732447
+      ]
+    },
+    {
+      "episode": 11,
+      "seed": 2037,
+      "scenario_id": "offset-shahed136-b292-r1427",
+      "profile": "offset",
+      "intruder_type": "shahed136",
+      "difficulty": 1.0,
+      "intercepted": true,
+      "minimum_separation_m": 14.941905975341797,
+      "duration_s": 12.350000000000001,
+      "sensor_latency_s": 0.2089874725998997,
+      "interceptor_start_m": [
+        14.406129263194597,
+        28.67951068906578,
+        37.411179943097544
+      ]
+    }
+  ],
+  "sim_to_real_status": "simulation-only",
+  "required_before_real_flight": [
+    "calibrate dynamics against flight logs",
+    "replay approved radar and EO recordings",
+    "software-in-the-loop validation",
+    "hardware-in-the-loop validation",
+    "independent safety and range review"
+  ]
+}

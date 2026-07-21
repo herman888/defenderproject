@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<robot name="shahed_136">
+  <material name="airframe"><color rgba="0.34 0.36 0.31 1"/></material>
+  <material name="dark"><color rgba="0.08 0.09 0.08 1"/></material>
+  <link name="fuselage">
+    <inertial>
+      <mass value="1.4"/>
+      <inertia ixx="0.28" ixy="0" ixz="0" iyy="0.55" iyz="0" izz="0.72"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 1.5708 0"/>
+      <geometry><cylinder radius="0.18" length="3.1"/></geometry>
+      <material name="airframe"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0"/>
+      <geometry><box size="3.1 0.42 0.34"/></geometry>
+    </collision>
+  </link>
+  <link name="nose">
+    <inertial><mass value="0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual>
+      <origin xyz="1.72 0 0" rpy="0 1.5708 0"/>
+      <geometry><sphere radius="0.18"/></geometry>
+      <material name="dark"/>
+    </visual>
+  </link>
+  <joint name="nose_joint" type="fixed">
+    <parent link="fuselage"/><child link="nose"/>
+  </joint>
+  <link name="left_wing">
+    <inertial><mass value="0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual>
+      <origin xyz="-0.15 0.82 0" rpy="0 0 -0.24"/>
+      <geometry><box size="1.95 1.65 0.08"/></geometry>
+      <material name="airframe"/>
+    </visual>
+  </link>
+  <joint name="left_wing_joint" type="fixed">
+    <parent link="fuselage"/><child link="left_wing"/>
+  </joint>
+  <link name="right_wing">
+    <inertial><mass value="0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual>
+      <origin xyz="-0.15 -0.82 0" rpy="0 0 0.24"/>
+      <geometry><box size="1.95 1.65 0.08"/></geometry>
+      <material name="airframe"/>
+    </visual>
+  </link>
+  <joint name="right_wing_joint" type="fixed">
+    <parent link="fuselage"/><child link="right_wing"/>
+  </joint>
+  <link name="tail_fin">
+    <inertial><mass value="0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual>
+      <origin xyz="-1.30 0 0.30" rpy="0.15 0 0"/>
+      <geometry><box size="0.65 0.07 0.60"/></geometry>
+      <material name="dark"/>
+    </visual>
+  </link>
+  <joint name="tail_joint" type="fixed">
+    <parent link="fuselage"/><child link="tail_fin"/>
+  </joint>
+  <link name="propeller">
+    <inertial><mass value="0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual>
+      <origin xyz="-1.65 0 0" rpy="0 1.5708 0"/>
+      <geometry><box size="0.04 1.10 0.08"/></geometry>
+      <material name="dark"/>
+    </visual>
+  </link>
+  <joint name="propeller_joint" type="fixed">
+    <parent link="fuselage"/><child link="propeller"/>
+  </joint>
+</robot>

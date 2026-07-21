@@ -1,0 +1,3 @@
+controller,episodes,intercepts,intercept_rate,mean_minimum_separation_m,mean_duration_s,mean_energy_used,mean_reward
+apn,100,100,1.0,15.823277740478515,12.612,2.9411175878978484,205.06238140358843
+ppo,100,100,1.0,15.864423456192016,12.6375,2.9705110510195074,205.04622152455687

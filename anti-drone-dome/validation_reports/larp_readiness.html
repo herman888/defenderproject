@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>AEGIS validation report</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:1100px;margin:32px auto;color:#17212b}
+table{border-collapse:collapse;width:100%;margin:12px 0 24px}
+th,td{border:1px solid #b8c0c8;padding:7px;text-align:left}
+th{background:#e8edf1} code{background:#eef2f5;padding:2px 4px}
+</style></head><body>
+<h1>AEGIS Hardware Validation Workbench</h1>
+<p>Profile: <strong>LARP Betaflight bench (read-only)</strong>
+(hardware_readonly)</p>
+<h2>SIL evidence</h2>
+<p>6/6 interceptions;
+mean duration 13.508 s;
+p95 duration 20.812 s;
+p95 energy 6.391.</p>
+<h2>Validation gates</h2><table><tr><th>Gate</th><th>Status</th><th>Evidence</th></tr>
+<tr><td>intercept-rate</td><td>PASS</td><td>1 &gt;= 0.95</td></tr><tr><td>duration-p95</td><td>PASS</td><td>20.81 &lt;= 30</td></tr><tr><td>energy-p95</td><td>FAIL</td><td>6.391 &lt;= 6</td></tr><tr><td>action-saturation</td><td>PASS</td><td>0.08456 &lt;= 0.25</td></tr></table>
+<h2>Hardware readiness</h2><table><tr><th>Check</th><th>Status</th><th>Detail</th></tr>
+<tr><td>approved-test-site</td><td>FAIL</td><td>Configured site is still the documented placeholder.</td></tr><tr><td>actuation-safe-default</td><td>PASS</td><td>Actuation is disabled.</td></tr><tr><td>hardware-endpoint</td><td>FAIL</td><td>No physical/SITL endpoint configured.</td></tr><tr><td>command-protocol</td><td>PASS</td><td>Betaflight MSP is currently supported for read-only profiling only; the command bridge is MAVLink/ArduPilot.</td></tr><tr><td>sensor-calibration</td><td>FAIL</td><td>Calibration evidence required for: InnoMaker U20CAM, flight-controller IMU</td></tr></table>
+<h2>Flight-log calibration</h2><p>No real/reference flight-log comparison supplied.</p>
+<h2>Decision</h2>
+<p>SIL: <strong>FAIL</strong><br>
+Hardware ready: <strong>FAIL</strong><br>
+Physical actuation authorized: <strong>NO</strong></p>
+<p>This report never authorizes physical actuation; independent safety/range approval and explicit operator acknowledgement remain required.</p>
+</body></html>

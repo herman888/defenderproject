@@ -5,8 +5,10 @@ All dimensions scaled for a 200 m dome radius.
 """
 
 import math
+import numpy as np
 import pybullet
 import pybullet_data
+from sim.geospatial import load_osm_features
 
 _TIMESTEP = 1.0 / 240.0
 
@@ -17,8 +19,20 @@ _GRID_MAJOR = 200   # major grid every 200 m (matches dome boundary)
 
 
 class PhysicsWorld:
-    def __init__(self, gui=True):
+    def __init__(self, gui=True, site_config=None, render_backend="auto"):
         self._gui = gui
+        self._site_config = site_config
+        if render_backend not in {"auto", "opengl", "tiny"}:
+            raise ValueError("render_backend must be auto, opengl, or tiny")
+        use_opengl = gui or render_backend in {"auto", "opengl"}
+        self.camera_renderer = (
+            pybullet.ER_BULLET_HARDWARE_OPENGL
+            if use_opengl
+            else pybullet.ER_TINY_RENDERER
+        )
+        self.render_backend = (
+            "PYBULLET OPENGL" if use_opengl else "PYBULLET TINY CPU"
+        )
         mode = pybullet.GUI if gui else pybullet.DIRECT
         self.client = pybullet.connect(mode)
         pybullet.setAdditionalSearchPath(
@@ -57,20 +71,157 @@ class PhysicsWorld:
         )
         ground_vis = pybullet.createVisualShape(
             pybullet.GEOM_BOX, halfExtents=[1500, 1500, 0.5],
-            rgbaColor=[0.12, 0.15, 0.12, 1.0],
+            rgbaColor=[0.18, 0.20, 0.17, 1.0],
             physicsClientId=self.client,
         )
         pybullet.createMultiBody(
             0, ground_col, ground_vis, [0, 0, -0.5],
             physicsClientId=self.client,
         )
+        self._draw_terrain_relief()
+        zone_vis = pybullet.createVisualShape(
+            pybullet.GEOM_CYLINDER,
+            radius=200.0,
+            length=0.06,
+            rgbaColor=[0.16, 0.42, 0.22, 0.16],
+            physicsClientId=self.client,
+        )
+        pybullet.createMultiBody(
+            0,
+            baseVisualShapeIndex=zone_vis,
+            basePosition=[0.0, 0.0, 0.035],
+            physicsClientId=self.client,
+        )
 
+        self._draw_real_map()
+        self._draw_protected_assets()
         if self._gui:
             self._draw_grid()
             self._draw_range_rings()
-            self._draw_protected_assets()
             self._draw_radar_station()
             self._setup_camera()
+
+    @staticmethod
+    def terrain_elevation(x, y):
+        """Deterministic rolling relief with a flat protected-site footprint."""
+        radius = math.hypot(float(x), float(y))
+        blend = min(1.0, max(0.0, (radius - 220.0) / 700.0))
+        blend = blend * blend * (3.0 - 2.0 * blend)
+        ridge = (
+            11.0
+            + 7.0 * math.sin(float(x) / 210.0)
+            + 5.0 * math.cos(float(y) / 260.0)
+            + 3.5 * math.sin((float(x) + float(y)) / 155.0)
+        )
+        return max(0.0, ridge * blend)
+
+    def _draw_terrain_relief(self):
+        """Add real mesh relief so lighting and depth come from geometry."""
+        extent = 1500.0
+        cells = 40
+        coordinates = np.linspace(-extent, extent, cells + 1)
+        vertices = [
+            [float(x), float(y), self.terrain_elevation(x, y) + 0.02]
+            for y in coordinates
+            for x in coordinates
+        ]
+        indices = []
+        row = cells + 1
+        for iy in range(cells):
+            for ix in range(cells):
+                lower_left = iy * row + ix
+                lower_right = lower_left + 1
+                upper_left = lower_left + row
+                upper_right = upper_left + 1
+                indices.extend(
+                    [
+                        lower_left, lower_right, upper_right,
+                        lower_left, upper_right, upper_left,
+                    ]
+                )
+        terrain_visual = pybullet.createVisualShape(
+            pybullet.GEOM_MESH,
+            vertices=vertices,
+            indices=indices,
+            rgbaColor=[0.20, 0.23, 0.18, 1.0],
+            specularColor=[0.02, 0.02, 0.02],
+            physicsClientId=self.client,
+        )
+        pybullet.createMultiBody(
+            0,
+            baseVisualShapeIndex=terrain_visual,
+            physicsClientId=self.client,
+        )
+
+    def _draw_real_map(self):
+        if not self._site_config:
+            return
+        map_config = self._site_config.get("map", {})
+        features = load_osm_features(
+            map_config.get("osm_cache"),
+            self._site_config["origin"],
+            float(map_config.get("radius_m", 900.0)),
+        )
+        default_height = float(map_config.get("building_default_height_m", 8.0))
+        for road in features["roads"]:
+            for start, end in zip(road, road[1:]):
+                dx = end[0] - start[0]
+                dy = end[1] - start[1]
+                length = math.hypot(dx, dy)
+                if length < 0.5:
+                    continue
+                road_vis = pybullet.createVisualShape(
+                    pybullet.GEOM_BOX,
+                    halfExtents=[length / 2, 2.2, 0.025],
+                    rgbaColor=[0.30, 0.31, 0.29, 1.0],
+                    physicsClientId=self.client,
+                )
+                yaw = math.atan2(dy, dx)
+                pybullet.createMultiBody(
+                    0,
+                    baseVisualShapeIndex=road_vis,
+                    basePosition=[
+                        (start[0] + end[0]) / 2,
+                        (start[1] + end[1]) / 2,
+                        self.terrain_elevation(
+                            (start[0] + end[0]) / 2,
+                            (start[1] + end[1]) / 2,
+                        ) + 0.07,
+                    ],
+                    baseOrientation=pybullet.getQuaternionFromEuler([0, 0, yaw]),
+                    physicsClientId=self.client,
+                )
+        for building in features["buildings"]:
+            points = building["points"]
+            xs = [point[0] for point in points]
+            ys = [point[1] for point in points]
+            width = max(max(xs) - min(xs), 1.0)
+            depth = max(max(ys) - min(ys), 1.0)
+            height = building["height_m"] or default_height
+            center_x = (max(xs) + min(xs)) / 2
+            center_y = (max(ys) + min(ys)) / 2
+            center = [
+                center_x,
+                center_y,
+                self.terrain_elevation(center_x, center_y) + height / 2,
+            ]
+            collision = pybullet.createCollisionShape(
+                pybullet.GEOM_BOX,
+                halfExtents=[width / 2, depth / 2, height / 2],
+                physicsClientId=self.client,
+            )
+            shade = 0.28 + 0.06 * (
+                abs(int(center[0] * 7 + center[1] * 11)) % 5
+            ) / 4.0
+            visual = pybullet.createVisualShape(
+                pybullet.GEOM_BOX,
+                halfExtents=[width / 2, depth / 2, height / 2],
+                rgbaColor=[shade, shade * 1.02, shade * 0.97, 1.0],
+                physicsClientId=self.client,
+            )
+            pybullet.createMultiBody(
+                0, collision, visual, center, physicsClientId=self.client
+            )
 
     # ------------------------------------------------------------------
     def _draw_grid(self):
@@ -233,6 +384,176 @@ class PhysicsWorld:
     # ------------------------------------------------------------------
     def step(self):
         pybullet.stepSimulation(physicsClientId=self.client)
+
+    def capture_tactical_view(
+        self,
+        intruder_position=None,
+        interceptor_position=None,
+        intruder_velocity=None,
+        interceptor_velocity=None,
+        predicted_intercept=None,
+        view_mode="overview",
+        width=640,
+        height=360,
+        include_metadata=False,
+    ):
+        intruder = (
+            np.asarray(intruder_position, dtype=float)
+            if intruder_position is not None else None
+        )
+        interceptor = (
+            np.asarray(interceptor_position, dtype=float)
+            if interceptor_position is not None else None
+        )
+
+        if view_mode == "shahed" and intruder is not None:
+            forward = self._camera_direction(
+                intruder_velocity,
+                -intruder,
+            )
+            eye = intruder - forward * 48.0 + np.asarray([0.0, 0.0, 16.0])
+            focus = intruder + forward * 38.0
+            fov = 55.0
+        elif view_mode == "interceptor" and interceptor is not None:
+            forward = self._camera_direction(
+                interceptor_velocity,
+                intruder - interceptor if intruder is not None else -interceptor,
+            )
+            eye = interceptor - forward * 20.0 + np.asarray([0.0, 0.0, 6.0])
+            focus = interceptor + forward * 85.0
+            fov = 62.0
+        elif view_mode == "topdown":
+            points = [p for p in (intruder, interceptor) if p is not None]
+            focus = np.mean(points, axis=0) if points else np.zeros(3)
+            focus[2] = 0.0
+            eye = focus + np.asarray([0.0, 0.0, 950.0])
+            fov = 48.0
+        else:
+            points = [p for p in (intruder, interceptor) if p is not None]
+            if points:
+                focus = np.mean(points, axis=0)
+                focus[2] = max(20.0, min(120.0, focus[2] * 0.45))
+            else:
+                focus = np.asarray([0.0, 0.0, 45.0])
+            eye = focus + np.asarray([390.0, -510.0, 330.0])
+            fov = 50.0
+
+        view = pybullet.computeViewMatrix(
+            cameraEyePosition=eye.tolist(),
+            cameraTargetPosition=focus.tolist(),
+            cameraUpVector=(
+                [0.0, 1.0, 0.0]
+                if view_mode == "topdown"
+                else [0.0, 0.0, 1.0]
+            ),
+        )
+        projection = pybullet.computeProjectionMatrixFOV(
+            fov=fov,
+            aspect=width / height,
+            nearVal=1.0,
+            farVal=2500.0,
+        )
+        image = pybullet.getCameraImage(
+            width,
+            height,
+            viewMatrix=view,
+            projectionMatrix=projection,
+            renderer=self.camera_renderer,
+            flags=pybullet.ER_NO_SEGMENTATION_MASK,
+            lightDirection=[-0.45, -0.35, -1.0],
+            lightColor=[1.0, 0.96, 0.88],
+            lightDistance=1800.0,
+            shadow=1,
+            lightAmbientCoeff=0.38,
+            lightDiffuseCoeff=0.62,
+            lightSpecularCoeff=0.08,
+            physicsClientId=self.client,
+        )
+        rgb = np.asarray(image[2], dtype=np.uint8).reshape(height, width, 4)[:, :, :3]
+        depth = np.asarray(image[3], dtype=np.float32).reshape(height, width)
+        rgb = self._grade_tactical_frame(rgb, depth)
+        if not include_metadata:
+            return rgb
+
+        points = {
+            "intruder": intruder,
+            "interceptor": interceptor,
+            "predicted_intercept": (
+                np.asarray(predicted_intercept, dtype=float)
+                if predicted_intercept is not None else None
+            ),
+        }
+        return {
+            "frame": rgb,
+            "view_mode": view_mode,
+            "screen_points": {
+                name: self._project_to_screen(point, view, projection, width, height)
+                for name, point in points.items()
+                if point is not None
+            },
+        }
+
+    @staticmethod
+    def _camera_direction(preferred, fallback):
+        direction = np.asarray(
+            preferred if preferred is not None else fallback,
+            dtype=float,
+        )
+        magnitude = float(np.linalg.norm(direction))
+        if magnitude < 1e-6:
+            return np.asarray([1.0, 0.0, 0.0])
+        return direction / magnitude
+
+    @staticmethod
+    def _project_to_screen(point, view, projection, width, height):
+        view_matrix = np.asarray(view, dtype=float).reshape((4, 4), order="F")
+        projection_matrix = np.asarray(projection, dtype=float).reshape((4, 4), order="F")
+        clip = projection_matrix @ view_matrix @ np.append(point, 1.0)
+        if clip[3] <= 0.0:
+            return None
+        ndc = clip[:3] / clip[3]
+        if np.any(np.abs(ndc[:2]) > 1.15) or not (-1.0 <= ndc[2] <= 1.0):
+            return None
+        return [
+            float((ndc[0] + 1.0) * 0.5 * width),
+            float((1.0 - ndc[1]) * 0.5 * height),
+        ]
+
+    @staticmethod
+    def _grade_tactical_frame(rgb, depth):
+        graded_float = np.clip(
+            np.power(rgb.astype(np.float32) / 255.0, 0.82) * 255.0,
+            0,
+            255,
+        )
+        gradient_y, gradient_x = np.gradient(depth)
+        relief = np.clip(
+            1.0 - (gradient_x * 45.0 + gradient_y * 30.0),
+            0.82,
+            1.12,
+        )
+        graded_float *= relief[:, :, None]
+        near, far = 1.0, 2500.0
+        distance = far * near / np.maximum(
+            far - (far - near) * depth,
+            1e-6,
+        )
+        fog = np.clip((distance - 350.0) / 950.0, 0.0, 0.68)
+        atmosphere = np.asarray([116.0, 128.0, 136.0])
+        graded_float = (
+            graded_float * (1.0 - fog[:, :, None])
+            + atmosphere * fog[:, :, None]
+        )
+        graded = np.clip(graded_float, 0, 255).astype(np.uint8)
+        sky = depth >= 0.9999
+        if np.any(sky):
+            rows = np.linspace(0.0, 1.0, rgb.shape[0], dtype=np.float32)[:, None]
+            top = np.asarray([34.0, 57.0, 78.0])
+            horizon = np.asarray([137.0, 156.0, 166.0])
+            gradient = top + (horizon - top) * rows[:, :, None]
+            sky_rgb = np.broadcast_to(gradient, graded.shape)
+            graded[sky] = sky_rgb[sky].astype(np.uint8)
+        return graded
 
     def reset(self):
         pybullet.resetSimulation(physicsClientId=self.client)

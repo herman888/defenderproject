@@ -42,6 +42,7 @@ Run:  python main.py
 """
 
 import argparse
+import json
 import math
 import os
 import random
@@ -55,6 +56,16 @@ import pybullet_data
 
 USE_VISPY   = False   # set to True by --no-vispy absence in main()
 USE_SITL    = False   # set to True by --sitl flag in main()
+ML_MODEL    = None
+ML_ABSOLUTE_ACTIONS = False
+USE_CAMERA_PERCEPTION = False
+CAMERA_MODEL = None
+ML_DEVICE = "auto"
+RENDER_BACKEND = "auto"
+INTEGRATED_C2 = True
+TELEMETRY_UDP = None
+HARDWARE_PROFILE = None
+MISSION_RECORD_DIR = os.path.join("missions", "runs")
 _SITL_ADDR  = "127.0.0.1"
 _SITL_PORT  = 14560
 # Setpoint send interval in physics steps (240 Hz ÷ 20 Hz = every 12 steps)
@@ -65,14 +76,21 @@ from sim.camera_debug_ui import CameraZoomDebugUi
 from sim.drone      import Drone, LoiteringMunition
 from sim.waypoints  import WaypointNavigator
 from sensors.radar  import RadarNode
+from sensors.camera import RenderedCameraSensor
+from sensors.fusion import TrackFusion
 from comms.datalink    import DataLink
 from comms.sitl_bridge import SITLBridge
 from guidance.intercept import PurePursuitGuidance
 from guidance.setpoint  import GuidanceSetpoint, enu_to_ned
 from config             import PAD_ALTITUDE_M, PAD_GROUND_Z_M, TAKEOFF_TOL_M
 from dome.killzone  import DomeKillZone
-from scenarios      import INTRUDER_TYPES, ATTACK_PATTERNS, PAD_OFFSETS, get_waypoints_for_path
+from scenarios      import (INTRUDER_TYPES, ATTACK_PATTERNS, PAD_OFFSETS,
+                            get_environment_for_pattern, get_site_config,
+                            get_waypoints_for_path)
 from viz.acmi_writer import ACMIWriter
+from integration.tactical_stream import TacticalUdpPublisher, UdpEndpoint
+from integration.mission_record import MissionRecorder
+from hardware.profile import load_hardware_profile
 
 # ── Global constants ──────────────────────────────────────────────────
 _TIMESTEP     = 1.0 / 240.0
@@ -101,7 +119,30 @@ _CAM_PRESETS = [
 # Dashboard subprocess entry point  (top-level for Windows spawn)
 # ======================================================================
 
-def _dashboard_worker(state_q: mp.Queue, ctrl_q: mp.Queue, dome_radius: float):
+def _coalesce_dashboard_messages(messages):
+    """Keep ordered lifecycle messages, newest telemetry, and every event."""
+    lifecycle = []
+    latest = None
+    events = []
+    for message in messages:
+        if isinstance(message, dict) and message.get("type"):
+            lifecycle.append(message)
+            continue
+        if isinstance(message, dict):
+            latest = message
+            events.extend(message.get("events", []) or [])
+    if latest is not None:
+        latest = dict(latest)
+        latest["events"] = events
+    return lifecycle, latest
+
+
+def _dashboard_worker(
+    state_q: mp.Queue,
+    ctrl_q: mp.Queue,
+    dome_radius: float,
+    capture_dir: str = None,
+):
     """
     Dashboard child process — Qt event loop driving a PyQtGraph Dashboard.
 
@@ -120,9 +161,39 @@ def _dashboard_worker(state_q: mp.Queue, ctrl_q: mp.Queue, dome_radius: float):
         print(f"[dashboard] init failed: {e}")
         return
 
-    # ── State drain: pull every available message, render the latest only ─
+    capture_thresholds = (3.0, 8.0, 13.0)
+    captured_thresholds = set()
+
+    def _capture_evidence(latest, threshold):
+        os.makedirs(capture_dir, exist_ok=True)
+        stem = f"dashboard_t{int(threshold):03d}"
+        dash.grab().save(os.path.join(capture_dir, f"{stem}.png"))
+        history = dash.altitude_history()
+        evidence = {
+            "capture_threshold_s": threshold,
+            "mission_time_s": float(latest.get("mission_time", 0.0)),
+            "status": latest.get("dome_status"),
+            "intruder_altitude_m": (
+                float(latest["intruder_pos"][2])
+                if latest.get("intruder_pos") else None
+            ),
+            "interceptor_altitude_m": (
+                float(latest["interceptor_pos"][2])
+                if latest.get("interceptor_pos") else None
+            ),
+            "predicted_intercept_enu_m": latest.get("predicted_intercept"),
+            "real_time_factor": float(latest.get("real_time_factor", 0.0)),
+            "render_backend": latest.get("render_backend"),
+            "intruder_altitude_history": history["intruder"],
+            "interceptor_altitude_history": history["interceptor"],
+            "event_log": dash._log_text.text(),
+        }
+        with open(os.path.join(capture_dir, f"{stem}.json"), "w", encoding="utf-8") as handle:
+            json.dump(evidence, handle, indent=2)
+
+    # ── State drain: preserve lifecycle and events; coalesce telemetry only ─
     def _drain_state():
-        latest = None
+        messages = []
         while True:
             try:
                 msg = state_q.get_nowait()
@@ -135,10 +206,25 @@ def _dashboard_worker(state_q: mp.Queue, ctrl_q: mp.Queue, dome_radius: float):
                     pass
                 app.quit()
                 return
-            latest = msg
+            messages.append(msg)
+        lifecycle, latest = _coalesce_dashboard_messages(messages)
+        for message in lifecycle:
+            try:
+                dash.update(message)
+            except Exception as exc:
+                print(f"[dashboard] lifecycle update failed: {exc}")
         if latest is not None:
             try:
                 dash.update(latest)
+                if capture_dir:
+                    sim_time = float(latest.get("mission_time", 0.0))
+                    for threshold in capture_thresholds:
+                        if (
+                            threshold not in captured_thresholds
+                            and sim_time >= threshold
+                        ):
+                            _capture_evidence(latest, threshold)
+                            captured_thresholds.add(threshold)
             except Exception as exc:
                 print(f"[dashboard] update failed: {exc}")
 
@@ -157,6 +243,9 @@ def _dashboard_worker(state_q: mp.Queue, ctrl_q: mp.Queue, dome_radius: float):
         if getattr(ctrl, "camera_zoom_pending", None):
             msg["camera_zoom"] = ctrl.camera_zoom_pending
             ctrl.camera_zoom_pending = None
+        if getattr(ctrl, "camera_view_pending", None):
+            msg["camera_view"] = ctrl.camera_view_pending
+            ctrl.camera_view_pending = None
         try:
             ctrl_q.put_nowait(msg)
         except Exception:
@@ -313,6 +402,7 @@ def _run_one_mission(
     """
     itype      = INTRUDER_TYPES[intruder_key]
     pattern    = ATTACK_PATTERNS[pattern_key]
+    environment = get_environment_for_pattern(pattern_key)
     pad_offset = PAD_OFFSETS.get(pad_key, PAD_OFFSETS["mid"])
     int_start  = (0.0, 0.0, PAD_GROUND_Z_M)
     # Pad position in LOCAL_NED for the placeholder FC's takeoff/loiter
@@ -333,8 +423,14 @@ def _run_one_mission(
         pass
 
     # ── PyBullet world ────────────────────────────────────────────────
-    world = PhysicsWorld(gui=not USE_VISPY)
-    if not USE_VISPY:
+    site_config = get_site_config()
+    pybullet_gui = not USE_VISPY and not INTEGRATED_C2
+    world = PhysicsWorld(
+        gui=pybullet_gui,
+        site_config=site_config,
+        render_backend=RENDER_BACKEND,
+    )
+    if pybullet_gui:
         world.draw_dome(_DOME_CENTER, _DOME_RADIUS, color=[0.0, 0.6, 0.1])
 
     # Publish intruder type immediately so renderer can build the right mesh
@@ -346,13 +442,35 @@ def _run_one_mission(
 
     # ACMI export — start at mission begin
     acmi = ACMIWriter()
-
-    print(
-        "\n  ▶▶  PyBullet 3-D sim is running — separate window (dome / grid / aircraft).\n"
-        "      If you do not see it: Mission Control, or Dock → Python / Bullet / OpenGL.\n"
-        "      Click that window for keyboard controls (Space, C, Q, …).\n",
-        flush=True,
+    mission_recorder = MissionRecorder(
+        MISSION_RECORD_DIR,
+        mission={
+            "intruder_type": intruder_key,
+            "pattern": pattern_key,
+            "pad": pad_key,
+            "initial_speed": initial_speed,
+            "site": site_config["name"],
+            "environment": pattern.get("environment", "clear"),
+        },
+        hardware_profile=HARDWARE_PROFILE.summary(),
     )
+    tactical_publisher = (
+        TacticalUdpPublisher.from_endpoint(TELEMETRY_UDP)
+        if TELEMETRY_UDP else None
+    )
+
+    if INTEGRATED_C2:
+        print(
+            "\n  ▶▶  Integrated command center active — physics and 3-D site view "
+            "are fused into the dashboard.\n",
+            flush=True,
+        )
+    else:
+        print(
+            "\n  ▶▶  PyBullet 3-D sim is running — separate window.\n"
+            "      Click that window for keyboard controls (Space, C, Q, …).\n",
+            flush=True,
+        )
     if sys.platform == "darwin":
         try:
             import subprocess as _sp
@@ -372,7 +490,7 @@ def _run_one_mission(
             pass
 
     radar_body, spin_joint = _load_radar_station(_DOME_RADIUS, world.client)
-    if not USE_VISPY and spin_joint >= 0:
+    if pybullet_gui and spin_joint >= 0:
         pybullet.setJointMotorControl2(
             radar_body, spin_joint,
             pybullet.VELOCITY_CONTROL,
@@ -382,7 +500,7 @@ def _run_one_mission(
 
     # Multi-line HUD above the dome (PyBullet GUI only)
     _hud_ids = {}
-    if not USE_VISPY:
+    if pybullet_gui:
         _hud_ids['status'] = pybullet.addUserDebugText(
             "● STATUS: CLEAR",
             [0, 0, 215],
@@ -419,13 +537,13 @@ def _run_one_mission(
         max_h_force=320.0, max_v_force=320.0, max_speed=70.0,
         kp=6.5, kd=4.2,
         urdf=_int_urdf if os.path.isfile(_int_urdf) else None,
-        global_scaling=10.0,   # visible at 200 m dome scale
+        global_scaling=1.8,
     )
 
     for _ in range(50):
         world.step()
 
-    if not USE_VISPY:
+    if pybullet_gui:
         try:
             sx, sy, sz = i_start
             pybullet.resetDebugVisualizerCamera(
@@ -438,20 +556,46 @@ def _run_one_mission(
         except Exception:
             pass
 
-    cam_zoom_ui = CameraZoomDebugUi(world.client) if not USE_VISPY else None
+    cam_zoom_ui = CameraZoomDebugUi(world.client) if pybullet_gui else None
 
     waypoints = get_waypoints_for_path(pattern["path"])
     nav     = WaypointNavigator(waypoints=waypoints)
     radar   = RadarNode(
         station_pos      = (0.0, 0.0, 10.0),   # dome centre — matches 3-D GLB model
         protected_center = _DOME_CENTER,
-        max_range        = 1500.0,
-        elev_max_deg     = 75.0,
+        max_range        = environment["radar_max_range_m"],
+        elev_max_deg     = environment["radar_elevation_max_deg"],
         min_vel          = 0.8,
-        noise_std        = 0.5,
+        noise_std        = environment["radar_noise_std_m"],
     )
+    fusion = TrackFusion()
+    camera_sensor = None
+    if USE_CAMERA_PERCEPTION:
+        camera_sensor = RenderedCameraSensor(
+            world.client,
+            position=(0.0, 0.0, 12.0),
+            max_range_m=min(1200.0, environment["visibility_m"]),
+            position_noise_std_m=max(0.5, environment["radar_noise_std_m"]),
+            model_path=CAMERA_MODEL,
+            model_device=(0 if ML_DEVICE == "cuda" else None),
+            renderer=world.camera_renderer,
+        )
+        mode = f"YOLO ({CAMERA_MODEL})" if CAMERA_MODEL else "segmentation reference"
+        print(f"[EO] Rendered RGB/depth perception enabled: {mode}")
     broadcaster = DataLink(role="broadcast", port=14550)
     guidance    = PurePursuitGuidance()
+    live_policy = None
+    if ML_MODEL:
+        from ml.policy import LivePolicy
+        live_policy = LivePolicy(
+            ML_MODEL,
+            residual_apn=not ML_ABSOLUTE_ACTIONS,
+            device=ML_DEVICE,
+        )
+        print(
+            f"[ML] Loaded interceptor policy: {ML_MODEL} "
+            f"(device={live_policy.device})"
+        )
 
     # ── Stage B: SITL bridge (optional) ──────────────────────────────
     sitl_bridge = None
@@ -470,11 +614,14 @@ def _run_one_mission(
     camera_mode          = 0   # 0=free-roam  1=track intruder  2=track interceptor  3=top-down
     show_trail           = True
     interceptor_engaged = False
-    interceptor_target   = None
+    predicted_intercept  = None
     closest_approach     = float("inf")
     pending_events       = []
     mission_result       = None
     _last_dome_status    = "CLEAR"
+    fusion_confirmed     = False
+    radar_acquired       = False
+    radar_locked         = False
     detected_at_step     = None
     first_detect_range   = 0.0
     breach_sim_time      = None
@@ -493,11 +640,23 @@ def _run_one_mission(
     prev_sep       = float("inf")
 
     # Wind state
-    wind_force = [0.0, 0.0, 0.0]
+    wind_mean = environment["wind_mean_mps"]
+    wind_gust = float(environment["wind_gust_mps"])
+    wind_force = list(wind_mean)
     wind_timer = 0
+    camera_return = {"detected": False, "source": "camera"}
+    camera_cue = i_start
+    fused_track = None
+    tactical_frame = None
+    tactical_overlay = {}
 
     # Dashboard control cache
-    dash_ctrl = {"paused": False, "stopped": False, "speed": 1}
+    dash_ctrl = {
+        "paused": False,
+        "stopped": False,
+        "speed": 1,
+        "camera_view": "overview",
+    }
 
     # Wall-clock throttle for dashboard state pushes (decoupled from physics tick rate).
     # At sim_speed >= 4x the inner-loop step counter advances multiple ticks per outer
@@ -509,7 +668,10 @@ def _run_one_mission(
     _dash_push_count   = 0
     _dash_push_window  = time.perf_counter()
 
-    print("SIMULATION STARTED — press H in the PyBullet window for keyboard help\n")
+    if INTEGRATED_C2:
+        print("SIMULATION STARTED — use the command-center controls to manage the mission\n")
+    else:
+        print("SIMULATION STARTED — press H in the PyBullet window for keyboard help\n")
 
     # ================================================================
     # Physics loop
@@ -521,14 +683,14 @@ def _run_one_mission(
             try:
                 msg = ctrl_q.get_nowait()
                 dash_ctrl.update(msg)
-                if not USE_VISPY:
+                if pybullet_gui:
                     z = msg.get("camera_zoom")
                     if z in ("in", "out"):
                         _apply_pybullet_zoom(world.client, z)
             except Exception:
                 break
 
-        if not USE_VISPY:
+        if pybullet_gui:
             try:
                 zpb = cam_zoom_ui.poll()
                 if zpb in ("in", "out"):
@@ -537,7 +699,7 @@ def _run_one_mission(
                 pass
 
         # ── Window alive check (GUI mode only) ──────────────────────
-        if not USE_VISPY and step % 120 == 0:
+        if pybullet_gui and step % 120 == 0:
             try:
                 pybullet.getConnectionInfo(world.client)
             except Exception:
@@ -565,7 +727,7 @@ def _run_one_mission(
                 sim_speed = shared_state.get("sim_speed", sim_speed)
 
         # ── PyBullet keyboard events (GUI mode only) ──────────────────
-        if not USE_VISPY:
+        if pybullet_gui:
             try:
                 keys = pybullet.getKeyboardEvents(physicsClientId=world.client)
             except Exception:
@@ -621,11 +783,11 @@ def _run_one_mission(
         slow_sleep   = max(0.0, _TIMESTEP * (1.0 / sim_speed - 1.0)) if sim_speed < 1 else 0.0
 
         # Wind update every ~2 sim seconds
-        if pattern.get("wind") and (step % 480 == 0):
+        if (wind_gust > 0.0 or any(wind_mean)) and (step % 480 == 0):
             wind_force = [
-                random.uniform(-0.5, 0.5),
-                random.uniform(-0.5, 0.5),
-                0.0,
+                wind_mean[0] + random.uniform(-wind_gust, wind_gust),
+                wind_mean[1] + random.uniform(-wind_gust, wind_gust),
+                wind_mean[2],
             ]
 
         # Initialise per-outer-loop state (overwritten each inner step below)
@@ -641,7 +803,7 @@ def _run_one_mission(
             intruder.update()
 
             # Wind disturbance on intruder
-            if pattern.get("wind") and any(wind_force):
+            if any(wind_force):
                 try:
                     pybullet.applyExternalForce(
                         intruder._body, -1, wind_force, list(intruder.get_position()),
@@ -653,8 +815,35 @@ def _run_one_mission(
             # Radar scan — every physics step keeps detection rate correct
             i_pos        = intruder.get_position()
             radar_return = radar.scan(i_pos, target_rcs=target_rcs)
-            guidance_track = (radar_return if radar_return.get("detected")
-                              else radar.get_last_track())
+            if radar_return.get("detected") and not radar_acquired:
+                radar_acquired = True
+                pending_events.append("Radar track acquired")
+            if radar_return.get("locked") and not radar_locked:
+                radar_locked = True
+                pending_events.append("Radar track locked")
+            if camera_sensor and step % 12 == 0:
+                radar_cue = radar.get_last_track()
+                if radar_cue:
+                    camera_cue = radar_cue["position_estimate"]
+                elif camera_return.get("detected"):
+                    camera_cue = camera_return["position_estimate"]
+                camera_return = camera_sensor.observe(
+                    intruder.body_id, camera_cue, step * _TIMESTEP
+                )
+            fused_track = fusion.update(
+                radar_return,
+                camera_return,
+                radar.track_confidence(),
+                step * _TIMESTEP,
+            )
+            guidance_track = fused_track or radar.get_last_track()
+            if (
+                fused_track
+                and fused_track.get("source") == "RADAR+EO"
+                and not fusion_confirmed
+            ):
+                fusion_confirmed = True
+                pending_events.append("Radar/EO fusion confirmed")
 
             # Build interceptor setpoint:
             #   engaged       → guidance setpoint (vel+accel mid-course, accel terminal)
@@ -662,8 +851,17 @@ def _run_one_mission(
             #                   coasts toward it instead of stalling
             #   pre-engaged   → position-hold at pad altitude (placeholder FC takeoff)
             if interceptor_engaged and guidance_track:
-                g_setpoint = guidance.compute_guidance(
-                    interceptor.get_state(), guidance_track)
+                if live_policy:
+                    g_setpoint = live_policy.compute_setpoint(
+                        interceptor.get_state(),
+                        guidance_track,
+                        radar.track_confidence(),
+                        wind_force,
+                        min(1.0, sim_time / _MAX_SIM_TIME),
+                    )
+                else:
+                    g_setpoint = guidance.compute_guidance(
+                        interceptor.get_state(), guidance_track)
                 if g_setpoint.is_empty and guidance_track.get("position_estimate"):
                     g_setpoint = GuidanceSetpoint(
                         frame    = "LOCAL_NED",
@@ -708,6 +906,23 @@ def _run_one_mission(
         # ── Refresh positions after inner loop ────────────────────────
         i_pos   = intruder.get_position()
         int_pos = interceptor.get_position() if interceptor_engaged else None
+        if INTEGRATED_C2 and step % 24 == 0:
+            tactical_capture = world.capture_tactical_view(
+                intruder_position=i_pos,
+                interceptor_position=int_pos,
+                intruder_velocity=intruder.get_velocity(),
+                interceptor_velocity=(
+                    interceptor.get_velocity() if interceptor_engaged else None
+                ),
+                predicted_intercept=predicted_intercept,
+                view_mode=dash_ctrl.get("camera_view", "overview"),
+                include_metadata=True,
+            )
+            tactical_frame = tactical_capture["frame"]
+            tactical_overlay = {
+                "view_mode": tactical_capture["view_mode"],
+                "screen_points": tactical_capture["screen_points"],
+            }
 
         # ── Dome status ───────────────────────────────────────────────
         dome.update_status(
@@ -728,15 +943,18 @@ def _run_one_mission(
             # ACMI events on status transitions
             if status == "TRACKING" and _last_dome_status == "CLEAR":
                 acmi.write_event(sim_time, "RADAR_LOCK")
+                pending_events.append("Threat entered engagement zone")
             elif status == "BREACH":
                 acmi.write_event(sim_time, "DOME_BREACH")
+                pending_events.append("Protected zone breached")
                 if breach_sim_time is None:
                     breach_sim_time = sim_time
             elif status == "INTERCEPTED":
                 acmi.write_event(sim_time, "INTERCEPT")
+                pending_events.append("Intercept confirmed")
                 if intercept_sim_time is None:
                     intercept_sim_time = sim_time
-            if not USE_VISPY:
+            if pybullet_gui:
                 try:
                     world.draw_dome(
                         _DOME_CENTER, _DOME_RADIUS,
@@ -789,7 +1007,7 @@ def _run_one_mission(
         # ── Terminal conditions ───────────────────────────────────────
         if status == "INTERCEPTED":
             if not flash_shown:
-                if not USE_VISPY:
+                if pybullet_gui:
                     try:
                         pybullet.addUserDebugText(
                             "★ INTERCEPT! ★", list(i_pos),
@@ -810,11 +1028,11 @@ def _run_one_mission(
             break
 
         # Camera: free-roam when mode==0, auto-follow when mode 1/2/3 (GUI only)
-        if not USE_VISPY and camera_mode != 0 and step % 12 == 0:
+        if pybullet_gui and camera_mode != 0 and step % 12 == 0:
             _update_camera(world.client, camera_mode, i_pos, int_pos)
 
         # ── 3-D trail update (PyBullet GUI mode only) ─────────────────
-        if not USE_VISPY and show_trail and step % 5 == 0:
+        if pybullet_gui and show_trail and step % 5 == 0:
             i_last_pos = _update_trail(
                 i_pos, i_last_pos, i_trail_ids, 30,
                 [0.9, 0.12, 0.08], world.client,
@@ -826,7 +1044,7 @@ def _run_one_mission(
                 )
 
         # ── Intercept-vector line (PyBullet GUI mode only) ────────────
-        if not USE_VISPY and interceptor_engaged and interceptor_target and step % 12 == 0:
+        if pybullet_gui and interceptor_engaged and predicted_intercept and step % 12 == 0:
             int_pos_now = interceptor.get_position()
             if icept_vec_id is not None:
                 try:
@@ -835,15 +1053,21 @@ def _run_one_mission(
                     pass
             try:
                 icept_vec_id = pybullet.addUserDebugLine(
-                    list(int_pos_now), list(interceptor_target),
+                    list(int_pos_now), list(predicted_intercept),
                     [1.0, 0.80, 0.0], lineWidth=1.5,
                     physicsClientId=world.client,
                 )
             except Exception:
                 pass
 
-        if guidance_track:
-            interceptor_target = guidance_track.get("position_estimate")
+        predicted_intercept = (
+            guidance.predicted_intercept_point(
+                interceptor.get_state(),
+                guidance_track,
+            )
+            if interceptor_engaged and guidance_track
+            else None
+        )
 
         # ── HUD / shared_state update (every 8 steps ≈ 30 Hz) ────────
         if step % 8 == 0:
@@ -865,7 +1089,7 @@ def _run_one_mission(
                         "interceptor_pos":        list(int_pos) if int_pos else None,
                         "interceptor_orientation": list(_int_state["orientation"])
                                                    if _int_state else None,
-                        "predicted_intercept":    interceptor_target,
+                        "predicted_intercept":    predicted_intercept,
                         "intruder_speed":         _i_spd,
                         "interceptor_speed":      _int_spd,
                         "tti":                    tti_val,
@@ -873,10 +1097,12 @@ def _run_one_mission(
                         "sim_speed":              sim_speed,
                         "paused":                 paused or dash_ctrl.get("paused", False),
                         "radar_return":           radar_return,
+                        "camera_return":          camera_return,
+                        "fused_track":            fused_track,
                     })
 
             # PyBullet HUD text (GUI mode only)
-            if not USE_VISPY:
+            if pybullet_gui:
                 _sc = {
                     "CLEAR"      : [0.0, 1.0, 0.4],
                     "TRACKING"   : [1.0, 0.8, 0.0],
@@ -940,6 +1166,52 @@ def _run_one_mission(
                 )
             except Exception:
                 pass
+            if tactical_publisher is not None:
+                try:
+                    tactical_publisher.publish({
+                        "mission_time_s": float(sim_time),
+                        "status": status,
+                        "site": site_config["name"],
+                        "guidance": (
+                            "residual_ai_apn" if live_policy else
+                            "ardupilot_sitl" if sitl_bridge else
+                            "apn"
+                        ),
+                        "tracks": {
+                            "intruder": {
+                                "id": "TRK-001",
+                                "type": intruder_key,
+                                "position_enu_m": list(map(float, i_pos)),
+                                "velocity_enu_mps": list(map(float, intruder.get_velocity())),
+                            },
+                            "interceptor": (
+                                {
+                                    "id": "INT-01",
+                                    "position_enu_m": list(map(float, int_pos)),
+                                    "velocity_enu_mps": list(
+                                        map(float, interceptor.get_velocity())
+                                    ),
+                                }
+                                if int_pos is not None else None
+                            ),
+                        },
+                        "predicted_intercept_enu_m": (
+                            list(map(float, predicted_intercept))
+                            if predicted_intercept is not None else None
+                        ),
+                        "sensors": {
+                            "radar_locked": bool(radar_return.get("detected")),
+                            "eo_locked": bool(camera_return.get("detected")),
+                            "fusion_source": (
+                                fused_track.get("source")
+                                if fused_track else "SEARCHING"
+                            ),
+                        },
+                    })
+                except OSError as exc:
+                    print(f"[telemetry] UDP stream disabled after send error: {exc}")
+                    tactical_publisher.close()
+                    tactical_publisher = None
 
         # ── Dashboard state push (wall-clock 60 Hz) ──────────────────
         i_v   = intruder.get_velocity()
@@ -951,27 +1223,61 @@ def _run_one_mission(
         _now = time.perf_counter()
         if _now - _last_dash_push >= _DASH_PUSH_PERIOD:
             _last_dash_push = _now
-            try:
-                state_q.put_nowait({
+            dashboard_state = {
                     "dome_status"        : status,
                     "intruder_pos"       : i_pos,
                     "interceptor_pos"    : int_pos,
                     "radar_return"       : radar_return,
+                    "camera_return"      : camera_return,
+                    "fused_track"        : fused_track,
+                    "camera_frame"       : tactical_frame,
+                    "tactical_overlay"   : tactical_overlay,
+                    "intruder_key"       : intruder_key,
+                    "pattern_key"        : pattern_key,
+                    "environment_name"   : pattern.get("environment", "clear"),
+                    "visibility_m"       : environment["visibility_m"],
+                    "wind_mps"           : tuple(wind_force),
+                    "site_name"          : site_config["name"],
+                    "guidance_mode"      : (
+                        "RESIDUAL AI + APN" if live_policy else
+                        "ARDUPILOT SITL" if sitl_bridge else
+                        "APN AUTONOMY"
+                    ),
                     "radar_station"      : radar.station_pos.tolist(),
-                    "predicted_intercept": interceptor_target,
+                    "predicted_intercept": predicted_intercept,
                     "intruder_speed"     : math.sqrt(sum(v**2 for v in i_v)),
                     "interceptor_speed"  : math.sqrt(sum(v**2 for v in int_v)),
+                    "intruder_velocity"  : tuple(i_v),
+                    "interceptor_velocity": tuple(int_v),
                     "tti"                : tti,
                     "track_confidence"   : radar.track_confidence(),
                     "last_detection_time": radar.last_detection_time,
                     "events"             : pending_events,
                     "mission_time"       : sim_time,
                     "sim_speed"          : sim_speed,
-                })
-                pending_events = []
-                _dash_push_count += 1
+                    "real_time_factor"   : sim_time / max(
+                        time.time() - sim_start,
+                        1e-6,
+                    ),
+                    "render_backend"     : f"{world.render_backend} + OSM",
+                    "compute_backend"    : (
+                        f"PYTORCH {live_policy.device.upper()}"
+                        if live_policy else "CLASSICAL APN / CPU"
+                    ),
+                    "hardware_profile"   : HARDWARE_PROFILE.label,
+                    "hardware_mode"      : HARDWARE_PROFILE.mode.upper(),
+                    "mission_run_id"     : mission_recorder.run_id,
+                }
+            mission_recorder.record_snapshot(dashboard_state)
+            pending_events = []
+            try:
+                state_q.put_nowait(dashboard_state)
             except Exception:
                 pass
+            else:
+                tactical_frame = None
+                tactical_overlay = {}
+                _dash_push_count += 1
 
             # 5-second rolling rate report
             if _now - _dash_push_window >= 5.0:
@@ -991,11 +1297,13 @@ def _run_one_mission(
         pass
     broadcaster.close()
     acmi.close()
+    if tactical_publisher is not None:
+        tactical_publisher.close()
     if sitl_bridge is not None:
         sitl_bridge.close()
 
     total_sim = step * _TIMESTEP
-    return {
+    result = {
         "result"             : mission_result,
         "intruder_key"       : intruder_key,
         "pattern_key"        : pattern_key,
@@ -1008,7 +1316,14 @@ def _run_one_mission(
         "max_penetration"    : dome.max_penetration_depth(),
         "sim_start"          : sim_start,
         "acmi_file"          : acmi.filename,
+        "mission_run_id"     : mission_recorder.run_id,
+        "mission_manifest"   : mission_recorder.manifest_path,
     }
+    mission_recorder.finalize(
+        result,
+        artifacts={"acmi": acmi.filepath},
+    )
+    return result
 
 
 # ======================================================================
@@ -1052,6 +1367,12 @@ def _print_debrief(result: str, stats: dict):
 # ======================================================================
 
 def _print_controls():
+    if INTEGRATED_C2:
+        print(
+            "\nANTI-DRONE DOME V3 — integrated command center\n"
+            "Mission selection, playback, camera, reset, and abort controls are in one window.\n"
+        )
+        return
     print("""
 ╔══════════════════════════════════════════════════════════╗
 ║         ANTI-DRONE DOME  V3  —  KEYBOARD CONTROLS       ║
@@ -1093,12 +1414,16 @@ def _wait_for_mission(state_q: mp.Queue, ctrl_q: mp.Queue, dash_proc) -> tuple:
     except Exception:
         pass
 
-    print(
-        "\n[SIM] Dashboard is ready — the 3-D PyBullet window does NOT open yet.\n"
-        "      In the dashboard window: choose intruder / pattern / pad / speed,\n"
-        "      then click  ▶ START  .  After that, check the Dock / left screen\n"
-        "      for the Bullet / OpenGL window (it may open behind this IDE).\n"
-    )
+    if INTEGRATED_C2:
+        print(
+            "\n[SIM] Command center ready — choose a threat, route, launch pad, and speed,\n"
+            "      then select START. The live 3-D site view stays embedded in this window.\n"
+        )
+    else:
+        print(
+            "\n[SIM] Dashboard is ready — choose a mission and select START.\n"
+            "      The separate 3-D renderer may open behind this window.\n"
+        )
 
     while True:
         if not dash_proc.is_alive():
@@ -1210,7 +1535,10 @@ def _mission_loop(state_q, ctrl_q, dash_proc, shared_state=None, state_lock=None
 
 
 def main():
-    global USE_VISPY, USE_SITL, _SITL_ADDR, _SITL_PORT
+    global USE_VISPY, USE_SITL, ML_MODEL, ML_ABSOLUTE_ACTIONS
+    global USE_CAMERA_PERCEPTION, CAMERA_MODEL, ML_DEVICE, RENDER_BACKEND
+    global INTEGRATED_C2, TELEMETRY_UDP, _SITL_ADDR, _SITL_PORT
+    global HARDWARE_PROFILE, MISSION_RECORD_DIR
     mp.freeze_support()
     try:
         sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
@@ -1223,26 +1551,123 @@ def main():
                         help="Use PyBullet GUI renderer instead of VisPy")
     parser.add_argument("--sitl", action="store_true",
                         help="Connect interceptor to ArduCopter SITL via MAVLink")
+    parser.add_argument(
+        "--allow-sitl-arm",
+        action="store_true",
+        help="Explicitly acknowledge that ArduPilot SITL may arm and take off",
+    )
     parser.add_argument("--sitl-addr", default="127.0.0.1",
                         help="SITL UDP address (default: 127.0.0.1)")
     parser.add_argument("--sitl-port", type=int, default=14560,
                         help="SITL UDP port (default: 14560)")
+    parser.add_argument("--ml-model",
+                        help="Stable-Baselines3 PPO policy path for interceptor guidance")
+    parser.add_argument("--ml-absolute-actions", action="store_true",
+                        help="Interpret ML actions as absolute commands instead of APN residuals")
+    parser.add_argument("--camera-perception", action="store_true",
+                        help="Fuse rendered RGB/depth camera detections with radar tracks")
+    parser.add_argument("--camera-model",
+                        help="YOLO weights for rendered camera detections")
+    parser.add_argument(
+        "--ml-device",
+        choices=("auto", "cpu", "cuda"),
+        default="auto",
+        help="PyTorch inference device for PPO/YOLO",
+    )
+    parser.add_argument(
+        "--render-backend",
+        choices=("auto", "opengl", "tiny"),
+        default="auto",
+        help="Tactical camera renderer; auto prefers OpenGL",
+    )
+    parser.add_argument("--legacy-windows", action="store_true",
+                        help="Use separate 3-D and dashboard windows")
+    parser.add_argument("--auto-start", action="store_true",
+                        help="Immediately launch the default critical-site mission")
+    parser.add_argument(
+        "--capture-ui-dir",
+        help="Save live dashboard screenshots and state at T+3, T+8, and T+13",
+    )
+    parser.add_argument(
+        "--telemetry-udp",
+        metavar="HOST:PORT",
+        help="Stream versioned tactical state to an external renderer",
+    )
+    parser.add_argument(
+        "--hardware-profile",
+        default="hardware_profiles/reference_sil.json",
+        help="Validated hardware/SIL profile JSON",
+    )
+    parser.add_argument(
+        "--mission-record-dir",
+        default=os.path.join("missions", "runs"),
+        help="Directory for versioned mission manifests and JSONL telemetry",
+    )
     args = parser.parse_args()
-    USE_VISPY  = not args.no_vispy
+    if args.telemetry_udp:
+        try:
+            UdpEndpoint.parse(args.telemetry_udp)
+        except (ValueError, TypeError) as exc:
+            parser.error(str(exc))
+    if args.sitl and args.ml_model:
+        parser.error("--sitl and --ml-model are mutually exclusive guidance sources")
+    if args.sitl and not args.allow_sitl_arm:
+        parser.error("--sitl requires explicit --allow-sitl-arm acknowledgement")
+    try:
+        HARDWARE_PROFILE = load_hardware_profile(args.hardware_profile)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        parser.error(f"invalid hardware profile: {exc}")
+    if args.sitl and (
+        HARDWARE_PROFILE.mode != "sitl"
+        or HARDWARE_PROFILE.protocol != "mavlink"
+    ):
+        parser.error(
+            "--sitl requires a SITL profile using the MAVLink protocol"
+        )
+    INTEGRATED_C2 = not args.legacy_windows
+    USE_VISPY  = not args.no_vispy and args.legacy_windows
     USE_SITL   = args.sitl
     _SITL_ADDR = args.sitl_addr
     _SITL_PORT = args.sitl_port
+    ML_MODEL    = args.ml_model
+    ML_ABSOLUTE_ACTIONS = args.ml_absolute_actions
+    CAMERA_MODEL = args.camera_model
+    ML_DEVICE = args.ml_device
+    RENDER_BACKEND = args.render_backend
+    if ML_DEVICE == "cuda":
+        try:
+            import torch
+        except ImportError:
+            parser.error("--ml-device cuda requires PyTorch")
+        if not torch.cuda.is_available():
+            parser.error(
+                "--ml-device cuda requested, but this PyTorch build has no CUDA"
+            )
+    TELEMETRY_UDP = args.telemetry_udp
+    MISSION_RECORD_DIR = args.mission_record_dir
+    USE_CAMERA_PERCEPTION = (
+        INTEGRATED_C2 or args.camera_perception or bool(args.camera_model)
+    )
 
     state_q = mp.Queue(maxsize=2)
     ctrl_q  = mp.Queue(maxsize=20)
 
     dash_proc = mp.Process(
         target=_dashboard_worker,
-        args=(state_q, ctrl_q, _DOME_RADIUS),
+        args=(state_q, ctrl_q, _DOME_RADIUS, args.capture_ui_dir),
         daemon=True,
         name="dashboard",
     )
     dash_proc.start()
+    if args.auto_start:
+        ctrl_q.put({
+            "selected_mission": "shahed136",
+            "selected_pattern": "direct",
+            "selected_pad": "mid",
+            "initial_speed": 1.0,
+            "paused": False,
+            "stopped": False,
+        })
 
     try:
         if USE_VISPY:

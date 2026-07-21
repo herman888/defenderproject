@@ -183,6 +183,10 @@ class Drone:
     def set_target(self, x: float, y: float, z: float):
         self._target = [x, y, z]
 
+    @property
+    def body_id(self) -> int:
+        return self._body
+
     def update(self):
         pos, _ = pybullet.getBasePositionAndOrientation(self._body, physicsClientId=self._client)
         vel, _ = pybullet.getBaseVelocity(self._body, physicsClientId=self._client)
@@ -537,6 +541,10 @@ class LoiteringMunition:
     # ------------------------------------------------------------------
     def set_target(self, x: float, y: float, z: float):
         self._target = [x, y, z]
+
+    @property
+    def body_id(self) -> int:
+        return self._body
 
     def update(self):
         pos, _ = pybullet.getBasePositionAndOrientation(

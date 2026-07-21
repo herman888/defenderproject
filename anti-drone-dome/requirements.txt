@@ -4,6 +4,10 @@ matplotlib
 pymavlink
 pyqtgraph>=0.13
 PyQt6>=6.4
+gymnasium>=1.0
+stable-baselines3>=2.4
+tensorboard>=2.18
+rich>=13.0
 
 # InnoMaker USB camera + YOLO threat detection (run_camera_detect.sh)
 opencv-python

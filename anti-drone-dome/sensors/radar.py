@@ -153,6 +153,14 @@ class RadarNode:
             "acceleration"      : self._tracker.acc,
         }
 
+    def _link_margin_db(self, range_m: float, target_rcs: float) -> float:
+        """Relative radar link margin: 0 dB at max range for reference RCS."""
+        rcs_term = 10.0 * math.log10(max(target_rcs, 1e-4) / 0.05)
+        range_term = 40.0 * math.log10(
+            self.max_range / max(float(range_m), 1.0)
+        )
+        return rcs_term + range_term
+
     # ------------------------------------------------------------------
     def scan(self, true_pos: tuple, target_rcs: float = 0.05) -> dict:
         """
@@ -197,14 +205,15 @@ class RadarNode:
             self._track_history.append(self._tracker.pos)
             if len(self._track_history) > 200:
                 self._track_history.pop(0)
-            snr = 30.0 - 40.0 * math.log10(max(rng, 1.0) / 5.0)
+            link_margin = self._link_margin_db(rng, target_rcs)
             return {
                 "detected"          : True,
                 "seq"               : self._seq,
                 "range"             : rng,
                 "bearing_deg"       : bearing_deg,
                 "elevation_deg"     : math.degrees(elev),
-                "snr"               : float(snr),
+                "snr"               : float(link_margin),
+                "link_margin_db"    : float(link_margin),
                 "locked"            : True,
                 "position_estimate" : self._tracker.pos,
                 "velocity"          : self._tracker.vel,
@@ -259,7 +268,7 @@ class RadarNode:
             self._locked = True
             print("RADAR: Track LOCKED")
 
-        snr = 30.0 - 40.0 * math.log10(max(rng, 1.0) / 5.0)
+        link_margin = self._link_margin_db(rng, target_rcs)
 
         return {
             "detected"          : True,
@@ -267,7 +276,8 @@ class RadarNode:
             "range"             : rng,
             "bearing_deg"       : bearing_deg,
             "elevation_deg"     : math.degrees(elev),
-            "snr"               : float(snr),
+            "snr"               : float(link_margin),
+            "link_margin_db"    : float(link_margin),
             "position_estimate" : self._tracker.pos,
             "velocity"          : self._tracker.vel,
             "acceleration"      : self._tracker.acc,

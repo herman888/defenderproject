@@ -1,0 +1,328 @@
+{
+  "schema": "aegis.validation-report.v1",
+  "created_at_utc": "2026-07-21T14:53:33.868556+00:00",
+  "profile": {
+    "profile_id": "reference-sil-v1",
+    "label": "Reference software-in-loop",
+    "mode": "sil",
+    "autopilot_protocol": "internal",
+    "actuation_enabled": false,
+    "vehicle": {
+      "name": "C-UAS reference interceptor",
+      "mass_kg": 1.5,
+      "max_speed_mps": 70.0,
+      "max_accel_mps2": 166.77,
+      "battery_capacity_wh": 105.0
+    },
+    "sensors": [
+      {
+        "name": "sim-radar",
+        "protocol": "internal",
+        "calibration_required": false
+      },
+      {
+        "name": "sim-eo",
+        "protocol": "internal",
+        "calibration_required": false
+      }
+    ],
+    "validation_gates": {
+      "minimum_intercept_rate": 0.95,
+      "maximum_duration_p95_s": 30.0,
+      "maximum_energy_p95": 6.0,
+      "maximum_action_saturation_fraction": 0.25,
+      "maximum_trajectory_rmse_m": 5.0,
+      "maximum_timing_offset_s": 0.1
+    }
+  },
+  "evaluation": {
+    "episodes": 12,
+    "seed_start": 100,
+    "controller": "APN",
+    "procedural_curriculum_level": 1.0
+  },
+  "sil": {
+    "summary": {
+      "controller": "apn",
+      "episodes": 12,
+      "intercepts": 12,
+      "intercept_rate": 1.0,
+      "intercept_rate_wilson_95": [
+        0.7575059933447592,
+        1.0
+      ],
+      "mean_minimum_separation_m": 15.93105936050415,
+      "mean_duration_s": 11.833333333333334,
+      "duration_s_p95": 18.1125,
+      "mean_energy_used": 2.8209795562082824,
+      "energy_used_p95": 4.137076170326223,
+      "mean_controller_action_norm": 0.21041331059761817,
+      "mean_action_saturation_fraction": 0.0690566492792944,
+      "mean_applied_acceleration_mps2": 14.39767936700166,
+      "mean_reward": 202.7014437317392
+    },
+    "episodes": [
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 100,
+        "intercepted": true,
+        "duration_s": 7.95,
+        "minimum_separation_m": 13.625612258911133,
+        "energy_used": 2.2635744548889374,
+        "battery_remaining": 0.9784421480486765,
+        "reward": 179.18714310564366,
+        "scenario_id": "pop_up-shahed136-b035-r0874",
+        "sensor_latency_s": 0.34351764321954326,
+        "mean_controller_action_norm": 0.27453279682675247,
+        "action_saturation_fraction": 0.0880503144654088,
+        "mean_applied_acceleration_mps2": 18.058642748766726
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 101,
+        "intercepted": true,
+        "duration_s": 16.0,
+        "minimum_separation_m": 17.516361236572266,
+        "energy_used": 3.32419167164302,
+        "battery_remaining": 0.9683410316986355,
+        "reward": 289.8880603252629,
+        "scenario_id": "crossing-shahed136-b309-r1311",
+        "sensor_latency_s": 0.28192355377484274,
+        "mean_controller_action_norm": 0.11770198023659759,
+        "action_saturation_fraction": 0.034375,
+        "mean_applied_acceleration_mps2": 7.371516985120252
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 102,
+        "intercepted": true,
+        "duration_s": 18.8,
+        "minimum_separation_m": 15.773276329040527,
+        "energy_used": 4.193861384601916,
+        "battery_remaining": 0.9600584630037908,
+        "reward": 240.76239566448857,
+        "scenario_id": "nap_earth-consumer_quad-b031-r1345",
+        "sensor_latency_s": 0.038253691153767616,
+        "mean_controller_action_norm": 0.1489109962883262,
+        "action_saturation_fraction": 0.05851063829787234,
+        "mean_applied_acceleration_mps2": 7.7852505440526505
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 103,
+        "intercepted": true,
+        "duration_s": 10.0,
+        "minimum_separation_m": 17.668813705444336,
+        "energy_used": 2.3204754132891194,
+        "battery_remaining": 0.9779002341591503,
+        "reward": 173.87029391325197,
+        "scenario_id": "spiral-consumer_quad-b261-r0780",
+        "sensor_latency_s": 0.16849231130975048,
+        "mean_controller_action_norm": 0.16718883555033245,
+        "action_saturation_fraction": 0.055,
+        "mean_applied_acceleration_mps2": 12.476548545584082
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 104,
+        "intercepted": true,
+        "duration_s": 4.3,
+        "minimum_separation_m": 15.26407527923584,
+        "energy_used": 1.7063149824361836,
+        "battery_remaining": 0.9837493811196554,
+        "reward": 137.72630451551305,
+        "scenario_id": "pop_up-shahed136-b069-r0810",
+        "sensor_latency_s": 0.0231989310308821,
+        "mean_controller_action_norm": 0.50294157931971,
+        "action_saturation_fraction": 0.16279069767441862,
+        "mean_applied_acceleration_mps2": 33.20822787839313
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 105,
+        "intercepted": true,
+        "duration_s": 7.550000000000001,
+        "minimum_separation_m": 13.681314468383789,
+        "energy_used": 1.786819374003068,
+        "battery_remaining": 0.9829826726285414,
+        "reward": 163.54073971298706,
+        "scenario_id": "crossing-fpv_attack-b177-r0705",
+        "sensor_latency_s": 0.1946206581275365,
+        "mean_controller_action_norm": 0.17659749125827426,
+        "action_saturation_fraction": 0.0728476821192053,
+        "mean_applied_acceleration_mps2": 13.683483199271935
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 106,
+        "intercepted": true,
+        "duration_s": 9.3,
+        "minimum_separation_m": 17.62575912475586,
+        "energy_used": 2.846735768120686,
+        "battery_remaining": 0.972888230779803,
+        "reward": 173.71184455081215,
+        "scenario_id": "spiral-shahed136-b195-r0728",
+        "sensor_latency_s": 0.22257019669939124,
+        "mean_controller_action_norm": 0.3180873003858392,
+        "action_saturation_fraction": 0.0967741935483871,
+        "mean_applied_acceleration_mps2": 25.36147279444561
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 107,
+        "intercepted": true,
+        "duration_s": 12.200000000000001,
+        "minimum_separation_m": 15.15617847442627,
+        "energy_used": 2.6720459942344994,
+        "battery_remaining": 0.9745519429120517,
+        "reward": 200.5329363460283,
+        "scenario_id": "direct-fpv_attack-b352-r1062",
+        "sensor_latency_s": 0.08027354136828163,
+        "mean_controller_action_norm": 0.1406428586619097,
+        "action_saturation_fraction": 0.06147540983606557,
+        "mean_applied_acceleration_mps2": 8.445670874636681
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 108,
+        "intercepted": true,
+        "duration_s": 6.45,
+        "minimum_separation_m": 17.196197509765625,
+        "energy_used": 1.714890505933118,
+        "battery_remaining": 0.9836677094673031,
+        "reward": 167.96456201397993,
+        "scenario_id": "direct-shahed136-b048-r0724",
+        "sensor_latency_s": 0.1864505588185569,
+        "mean_controller_action_norm": 0.23611825433119324,
+        "action_saturation_fraction": 0.07751937984496124,
+        "mean_applied_acceleration_mps2": 14.442226410374161
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 109,
+        "intercepted": true,
+        "duration_s": 16.35,
+        "minimum_separation_m": 15.10698413848877,
+        "energy_used": 3.7688074275766725,
+        "battery_remaining": 0.9641065959278389,
+        "reward": 228.4732146444028,
+        "scenario_id": "spiral-fpv_attack-b123-r1280",
+        "sensor_latency_s": 0.34435061622972873,
+        "mean_controller_action_norm": 0.1640519045111054,
+        "action_saturation_fraction": 0.04892966360856269,
+        "mean_applied_acceleration_mps2": 10.439883376115688
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 110,
+        "intercepted": true,
+        "duration_s": 17.55,
+        "minimum_separation_m": 17.62881088256836,
+        "energy_used": 4.0906155404642925,
+        "battery_remaining": 0.9610417567574816,
+        "reward": 270.3743577605653,
+        "scenario_id": "spiral-shahed136-b004-r1247",
+        "sensor_latency_s": 0.1836301007378282,
+        "mean_controller_action_norm": 0.1692998290189311,
+        "action_saturation_fraction": 0.037037037037037035,
+        "mean_applied_acceleration_mps2": 13.607890312488262
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 111,
+        "intercepted": true,
+        "duration_s": 15.55,
+        "minimum_separation_m": 14.929328918457031,
+        "energy_used": 3.163422157307877,
+        "battery_remaining": 0.9698721699304005,
+        "reward": 206.3854722279346,
+        "scenario_id": "nap_earth-consumer_quad-b241-r1065",
+        "sensor_latency_s": 0.11839643762395771,
+        "mean_controller_action_norm": 0.10888590078244668,
+        "action_saturation_fraction": 0.03536977491961415,
+        "mean_applied_acceleration_mps2": 7.891338734770751
+      }
+    ]
+  },
+  "calibration": null,
+  "readiness": [
+    {
+      "id": "approved-test-site",
+      "passed": false,
+      "required": true,
+      "detail": "Configured site is still the documented placeholder."
+    },
+    {
+      "id": "actuation-safe-default",
+      "passed": true,
+      "required": true,
+      "detail": "Actuation is disabled."
+    },
+    {
+      "id": "hardware-endpoint",
+      "passed": true,
+      "required": false,
+      "detail": "No physical/SITL endpoint configured."
+    },
+    {
+      "id": "command-protocol",
+      "passed": true,
+      "required": false,
+      "detail": "Configured protocol: internal."
+    },
+    {
+      "id": "sensor-calibration",
+      "passed": true,
+      "required": false,
+      "detail": "No outstanding sensor calibrations in this profile."
+    }
+  ],
+  "gates": [
+    {
+      "id": "intercept-rate",
+      "passed": true,
+      "actual": 1.0,
+      "limit": 0.95,
+      "operator": ">="
+    },
+    {
+      "id": "duration-p95",
+      "passed": true,
+      "actual": 18.1125,
+      "limit": 30.0,
+      "operator": "<="
+    },
+    {
+      "id": "energy-p95",
+      "passed": true,
+      "actual": 4.137076170326223,
+      "limit": 6.0,
+      "operator": "<="
+    },
+    {
+      "id": "action-saturation",
+      "passed": true,
+      "actual": 0.0690566492792944,
+      "limit": 0.25,
+      "operator": "<="
+    }
+  ],
+  "decision": {
+    "sil_passed": true,
+    "hardware_ready": false,
+    "hardware_actuation_authorized": false,
+    "reason": "This report never authorizes physical actuation; independent safety/range approval and explicit operator acknowledgement remain required."
+  }
+}

@@ -1,0 +1,232 @@
+{
+  "schema": "aegis.validation-report.v1",
+  "created_at_utc": "2026-07-21T14:53:33.516430+00:00",
+  "profile": {
+    "profile_id": "larp-betaflight-readonly-v1",
+    "label": "LARP Betaflight bench (read-only)",
+    "mode": "hardware_readonly",
+    "autopilot_protocol": "msp",
+    "actuation_enabled": false,
+    "vehicle": {
+      "name": "Lab quadrotor - measurements required",
+      "mass_kg": 1.5,
+      "max_speed_mps": 25.0,
+      "max_accel_mps2": 40.0,
+      "battery_capacity_wh": 50.0
+    },
+    "sensors": [
+      {
+        "name": "InnoMaker U20CAM",
+        "protocol": "usb-uvc",
+        "calibration_required": true
+      },
+      {
+        "name": "flight-controller IMU",
+        "protocol": "msp",
+        "calibration_required": true
+      }
+    ],
+    "validation_gates": {
+      "minimum_intercept_rate": 0.95,
+      "maximum_duration_p95_s": 30.0,
+      "maximum_energy_p95": 6.0,
+      "maximum_action_saturation_fraction": 0.25,
+      "maximum_trajectory_rmse_m": 5.0,
+      "maximum_timing_offset_s": 0.1
+    }
+  },
+  "evaluation": {
+    "episodes": 6,
+    "seed_start": 200,
+    "controller": "APN",
+    "procedural_curriculum_level": 1.0
+  },
+  "sil": {
+    "summary": {
+      "controller": "apn",
+      "episodes": 6,
+      "intercepts": 6,
+      "intercept_rate": 1.0,
+      "intercept_rate_wilson_95": [
+        0.6096657120978346,
+        1.0
+      ],
+      "mean_minimum_separation_m": 16.53755474090576,
+      "mean_duration_s": 13.508333333333335,
+      "duration_s_p95": 20.8125,
+      "mean_energy_used": 3.4310914816930995,
+      "energy_used_p95": 6.39143646108259,
+      "mean_controller_action_norm": 0.21139143081726122,
+      "mean_action_saturation_fraction": 0.0845629106227137,
+      "mean_applied_acceleration_mps2": 15.236870145837713,
+      "mean_reward": 206.0787829676719
+    },
+    "episodes": [
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 200,
+        "intercepted": true,
+        "duration_s": 5.45,
+        "minimum_separation_m": 16.927749633789062,
+        "energy_used": 1.5324585204224157,
+        "battery_remaining": 0.9854051569483574,
+        "reward": 147.9819120468801,
+        "scenario_id": "direct-fpv_attack-b059-r0646",
+        "sensor_latency_s": 0.12513008356489913,
+        "mean_controller_action_norm": 0.2673166719214017,
+        "action_saturation_fraction": 0.11009174311926606,
+        "mean_applied_acceleration_mps2": 20.825979378245293
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 201,
+        "intercepted": true,
+        "duration_s": 14.3,
+        "minimum_separation_m": 17.155702590942383,
+        "energy_used": 2.791257217928535,
+        "battery_remaining": 0.9734165979244885,
+        "reward": 238.77404415158009,
+        "scenario_id": "crossing-shahed136-b013-r1050",
+        "sensor_latency_s": 0.17721192143410977,
+        "mean_controller_action_norm": 0.09208970269110132,
+        "action_saturation_fraction": 0.027972027972027972,
+        "mean_applied_acceleration_mps2": 5.974626320863624
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 202,
+        "intercepted": true,
+        "duration_s": 16.05,
+        "minimum_separation_m": 16.336681365966797,
+        "energy_used": 3.3568956709938855,
+        "battery_remaining": 0.9680295650381523,
+        "reward": 230.51743033017505,
+        "scenario_id": "crossing-fpv_attack-b340-r1338",
+        "sensor_latency_s": 0.11039155864835061,
+        "mean_controller_action_norm": 0.12053520532507693,
+        "action_saturation_fraction": 0.040498442367601244,
+        "mean_applied_acceleration_mps2": 7.461764519390102
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 203,
+        "intercepted": true,
+        "duration_s": 9.05,
+        "minimum_separation_m": 15.152742385864258,
+        "energy_used": 2.8304780547487534,
+        "battery_remaining": 0.9730430661452497,
+        "reward": 178.56942344531615,
+        "scenario_id": "crossing-shahed136-b304-r0697",
+        "sensor_latency_s": 0.06561166086021299,
+        "mean_controller_action_norm": 0.33165717637423653,
+        "action_saturation_fraction": 0.09392265193370165,
+        "mean_applied_acceleration_mps2": 25.08298592541099
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 204,
+        "intercepted": true,
+        "duration_s": 13.8,
+        "minimum_separation_m": 15.680438995361328,
+        "energy_used": 2.672509368286181,
+        "battery_remaining": 0.9745475298258451,
+        "reward": 212.9463223352417,
+        "scenario_id": "pop_up-fpv_attack-b112-r1164",
+        "sensor_latency_s": 0.1498424317468896,
+        "mean_controller_action_norm": 0.08896648234508904,
+        "action_saturation_fraction": 0.036231884057971016,
+        "mean_applied_acceleration_mps2": 7.485877168945212
+      },
+      {
+        "pattern": null,
+        "intruder_type": null,
+        "seed": 205,
+        "intercepted": true,
+        "duration_s": 22.400000000000002,
+        "minimum_separation_m": 17.972013473510742,
+        "energy_used": 7.402950057778824,
+        "battery_remaining": 0.9294957137354389,
+        "reward": 227.68356549683833,
+        "scenario_id": "spiral-shahed136-b262-r1344",
+        "sensor_latency_s": 0.31429351597243155,
+        "mean_controller_action_norm": 0.36778334624666187,
+        "action_saturation_fraction": 0.19866071428571427,
+        "mean_applied_acceleration_mps2": 24.58998756217105
+      }
+    ]
+  },
+  "calibration": null,
+  "readiness": [
+    {
+      "id": "approved-test-site",
+      "passed": false,
+      "required": true,
+      "detail": "Configured site is still the documented placeholder."
+    },
+    {
+      "id": "actuation-safe-default",
+      "passed": true,
+      "required": true,
+      "detail": "Actuation is disabled."
+    },
+    {
+      "id": "hardware-endpoint",
+      "passed": false,
+      "required": true,
+      "detail": "No physical/SITL endpoint configured."
+    },
+    {
+      "id": "command-protocol",
+      "passed": true,
+      "required": false,
+      "detail": "Betaflight MSP is currently supported for read-only profiling only; the command bridge is MAVLink/ArduPilot."
+    },
+    {
+      "id": "sensor-calibration",
+      "passed": false,
+      "required": true,
+      "detail": "Calibration evidence required for: InnoMaker U20CAM, flight-controller IMU"
+    }
+  ],
+  "gates": [
+    {
+      "id": "intercept-rate",
+      "passed": true,
+      "actual": 1.0,
+      "limit": 0.95,
+      "operator": ">="
+    },
+    {
+      "id": "duration-p95",
+      "passed": true,
+      "actual": 20.8125,
+      "limit": 30.0,
+      "operator": "<="
+    },
+    {
+      "id": "energy-p95",
+      "passed": false,
+      "actual": 6.39143646108259,
+      "limit": 6.0,
+      "operator": "<="
+    },
+    {
+      "id": "action-saturation",
+      "passed": true,
+      "actual": 0.0845629106227137,
+      "limit": 0.25,
+      "operator": "<="
+    }
+  ],
+  "decision": {
+    "sil_passed": false,
+    "hardware_ready": false,
+    "hardware_actuation_authorized": false,
+    "reason": "This report never authorizes physical actuation; independent safety/range approval and explicit operator acknowledgement remain required."
+  }
+}

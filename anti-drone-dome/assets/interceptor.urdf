@@ -1,101 +1,62 @@
-<?xml version="1.0" ?>
-
-<robot name="cf2">
-
-  <properties arm="0.0397" kf="3.16e-10" km="7.94e-12" thrust2weight="2.25" max_speed_kmh="30" gnd_eff_coeff="11.36859" prop_radius="2.31348e-2" drag_coeff_xy="9.1785e-7" drag_coeff_z="10.311e-7" dw_coeff_1="2267.18" dw_coeff_2=".16" dw_coeff_3="-.11" />
-
-  <link name="base_link"> 
-
+<?xml version="1.0"?>
+<robot name="cuas_interceptor">
+  <material name="body"><color rgba="0.16 0.32 0.52 1"/></material>
+  <material name="edge"><color rgba="0.55 0.75 0.92 1"/></material>
+  <link name="base_link">
     <inertial>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <mass value="0.027"/>
-      <inertia ixx="1.4e-5" ixy="0.0" ixz="0.0" iyy="1.4e-5" iyz="0.0" izz="2.17e-5"/>
+      <mass value="0.83"/>
+      <inertia ixx="0.020" ixy="0" ixz="0" iyy="0.045" iyz="0" izz="0.050"/>
     </inertial>
-
-    <!-- links>
-      <carlos url="https://arxiv.org/pdf/1608.05786.pdf" />
-      <julian url="https://www.research-collection.ethz.ch/handle/20.500.11850/214143" />
-      <mit url="http://groups.csail.mit.edu/robotics-center/public_papers/Landry15.pdf" />
-    </links -->
-
     <visual>
-      <origin rpy="0 0 55" xyz="0 0 0"/>
-      <geometry>
-        <mesh filename="./cf2.dae" scale=" 1 1 1"/>
-      </geometry> 
-      <material name="grey">
-        <color rgba=".5 .5 .5 1"/>
-      </material> 
+      <origin rpy="0 1.5708 0"/>
+      <geometry><cylinder radius="0.13" length="1.55"/></geometry>
+      <material name="body"/>
     </visual>
-
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <cylinder radius=".06" length=".025"/>
-      </geometry>
-    </collision>  
-
+    <collision><geometry><box size="1.55 0.35 0.30"/></geometry></collision>
   </link>
-
-  <link name="prop0_link">
-    <inertial>
-      <origin rpy="0 0 0" xyz="0.028 -0.028 0"/>
-      <mass value="0"/>
-      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-    </inertial>
+  <link name="nose">
+    <inertial><mass value="0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual>
+      <origin xyz="0.90 0 0" rpy="0 1.5708 0"/>
+      <geometry><sphere radius="0.13"/></geometry>
+      <material name="edge"/>
+    </visual>
   </link>
-  <joint name="prop0_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="prop0_link"/>
-  </joint>
-
-  <link name="prop1_link">
-    <inertial>
-      <origin rpy="0 0 0" xyz="-0.028 -0.028 0"/>
-      <mass value="0"/>
-      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-    </inertial>
+  <joint name="nose_joint" type="fixed"><parent link="base_link"/><child link="nose"/></joint>
+  <link name="left_fin">
+    <inertial><mass value="0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual>
+      <origin xyz="-0.35 0.34 0"/>
+      <geometry><box size="0.58 0.72 0.06"/></geometry>
+      <material name="body"/>
+    </visual>
   </link>
-  <joint name="prop1_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="prop1_link"/>
-  </joint>
-
-  <link name="prop2_link">
-    <inertial>
-      <origin rpy="0 0 0" xyz="-0.028 0.028 0"/>
-      <mass value="0"/>
-      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-    </inertial>
+  <joint name="left_fin_joint" type="fixed"><parent link="base_link"/><child link="left_fin"/></joint>
+  <link name="right_fin">
+    <inertial><mass value="0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual>
+      <origin xyz="-0.35 -0.34 0"/>
+      <geometry><box size="0.58 0.72 0.06"/></geometry>
+      <material name="body"/>
+    </visual>
   </link>
-  <joint name="prop2_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="prop2_link"/>
-  </joint>
-
-  <link name="prop3_link">
-    <inertial>
-      <origin rpy="0 0 0" xyz="0.028 0.028 0"/>
-      <mass value="0"/>
-      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-    </inertial>
+  <joint name="right_fin_joint" type="fixed"><parent link="base_link"/><child link="right_fin"/></joint>
+  <link name="upper_fin">
+    <inertial><mass value="0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual>
+      <origin xyz="-0.56 0 0.25"/>
+      <geometry><box size="0.44 0.06 0.48"/></geometry>
+      <material name="edge"/>
+    </visual>
   </link>
-  <joint name="prop3_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="prop3_link"/>
-  </joint>
-
-  <link name="center_of_mass_link">
-    <inertial>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <mass value="0"/>
-      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-    </inertial>
+  <joint name="upper_fin_joint" type="fixed"><parent link="base_link"/><child link="upper_fin"/></joint>
+  <link name="lower_fin">
+    <inertial><mass value="0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual>
+      <origin xyz="-0.56 0 -0.25"/>
+      <geometry><box size="0.44 0.06 0.48"/></geometry>
+      <material name="edge"/>
+    </visual>
   </link>
-  <joint name="center_of_mass_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="center_of_mass_link"/>
-  </joint>
-
+  <joint name="lower_fin_joint" type="fixed"><parent link="base_link"/><child link="lower_fin"/></joint>
 </robot>
-

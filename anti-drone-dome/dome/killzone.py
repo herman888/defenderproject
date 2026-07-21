@@ -5,7 +5,12 @@ import time
 
 
 class DomeKillZone:
-    def __init__(self, center=(0.0, 0.0, 0.0), radius: float = 10.0):
+    def __init__(
+        self,
+        center=(0.0, 0.0, 0.0),
+        radius: float = 10.0,
+        track_hold_updates: int = 240,
+    ):
         self._center = center
         self._radius = radius
         self._status = "CLEAR"
@@ -13,6 +18,8 @@ class DomeKillZone:
         self._first_detection_time = None
         self._breach_time = None
         self._intercept_time = None
+        self._track_hold_updates = int(track_hold_updates)
+        self._consecutive_misses = 0
 
     def _dist(self, position: tuple) -> float:
         return math.sqrt(sum((position[i] - self._center[i]) ** 2 for i in range(3)))
@@ -43,24 +50,38 @@ class DomeKillZone:
                       interceptor_position: tuple = None, intercept_radius: float = 3.0):
         old_status = self._status
         dist_from_center = self._dist(intruder_position)
+        if intruder_detected:
+            self._consecutive_misses = 0
+        else:
+            self._consecutive_misses += 1
 
         if self._status == "INTERCEPTED":
             pass
-        elif interceptor_position is not None:
-            # Check intercept regardless of current status — intercept is valid
-            # even if radar briefly loses lock during the terminal approach.
-            if self.check_intercept(interceptor_position, intruder_position, intercept_radius):
-                self._status = "INTERCEPTED"
-                self._intercept_time = time.time()
+        elif (
+            interceptor_position is not None
+            and self.check_intercept(
+                interceptor_position,
+                intruder_position,
+                intercept_radius,
+            )
+        ):
+            self._status = "INTERCEPTED"
+            self._intercept_time = time.time()
         elif self.is_inside(intruder_position) and intruder_detected:
             self._status = "BREACH"
             if self._breach_time is None:
                 self._breach_time = time.time()
         elif intruder_detected and dist_from_center <= self._radius * 2:
-            if self._status == "CLEAR":
-                self._status = "TRACKING"
+            if self._status in ("CLEAR", "MONITORING"):
                 self._first_detection_time = time.time()
-        elif not intruder_detected and self._status in ("TRACKING",):
+            self._status = "TRACKING"
+        elif intruder_detected:
+            self._status = "MONITORING"
+        elif (
+            not intruder_detected
+            and self._status in ("MONITORING", "TRACKING")
+            and self._consecutive_misses > self._track_hold_updates
+        ):
             self._status = "CLEAR"
 
         if self._status != old_status:

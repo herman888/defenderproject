@@ -1,0 +1,39 @@
+{
+  "schema": "aegis.hardware-profile.v1",
+  "profile_id": "reference-sil-v1",
+  "label": "Reference software-in-loop",
+  "mode": "sil",
+  "autopilot": {
+    "protocol": "internal",
+    "firmware": "python-placeholder-fc",
+    "endpoint": null
+  },
+  "vehicle": {
+    "name": "C-UAS reference interceptor",
+    "mass_kg": 1.5,
+    "max_speed_mps": 70.0,
+    "max_accel_mps2": 166.77,
+    "battery_capacity_wh": 105.0
+  },
+  "sensors": [
+    {"name": "sim-radar", "protocol": "internal", "calibration_required": false},
+    {"name": "sim-eo", "protocol": "internal", "calibration_required": false}
+  ],
+  "links": [
+    {"name": "command-center-ipc", "protocol": "internal", "rate_hz": 10.0}
+  ],
+  "safety": {
+    "actuation_enabled": false,
+    "requires_explicit_arm_ack": true,
+    "requires_props_removed_ack": true,
+    "approved_test_site_required": true
+  },
+  "validation_gates": {
+    "minimum_intercept_rate": 0.95,
+    "maximum_duration_p95_s": 30.0,
+    "maximum_energy_p95": 6.0,
+    "maximum_action_saturation_fraction": 0.25,
+    "maximum_trajectory_rmse_m": 5.0,
+    "maximum_timing_offset_s": 0.1
+  }
+}

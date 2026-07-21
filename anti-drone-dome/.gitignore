@@ -17,6 +17,7 @@ __pycache__/
 *.pyo
 venv*/
 .venv-docs/
+.venv/
 *.egg-info/
 
 # MkDocs local/dev build output

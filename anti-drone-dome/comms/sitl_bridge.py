@@ -101,6 +101,8 @@ class SITLBridge:
         self._armed        = False
         self._recv_running = False
         self._recv_thread  = None
+        self._last_state_monotonic = None
+        self._last_receive_error = None
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
     def connect(self) -> bool:
@@ -122,6 +124,8 @@ class SITLBridge:
         hb = self._conn.wait_heartbeat(timeout=self.HEARTBEAT_TIMEOUT)
         if hb is None:
             print("[SITL] No heartbeat — is SITL running and outputting to this port?")
+            self._conn.close()
+            self._conn = None
             return False
         tgt_sys  = self._conn.target_system
         tgt_comp = self._conn.target_component
@@ -148,11 +152,13 @@ class SITLBridge:
         # ── GUIDED mode ──────────────────────────────────────────────────────
         if not self._set_guided():
             print("[SITL] Failed to enter GUIDED mode")
+            self.close()
             return False
 
         # ── Arm ──────────────────────────────────────────────────────────────
         if not self._arm():
             print("[SITL] Failed to arm")
+            self.close()
             return False
 
         # ── Takeoff ──────────────────────────────────────────────────────────
@@ -177,6 +183,8 @@ class SITLBridge:
     def close(self):
         """Disarm vehicle and close MAVLink connection."""
         self._recv_running = False
+        if self._recv_thread is not None:
+            self._recv_thread.join(timeout=1.0)
         if self._conn and self._connected:
             try:
                 # Disarm
@@ -194,6 +202,7 @@ class SITLBridge:
                 pass
         self._conn      = None
         self._connected = False
+        self._recv_thread = None
         print("[SITL] Bridge closed")
 
     # ── Setpoint streaming ────────────────────────────────────────────────────
@@ -239,6 +248,18 @@ class SITLBridge:
         """True when SITL interceptor has climbed to within TAKEOFF_TOL_M of PAD_ALTITUDE_M."""
         _, _, z = self._pos_enu          # ENU z = altitude
         return z >= (config.PAD_ALTITUDE_M - config.TAKEOFF_TOL_M)
+
+    def health(self) -> dict:
+        age_s = None
+        if self._last_state_monotonic is not None:
+            age_s = max(0.0, time.monotonic() - self._last_state_monotonic)
+        return {
+            "connected": self._connected,
+            "guided": self._guided,
+            "armed": self._armed,
+            "state_age_s": age_s,
+            "last_receive_error": self._last_receive_error,
+        }
 
     # ── Private ───────────────────────────────────────────────────────────────
     def _set_guided(self) -> bool:
@@ -295,5 +316,10 @@ class SITLBridge:
                 with self._lock:
                     self._pos_enu = pos_enu
                     self._vel_enu = vel_enu
-            except Exception:
-                pass
+                    self._last_state_monotonic = time.monotonic()
+                    self._last_receive_error = None
+            except (OSError, AttributeError) as exc:
+                self._last_receive_error = str(exc)
+                if self._recv_running:
+                    print(f"[SITL] receive error: {exc}")
+                time.sleep(0.05)

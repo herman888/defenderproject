@@ -181,6 +181,37 @@ class PurePursuitGuidance:
         v_c   = float(-np.dot(r_hat, t_vel - i_vel))
         return rng / v_c if v_c > 0.1 else float("inf")
 
+    def predicted_intercept_point(
+        self,
+        interceptor_state: dict,
+        target_track: dict,
+    ) -> tuple[float, float, float] | None:
+        """Constant-velocity lead point at the interceptor design speed."""
+        if not target_track.get("detected"):
+            return None
+        i_pos = np.asarray(interceptor_state["position"], dtype=float)
+        t_pos = np.asarray(target_track["position_estimate"], dtype=float)
+        t_vel = np.asarray(target_track.get("velocity", [0, 0, 0]), dtype=float)
+        relative_position = t_pos - i_pos
+
+        a = float(np.dot(t_vel, t_vel) - _V_INT ** 2)
+        b = 2.0 * float(np.dot(relative_position, t_vel))
+        c = float(np.dot(relative_position, relative_position))
+        times = []
+        if abs(a) < 1e-9:
+            if abs(b) > 1e-9:
+                times.append(-c / b)
+        else:
+            discriminant = b * b - 4.0 * a * c
+            if discriminant >= 0.0:
+                root = math.sqrt(discriminant)
+                times.extend(((-b - root) / (2.0 * a), (-b + root) / (2.0 * a)))
+        positive_times = [value for value in times if value > 0.0]
+        if not positive_times:
+            return None
+        intercept_time = min(positive_times)
+        return tuple(t_pos + t_vel * intercept_time)
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # Legacy guidance — direct intercept-point pursuit (pre-APN)

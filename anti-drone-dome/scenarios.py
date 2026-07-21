@@ -9,6 +9,9 @@ Any type can fly any pattern.  The dashboard lets the operator choose both
 independently before launching a mission.
 """
 
+import json
+import os
+
 # ── Waypoint paths (metres, dome centre = 0,0,0, North = +Y) ──────────────
 
 _DIRECT_APPROACH = [
@@ -77,8 +80,8 @@ INTRUDER_TYPES = {
             "max_h_force": 160.0,
             "fz_min": -60.0, "fz_max": 90.0,
         },
-        "urdf":               "intruder.urdf",
-        "scaling":            18.0,   # visible at 200 m dome scale
+        "urdf":               "shahed136.urdf",
+        "scaling":            1.0,
         "color_rgba":         [0.85, 0.12, 0.08, 1.0],   # blood red
     },
 
@@ -145,6 +148,27 @@ ATTACK_PATTERNS = {
         "start":       (650.0, 0.0, 280.0),
         "wind":        False,
     },
+    "crossing": {
+        "label":       "CROSSING",
+        "description": "Oblique crossing attack with changing line-of-sight rate",
+        "path":        "crossing_attack",
+        "start":       (-900.0, 500.0, 120.0),
+        "wind":        True,
+    },
+    "pop_up": {
+        "label":       "POP-UP",
+        "description": "Terrain-masking ingress followed by a late altitude pop-up",
+        "path":        "pop_up_attack",
+        "start":       (900.0, -250.0, 20.0),
+        "wind":        True,
+    },
+    "offset": {
+        "label":       "OFFSET",
+        "description": "Dogleg route designed to stress track prediction",
+        "path":        "offset_dogleg",
+        "start":       (-750.0, -650.0, 180.0),
+        "wind":        True,
+    },
 }
 
 # ── Swarm scenario data (multi-drone — logic TODO in main.py) ─────────────
@@ -174,3 +198,49 @@ PAD_OFFSETS = {
 
 def get_waypoints_for_path(path_name: str) -> list:
     return list(_WAYPOINTS.get(path_name, _DIRECT_APPROACH))
+
+
+_SCENARIO_FILE = os.path.join(
+    os.path.dirname(__file__), "scenario_data", "southern_ontario.json"
+)
+
+
+def _load_scenario_file(path: str) -> dict:
+    with open(path, "r", encoding="utf-8") as handle:
+        data = json.load(handle)
+    required = {"site", "environments", "paths", "pattern_environment"}
+    missing = required.difference(data)
+    if missing:
+        raise ValueError(f"Scenario file {path} is missing: {sorted(missing)}")
+    origin = data["site"].get("origin", {})
+    if not {"latitude", "longitude", "altitude_m"}.issubset(origin):
+        raise ValueError(f"Scenario file {path} has an invalid site origin")
+    return data
+
+
+SCENARIO_CONFIG = _load_scenario_file(_SCENARIO_FILE)
+_WAYPOINTS.update({
+    name: [tuple(float(value) for value in point) for point in points]
+    for name, points in SCENARIO_CONFIG["paths"].items()
+})
+for _pattern_name, _environment_name in SCENARIO_CONFIG["pattern_environment"].items():
+    if _pattern_name not in ATTACK_PATTERNS:
+        raise ValueError(f"Unknown attack pattern in scenario file: {_pattern_name}")
+    if _environment_name not in SCENARIO_CONFIG["environments"]:
+        raise ValueError(f"Unknown environment in scenario file: {_environment_name}")
+    ATTACK_PATTERNS[_pattern_name]["environment"] = _environment_name
+
+
+def get_environment_for_pattern(pattern_name: str) -> dict:
+    pattern = ATTACK_PATTERNS[pattern_name]
+    name = pattern.get("environment", "clear")
+    return dict(SCENARIO_CONFIG["environments"][name])
+
+
+def get_site_config() -> dict:
+    site = dict(SCENARIO_CONFIG["site"])
+    site["map"] = dict(site.get("map", {}))
+    cache = site["map"].get("osm_cache")
+    if cache and not os.path.isabs(cache):
+        site["map"]["osm_cache"] = os.path.join(os.path.dirname(__file__), cache)
+    return site

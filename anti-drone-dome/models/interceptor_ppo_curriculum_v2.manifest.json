@@ -1,0 +1,18 @@
+{
+  "schema": "aegis.policy.v2",
+  "observation_version": "v2",
+  "observation_size": 21,
+  "action_mode": "residual_apn",
+  "procedural_scenarios": true,
+  "curriculum_start": 0.15,
+  "curriculum_end": 1.0,
+  "seed": 2026,
+  "timesteps": 100000,
+  "validation_required": [
+    "held_out_simulation",
+    "software_in_the_loop",
+    "hardware_in_the_loop",
+    "approved_real_sensor_replay",
+    "range_safety_review"
+  ]
+}
