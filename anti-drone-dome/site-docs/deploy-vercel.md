@@ -1,6 +1,6 @@
 # Deploy Project LARP docs to Vercel
 
-Public URL goal: **https://projectlarp.vercel.app**
+Public URL goal: **https://projectlarp.vercel.app** (or `defenderproject.vercel.app` if you keep that name)
 
 The docs live in this folder (`anti-drone-dome/`). Vercel builds MkDocs and serves the static `public/` output.
 
@@ -8,38 +8,43 @@ The docs live in this folder (`anti-drone-dome/`). Vercel builds MkDocs and serv
 
 ## One-time setup (Vercel dashboard)
 
-1. Go to [vercel.com/new](https://vercel.com/new)
-2. Import **`herman888/defenderproject`**
-3. Configure the project:
-   - **Project Name:** `projectlarp` (this makes `projectlarp.vercel.app`)
-   - **Root Directory:** `anti-drone-dome` ← click Edit and set this
+1. Go to [vercel.com/new](https://vercel.com/new) (or use your existing **defenderproject** Vercel project)
+2. Import / connect **`herman888/defenderproject`**
+3. **Settings → Build and Deployment:**
+   - **Root Directory:** `anti-drone-dome` ← required
    - **Framework Preset:** Other
-   - **Build Command:** `mkdocs build -d public` (or leave — `vercel.json` sets it)
+   - **Install Command:** `true`
+   - **Build Command:** `python3 -m pip install -r requirements-docs.txt && python3 -m mkdocs build -d public`
    - **Output Directory:** `public`
-   - **Install Command:** `pip3 install -r requirements-docs.txt`
-4. Click **Deploy**
+4. **Deployments → Redeploy**
 
-After the first deploy succeeds, every push to `main` that changes files under `anti-drone-dome/` will redeploy.
+`vercel.json` in this folder already sets those commands for new deploys.
+
+After a green deploy, every push to `main` under `anti-drone-dome/` will update the site.
+
+---
+
+## Fix: `pip3 install ... exited with 1`
+
+That means Vercel’s Install step couldn’t run `pip3` (common). Use **Install = `true`** and put pip inside **Build Command** with `python3 -m pip` (see above). Then Redeploy.
+
+Also confirm **Root Directory** is exactly `anti-drone-dome` so `requirements-docs.txt` is found.
 
 ---
 
 ## CLI alternative
 
 ```bash
-# install once
 npm i -g vercel
-
 cd anti-drone-dome
 vercel login
 vercel link --yes --project projectlarp
 vercel --prod
 ```
 
-When asked for root / settings, accept the values from `vercel.json`.
-
 ---
 
-## Local preview (unchanged)
+## Local preview
 
 ```bash
 cd anti-drone-dome
@@ -51,6 +56,5 @@ mkdocs serve
 
 ## Notes
 
-- Do **not** point Vercel at the repo root — it would try to build the whole monorepo.
-- Python sim deps in `requirements.txt` are **not** used for the docs deploy (`requirements-docs.txt` only).
-- Custom domain later: Vercel → Project → Settings → Domains.
+- Do **not** leave Root Directory empty — that builds the whole monorepo.
+- Do **not** use `requirements.txt` for the docs build (that’s the sim stack). Docs use `requirements-docs.txt` only.
