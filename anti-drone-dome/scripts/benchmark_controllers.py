@@ -25,6 +25,7 @@ def run_episode(
     residual_apn=False,
     observation_version="v1",
     procedural=False,
+    fixed_scenario=None,
 ):
     env = InterceptionEnv(
         pattern=pattern,
@@ -34,6 +35,7 @@ def run_episode(
         observation_version=observation_version,
         procedural_scenarios=procedural,
         curriculum_level=1.0,
+        fixed_scenario=fixed_scenario,
     )
     observation, info = env.reset(seed=seed)
     total_reward = 0.0
@@ -41,6 +43,8 @@ def run_episode(
     action_norms = []
     saturated_action_steps = 0
     acceleration_norms = []
+    sensor_ages = [float(info["sensor_age_s"])]
+    track_confidences = [float(info["track_confidence"])]
     terminated = truncated = False
     while not (terminated or truncated):
         action = controller.predict(observation, env)
@@ -48,13 +52,24 @@ def run_episode(
         saturated_action_steps += int(bool(np.any(np.abs(action) >= 0.999)))
         observation, reward, terminated, truncated, info = env.step(action)
         acceleration_norms.append(float(np.linalg.norm(env.applied_acceleration)))
+        sensor_ages.append(float(info["sensor_age_s"]))
+        track_confidences.append(float(info["track_confidence"]))
         total_reward += reward
         minimum_separation = min(minimum_separation, info["separation_m"])
+    final_intruder_radius = float(np.linalg.norm(env.intruder_position[:2]))
+    outcome = (
+        "intercepted"
+        if info["intercepted"]
+        else "breach"
+        if final_intruder_radius <= 2.0
+        else "timeout"
+    )
     return {
         "pattern": pattern,
         "intruder_type": intruder_type,
         "seed": seed,
         "intercepted": bool(info["intercepted"]),
+        "outcome": outcome,
         "duration_s": env.steps * env.dt,
         "minimum_separation_m": minimum_separation,
         "energy_used": info["energy_used"],
@@ -62,6 +77,15 @@ def run_episode(
         "reward": total_reward,
         "scenario_id": info["scenario_id"],
         "sensor_latency_s": info["configured_sensor_latency_s"],
+        "sensor_dropout_probability": info["sensor_dropout_probability"],
+        "radar_noise_std_m": info["radar_noise_std_m"],
+        "evasion_mps": info["evasion_mps"],
+        "wind_speed_mps": float(np.linalg.norm(info["wind_mps"])),
+        "mass_factor": info["mass_factor"],
+        "actuator_time_constant_s": info["actuator_time_constant_s"],
+        "maximum_sensor_age_s": max(sensor_ages),
+        "mean_track_confidence": statistics.fmean(track_confidences),
+        "final_intruder_radius_m": final_intruder_radius,
         "mean_controller_action_norm": statistics.fmean(action_norms),
         "action_saturation_fraction": saturated_action_steps / len(action_norms),
         "mean_applied_acceleration_mps2": statistics.fmean(acceleration_norms),

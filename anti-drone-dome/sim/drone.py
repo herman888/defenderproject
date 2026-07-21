@@ -477,10 +477,15 @@ class LoiteringMunition:
 
         # Apply intruder-type colour
         rgba = cfg.get("color_rgba", [0.9, 0.1, 0.1, 1.0])
-        n = pybullet.getNumJoints(self._body, physicsClientId=self._client)
-        pybullet.changeVisualShape(self._body, -1, rgbaColor=rgba, physicsClientId=self._client)
-        for i in range(n):
-            pybullet.changeVisualShape(self._body, i, rgbaColor=rgba, physicsClientId=self._client)
+        if not cfg.get("preserve_materials", False):
+            n = pybullet.getNumJoints(self._body, physicsClientId=self._client)
+            pybullet.changeVisualShape(
+                self._body, -1, rgbaColor=rgba, physicsClientId=self._client
+            )
+            for i in range(n):
+                pybullet.changeVisualShape(
+                    self._body, i, rgbaColor=rgba, physicsClientId=self._client
+                )
 
         # 3-D label colour matches body colour (slightly brighter)
         lbl_col = [min(1.0, c * 1.3) for c in rgba[:3]]

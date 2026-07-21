@@ -83,6 +83,7 @@ INTRUDER_TYPES = {
         "urdf":               "shahed136.urdf",
         "scaling":            1.0,
         "color_rgba":         [0.85, 0.12, 0.08, 1.0],   # blood red
+        "preserve_materials":  True,
     },
 
     "consumer_quad": {

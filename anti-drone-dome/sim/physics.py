@@ -79,6 +79,7 @@ class PhysicsWorld:
             physicsClientId=self.client,
         )
         self._draw_terrain_relief()
+        self._draw_land_cover()
         zone_vis = pybullet.createVisualShape(
             pybullet.GEOM_CYLINDER,
             radius=200.0,
@@ -153,6 +154,45 @@ class PhysicsWorld:
             physicsClientId=self.client,
         )
 
+    def _draw_land_cover(self):
+        """Layer deterministic field parcels over relief to expose scale and motion."""
+        extent = 1260.0
+        cell_size = 360.0
+        gap = 10.0
+        palette = (
+            [0.24, 0.28, 0.17, 1.0],
+            [0.31, 0.30, 0.18, 1.0],
+            [0.19, 0.27, 0.20, 1.0],
+            [0.28, 0.25, 0.17, 1.0],
+        )
+        for row, y0 in enumerate(np.arange(-extent, extent, cell_size)):
+            for column, x0 in enumerate(np.arange(-extent, extent, cell_size)):
+                x1 = min(x0 + cell_size - gap, extent)
+                y1 = min(y0 + cell_size - gap, extent)
+                center_x = (x0 + x1) * 0.5
+                center_y = (y0 + y1) * 0.5
+                if math.hypot(center_x, center_y) < 260.0:
+                    continue
+                vertices = [
+                    [x0, y0, self.terrain_elevation(x0, y0) + 0.04],
+                    [x1, y0, self.terrain_elevation(x1, y0) + 0.04],
+                    [x1, y1, self.terrain_elevation(x1, y1) + 0.04],
+                    [x0, y1, self.terrain_elevation(x0, y1) + 0.04],
+                ]
+                visual = pybullet.createVisualShape(
+                    pybullet.GEOM_MESH,
+                    vertices=vertices,
+                    indices=[0, 1, 2, 0, 2, 3],
+                    rgbaColor=palette[(row * 3 + column) % len(palette)],
+                    specularColor=[0.01, 0.01, 0.01],
+                    physicsClientId=self.client,
+                )
+                pybullet.createMultiBody(
+                    0,
+                    baseVisualShapeIndex=visual,
+                    physicsClientId=self.client,
+                )
+
     def _draw_real_map(self):
         if not self._site_config:
             return
@@ -221,6 +261,22 @@ class PhysicsWorld:
             )
             pybullet.createMultiBody(
                 0, collision, visual, center, physicsClientId=self.client
+            )
+            roof = pybullet.createVisualShape(
+                pybullet.GEOM_BOX,
+                halfExtents=[width / 2 + 0.15, depth / 2 + 0.15, 0.12],
+                rgbaColor=[shade * 0.72, shade * 0.74, shade * 0.70, 1.0],
+                physicsClientId=self.client,
+            )
+            pybullet.createMultiBody(
+                0,
+                baseVisualShapeIndex=roof,
+                basePosition=[
+                    center_x,
+                    center_y,
+                    self.terrain_elevation(center_x, center_y) + height + 0.12,
+                ],
+                physicsClientId=self.client,
             )
 
     # ------------------------------------------------------------------
@@ -411,22 +467,37 @@ class PhysicsWorld:
                 intruder_velocity,
                 -intruder,
             )
-            eye = intruder - forward * 48.0 + np.asarray([0.0, 0.0, 16.0])
-            focus = intruder + forward * 38.0
-            fov = 55.0
+            lateral = np.cross(forward, np.asarray([0.0, 0.0, 1.0]))
+            lateral /= max(float(np.linalg.norm(lateral)), 1e-6)
+            eye = (
+                intruder
+                - forward * 12.0
+                + lateral * 4.5
+                + np.asarray([0.0, 0.0, 4.0])
+            )
+            focus = intruder + forward * 16.0
+            fov = 36.0
         elif view_mode == "interceptor" and interceptor is not None:
             forward = self._camera_direction(
                 interceptor_velocity,
                 intruder - interceptor if intruder is not None else -interceptor,
             )
-            eye = interceptor - forward * 20.0 + np.asarray([0.0, 0.0, 6.0])
-            focus = interceptor + forward * 85.0
-            fov = 62.0
+            eye = interceptor - forward * 12.0 + np.asarray([0.0, 0.0, 4.0])
+            focus = interceptor + forward * 58.0
+            fov = 48.0
         elif view_mode == "topdown":
             points = [p for p in (intruder, interceptor) if p is not None]
             focus = np.mean(points, axis=0) if points else np.zeros(3)
             focus[2] = 0.0
-            eye = focus + np.asarray([0.0, 0.0, 950.0])
+            separation = (
+                float(np.linalg.norm(intruder - interceptor))
+                if intruder is not None and interceptor is not None else 300.0
+            )
+            eye = focus + np.asarray([
+                0.0,
+                0.0,
+                min(850.0, max(360.0, separation * 1.35)),
+            ])
             fov = 48.0
         else:
             points = [p for p in (intruder, interceptor) if p is not None]
@@ -435,8 +506,13 @@ class PhysicsWorld:
                 focus[2] = max(20.0, min(120.0, focus[2] * 0.45))
             else:
                 focus = np.asarray([0.0, 0.0, 45.0])
-            eye = focus + np.asarray([390.0, -510.0, 330.0])
-            fov = 50.0
+            separation = (
+                float(np.linalg.norm(intruder - interceptor))
+                if intruder is not None and interceptor is not None else 300.0
+            )
+            camera_distance = min(560.0, max(300.0, separation * 1.12))
+            eye = focus + camera_distance * np.asarray([0.56, -0.72, 0.48])
+            fov = 46.0
 
         view = pybullet.computeViewMatrix(
             cameraEyePosition=eye.tolist(),
@@ -522,7 +598,7 @@ class PhysicsWorld:
     @staticmethod
     def _grade_tactical_frame(rgb, depth):
         graded_float = np.clip(
-            np.power(rgb.astype(np.float32) / 255.0, 0.82) * 255.0,
+            np.power(rgb.astype(np.float32) / 255.0, 0.92) * 255.0,
             0,
             255,
         )
@@ -538,7 +614,7 @@ class PhysicsWorld:
             far - (far - near) * depth,
             1e-6,
         )
-        fog = np.clip((distance - 350.0) / 950.0, 0.0, 0.68)
+        fog = np.clip((distance - 520.0) / 1350.0, 0.0, 0.52)
         atmosphere = np.asarray([116.0, 128.0, 136.0])
         graded_float = (
             graded_float * (1.0 - fog[:, :, None])

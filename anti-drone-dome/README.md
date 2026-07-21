@@ -145,6 +145,31 @@ than treating the embedded PyBullet preview as a photorealistic renderer.
 Mission JSONL intentionally excludes raw video frames. Video should be stored
 as a separately encoded artifact; telemetry retains only normalized state,
 sensor detections, timing, backend identity, and event data.
+
+### No-hardware regression campaign
+
+The versioned synthetic campaign exercises named operational stress cases such
+as low-altitude approaches, remote interceptor launch geometry, crosswind,
+sensor latency/dropout/noise, agile targets, and a compound edge case:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_regression_campaign.py `
+  --repeats 100 `
+  --seed 1000 `
+  --output validation_reports\regression_campaign
+```
+
+This produces JSON episode evidence, a compact CSV summary, and an HTML
+release-readiness report. Every case uses deterministic scenario geometry and
+records its seed, allowing a weak or failed episode to be reproduced. The
+failure analysis reports observed stress-factor correlations only; it does not
+claim that a threshold factor proves root cause. Intercept gates use the lower
+bound of a 95% Wilson interval rather than the optimistic point estimate, so
+small perfect-looking samples do not create unsupported reliability claims.
+
+Edit or extend
+`scenario_data\regression_campaign_v1.json` to add lab-relevant cases while
+keeping existing cases stable for regression history.
 PyBullet runs headlessly and streams a tactical 3-D view into the same interface
 as the local map, vertical profile, fused radar/EO track, event timeline, weather,
 site identity, guidance mode, and mission controls. This avoids the old collection

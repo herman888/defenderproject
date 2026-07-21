@@ -31,6 +31,7 @@ class InterceptionEnv(gym.Env):
         procedural_scenarios=False,
         curriculum_level=1.0,
         observation_version="v1",
+        fixed_scenario=None,
     ):
         super().__init__()
         self.pattern_name = pattern
@@ -39,6 +40,7 @@ class InterceptionEnv(gym.Env):
         self.residual_apn = residual_apn
         self.procedural_scenarios = procedural_scenarios
         self.curriculum_level = float(np.clip(curriculum_level, 0.0, 1.0))
+        self.fixed_scenario = fixed_scenario
         if observation_version not in ("v1", "v2"):
             raise ValueError("observation_version must be 'v1' or 'v2'")
         self.observation_version = observation_version
@@ -57,8 +59,12 @@ class InterceptionEnv(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.scenario = None
-        if self.procedural_scenarios:
-            self.scenario = sample_scenario(self.np_random, self.curriculum_level)
+        if self.procedural_scenarios or self.fixed_scenario is not None:
+            self.scenario = (
+                self.fixed_scenario
+                if self.fixed_scenario is not None
+                else sample_scenario(self.np_random, self.curriculum_level)
+            )
             pattern_name = self.scenario.profile
             intruder_name = self.scenario.intruder_type
             self.pattern = {
@@ -298,6 +304,13 @@ class InterceptionEnv(gym.Env):
             "intruder_type": self.intruder_type_active,
             "curriculum_level": self.curriculum_level,
             "configured_sensor_latency_s": self.sensor_latency_s,
+            "sensor_dropout_probability": self.environment.get(
+                "sensor_dropout_probability", 0.0
+            ),
+            "radar_noise_std_m": self.environment["radar_noise_std_m"],
+            "evasion_mps": self.evasion_mps,
+            "mass_factor": self.mass_factor,
+            "actuator_time_constant_s": self.actuator_time_constant_s,
             "sensor_age_s": self.sensor_age_s,
             "interceptor_start_m": (
                 self.scenario.interceptor_start

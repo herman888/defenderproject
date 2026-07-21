@@ -417,7 +417,7 @@ class Dashboard(QtWidgets.QMainWindow):
         video_header_layout.setContentsMargins(8, 2, 6, 2)
         video_header_layout.setSpacing(4)
         self._video_title = QtWidgets.QLabel(
-            "TACTICAL 3-D  /  OVERVIEW  /  PYBULLET CPU PREVIEW"
+            "TACTICAL 3-D  /  OVERVIEW  /  PYBULLET 3-D PREVIEW"
         )
         self._video_title.setStyleSheet(
             f"color: {C['cyan']}; background-color: {C['panel']}; "
@@ -428,7 +428,7 @@ class Dashboard(QtWidgets.QMainWindow):
         for key, label in (
             ("overview", "OVERVIEW"),
             ("shahed", "SHAHED TRACK"),
-            ("interceptor", "INTERCEPTOR FPV"),
+            ("interceptor", "INTERCEPTOR CHASE"),
             ("topdown", "TOP DOWN"),
         ):
             button = QtWidgets.QPushButton(label)
@@ -1065,10 +1065,10 @@ class Dashboard(QtWidgets.QMainWindow):
         for key, button in self._view_btns.items():
             button.setChecked(key == mode)
         titles = {
-            "overview": "TACTICAL 3-D  /  OVERVIEW  /  PYBULLET CPU PREVIEW",
-            "shahed": "THREAT CAMERA  /  SHAHED-136  /  PYBULLET CPU PREVIEW",
-            "interceptor": "INTERCEPTOR FPV  /  PYBULLET CPU PREVIEW",
-            "topdown": "TACTICAL 3-D  /  NADIR  /  PYBULLET CPU PREVIEW",
+            "overview": "TACTICAL 3-D  /  OVERVIEW  /  PYBULLET 3-D PREVIEW",
+            "shahed": "THREAT CHASE  /  SHAHED-136  /  PYBULLET 3-D PREVIEW",
+            "interceptor": "INTERCEPTOR CHASE  /  PYBULLET 3-D PREVIEW",
+            "topdown": "TACTICAL 3-D  /  NADIR  /  PYBULLET 3-D PREVIEW",
         }
         self._video_title.setText(titles.get(mode, titles["overview"]))
 
@@ -1174,16 +1174,20 @@ class Dashboard(QtWidgets.QMainWindow):
         occupied_labels: list[QtCore.QRectF] = []
         placed_labels = []
         for key in ("intruder", "interceptor", "predicted_intercept"):
+            if (mode == "shahed" and key == "intruder") or (
+                mode == "interceptor" and key == "interceptor"
+            ):
+                continue
             point = points.get(key)
             if not point or key not in labels:
                 continue
             color, title, detail = labels[key]
             x, y = point
-            text_x = min(x + 32.0, width - 192.0)
-            text_y = max(16.0, y - 32.0)
+            text_x = min(x + 26.0, width - 180.0)
+            text_y = max(16.0, y - 28.0)
             label_height = 28.0 if detail else 16.0
             label_rect = QtCore.QRectF(
-                text_x - 3, text_y - 11, 188, label_height
+                text_x - 3, text_y - 11, 176, label_height
             )
             while any(label_rect.intersects(existing) for existing in occupied_labels):
                 label_rect.translate(0.0, label_height + 4.0)
@@ -1209,8 +1213,19 @@ class Dashboard(QtWidgets.QMainWindow):
                     QtCore.QPointF(x + size, y - size),
                 )
             else:
-                size = 12.0
-                painter.drawRect(QtCore.QRectF(x - size, y - size, size * 2, size * 2))
+                size = 14.0
+                corner = 5.0
+                for sx, sy in ((-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)):
+                    corner_x = x + sx * size
+                    corner_y = y + sy * size
+                    painter.drawLine(
+                        QtCore.QPointF(corner_x, corner_y),
+                        QtCore.QPointF(corner_x - sx * corner, corner_y),
+                    )
+                    painter.drawLine(
+                        QtCore.QPointF(corner_x, corner_y),
+                        QtCore.QPointF(corner_x, corner_y - sy * corner),
+                    )
             painter.setBrush(QtGui.QBrush(QtGui.QColor(color)))
             painter.drawEllipse(QtCore.QPointF(x, y), 2.5, 2.5)
             leader_end = QtCore.QPointF(label_rect.left(), label_rect.center().y())

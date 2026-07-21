@@ -70,7 +70,7 @@ def main():
         "mission_time": 12.4,
         "sim_speed": 1.0,
         "real_time_factor": 0.14,
-        "render_backend": "PYBULLET TINY CPU + OSM",
+        "render_backend": world.render_backend + " + OSM",
     }
     for index, sim_time in enumerate(np.linspace(0.0, 12.0, 37)):
         fraction = sim_time / 12.0
