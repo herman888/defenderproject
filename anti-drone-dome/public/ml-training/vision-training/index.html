@@ -12,13 +12,13 @@
         <meta name="author" content="Herman Isayenka">
       
       
-        <link rel="canonical" href="https://defenderproject.vercel.app/development/testing/">
+        <link rel="canonical" href="https://defenderproject.vercel.app/ml-training/vision-training/">
       
       
-        <link rel="prev" href="../../gallery/overview/">
+        <link rel="prev" href="../training/">
       
       
-        <link rel="next" href="../gpu-setup/">
+        <link rel="next" href="../evaluation/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Testing and release checks - Project LARP</title>
+        <title>Camera and vision training - Project LARP</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#testing-and-release-checks" class="md-skip">
+        <a href="#camera-and-vision-training" class="md-skip">
           Skip to content
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Testing and release checks
+              Camera and vision training
             
           </span>
         </div>
@@ -817,8 +817,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -829,13 +831,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
           <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
@@ -856,7 +856,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -874,7 +874,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ml-training/training/" class="md-nav__link">
+      <a href="../training/" class="md-nav__link">
         
   
   
@@ -899,10 +899,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../ml-training/vision-training/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Camera and vision training
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -918,6 +945,70 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#implemented-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implemented workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-it-is-valuable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why it is valuable
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evidence-required-for-a-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evidence required for a model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#avoiding-fake-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Avoiding fake performance
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -930,7 +1021,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ml-training/evaluation/" class="md-nav__link">
+      <a href="../evaluation/" class="md-nav__link">
         
   
   
@@ -1659,8 +1750,6 @@
       
   
   
-    
-  
   
   
     
@@ -1673,11 +1762,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_12" >
         
           
           <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="">
@@ -1698,7 +1789,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_12">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1713,37 +1804,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Testing and release checks
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../development/testing/" class="md-nav__link">
         
   
   
@@ -1759,70 +1823,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#code-tests" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Code tests
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#documentation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Documentation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#operational-regression" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Operational regression
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#release-evidence-checklist" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Release evidence checklist
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1835,7 +1835,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../gpu-setup/" class="md-nav__link">
+      <a href="../../development/gpu-setup/" class="md-nav__link">
         
   
   
@@ -2091,10 +2091,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#code-tests" class="md-nav__link">
+  <a href="#implemented-workflow" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Code tests
+        Implemented workflow
       
     </span>
   </a>
@@ -2102,10 +2102,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#documentation" class="md-nav__link">
+  <a href="#why-it-is-valuable" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Documentation
+        Why it is valuable
       
     </span>
   </a>
@@ -2113,10 +2113,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#operational-regression" class="md-nav__link">
+  <a href="#evidence-required-for-a-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Operational regression
+        Evidence required for a model
       
     </span>
   </a>
@@ -2124,10 +2124,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#release-evidence-checklist" class="md-nav__link">
+  <a href="#avoiding-fake-performance" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Release evidence checklist
+        Avoiding fake performance
       
     </span>
   </a>
@@ -2151,7 +2151,7 @@
 
 
   
-    <a href="https://github.com/herman888/defenderproject/edit/main/anti-drone-dome/documentation/development/testing.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/herman888/defenderproject/edit/main/anti-drone-dome/documentation/ml-training/vision-training.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2159,32 +2159,58 @@
   
 
 
-<h1 id="testing-and-release-checks">Testing and release checks<a class="headerlink" href="#testing-and-release-checks" title="Permanent link">&para;</a></h1>
-<h2 id="code-tests">Code tests<a class="headerlink" href="#code-tests" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">python</span> <span class="n">-m</span> <span class="n">pytest</span> <span class="n">-q</span>
+<h1 id="camera-and-vision-training">Camera and vision training<a class="headerlink" href="#camera-and-vision-training" title="Permanent link">&para;</a></h1>
+<p>Camera training is a direct bridge from the lab simulator to useful physical
+hardware. It is separate from interceptor-policy training and produces a
+different deployable artifact: YOLO detector weights.</p>
+<h2 id="implemented-workflow">Implemented workflow<a class="headerlink" href="#implemented-workflow" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>InnoMaker camera
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  -&gt; recorded day/IR clips and metadata
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  -&gt; extracted frames
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  -&gt; baseline YOLO auto-labels
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  -&gt; human correction
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  -&gt; merged versioned dataset
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  -&gt; fine-tuned detector
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  -&gt; live camera or rendered-camera evaluation
 </code></pre></div>
-<h2 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">mkdocs</span> <span class="n">build</span> <span class="p">-</span><span class="n">-strict</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">mkdocs</span> <span class="n">serve</span>
-</code></pre></div>
-<p>The committed Vercel site is generated separately:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">mkdocs</span> <span class="n">build</span> <span class="p">-</span><span class="n">-strict</span> <span class="n">-d</span> <span class="n">public</span>
-</code></pre></div>
-<h2 id="operational-regression">Operational regression<a class="headerlink" href="#operational-regression" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">python</span> <span class="n">scripts</span><span class="p">\</span><span class="n">run_regression_campaign</span><span class="p">.</span><span class="n">py</span> <span class="p">`</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  <span class="p">-</span><span class="n">-repeats</span> <span class="n">100</span> <span class="p">`</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  <span class="p">-</span><span class="n">-seed</span> <span class="n">1000</span> <span class="p">`</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  <span class="p">-</span><span class="n">-output</span> <span class="n">validation_reports</span><span class="p">\</span><span class="n">regression_campaign</span>
-</code></pre></div>
-<h2 id="release-evidence-checklist">Release evidence checklist<a class="headerlink" href="#release-evidence-checklist" title="Permanent link">&para;</a></h2>
+<p>The repository includes scripts for capture, frame extraction, auto-labeling,
+dataset merging, fine-tuning, and live detection. See the
+<a href="../../software/detection-pipeline/">detection pipeline</a> for commands.</p>
+<h2 id="why-it-is-valuable">Why it is valuable<a class="headerlink" href="#why-it-is-valuable" title="Permanent link">&para;</a></h2>
 <ul>
-<li>tests pass in the target environment;</li>
-<li>MkDocs strict build has no missing nav entries or links;</li>
-<li>campaign and hardware reports retain seeds and profile IDs;</li>
-<li>screenshots are paired with live state where making dynamic claims;</li>
-<li>mission manifests are complete and hashes verify;</li>
-<li>synthetic and hardware claims remain clearly separated.</li>
+<li>Uses observations from the actual camera intended for lab work.</li>
+<li>Captures real backgrounds, exposure, blur, compression, range, and viewing
+  angles that a perfect simulated sensor cannot reproduce.</li>
+<li>Supports day and IR collection.</li>
+<li>Creates hard negatives from empty or confusing scenes.</li>
+<li>Can supply a trained model to both live detection and the simulated rendered
+  camera path.</li>
+<li>Produces data that can reveal sensor and model limitations before flight.</li>
 </ul>
+<h2 id="evidence-required-for-a-model">Evidence required for a model<a class="headerlink" href="#evidence-required-for-a-model" title="Permanent link">&para;</a></h2>
+<p>Every candidate detector should retain:</p>
+<ul>
+<li>source capture session IDs and camera mode;</li>
+<li>train, validation, and held-out test splits;</li>
+<li>class definitions and dataset version;</li>
+<li>precision, recall, mAP, and confidence threshold;</li>
+<li>false-positive results on hard-negative footage;</li>
+<li>range, lighting, and target-size breakdowns;</li>
+<li>model hash, training configuration, and runtime backend;</li>
+<li>live-camera latency and achieved frame rate.</li>
+</ul>
+<h2 id="avoiding-fake-performance">Avoiding fake performance<a class="headerlink" href="#avoiding-fake-performance" title="Permanent link">&para;</a></h2>
+<p>A model is not validated merely because training loss decreases or a few
+screenshots look correct. Report held-out results and test the exact exported
+weights on untouched recordings. Simulation-generated images can augment the
+dataset, but final claims must remain separated into:</p>
+<ol>
+<li>synthetic rendered-camera performance;</li>
+<li>recorded lab-camera performance;</li>
+<li>controlled field performance.</li>
+</ol>
+<p>No field-performance claim is currently made without corresponding real
+footage and evaluation evidence.</p>
 
 
 
@@ -2222,7 +2248,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../../gallery/overview/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Overview">
+          <a href="../training/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Training and datasets">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2232,20 +2258,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Overview
+                Training and datasets
               </div>
             </div>
           </a>
         
         
           
-          <a href="../gpu-setup/" class="md-footer__link md-footer__link--next" aria-label="Next: NVIDIA GPU setup">
+          <a href="../evaluation/" class="md-footer__link md-footer__link--next" aria-label="Next: Controller evaluation">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                NVIDIA GPU setup
+                Controller evaluation
               </div>
             </div>
             <div class="md-footer__button md-icon">

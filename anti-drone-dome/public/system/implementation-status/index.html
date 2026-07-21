@@ -581,6 +581,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#training-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training value
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -984,6 +995,34 @@
     
   
     Training and datasets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ml-training/vision-training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Camera and vision training
   
 
     
@@ -2128,6 +2167,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#training-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training value
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2191,6 +2241,10 @@
 <tr>
 <td>ML</td>
 <td>Optional bounded residual PPO and Gymnasium training environment</td>
+</tr>
+<tr>
+<td>Vision training</td>
+<td>Capture, extract, auto-label, merge, fine-tune, and live YOLO scripts</td>
 </tr>
 <tr>
 <td>Scenarios</td>
@@ -2270,6 +2324,17 @@ still follows its original practical architecture:</p>
 </ol>
 <p>Higher-fidelity rendering is an adapter around this working core, not a claim
 that the core has already migrated to Unreal.</p>
+<h2 id="training-value">Training value<a class="headerlink" href="#training-value" title="Permanent link">&para;</a></h2>
+<p>The project has two complementary training tracks:</p>
+<ul>
+<li><strong>Guidance ML:</strong> procedural scenarios and APN expert data train and evaluate
+  bounded residual policies against a classical baseline.</li>
+<li><strong>Camera ML:</strong> real day/IR camera recordings train a detector that can run in
+  the live hardware pipeline or the rendered-camera simulation path.</li>
+</ul>
+<p>The guidance track improves autonomy research and regression coverage. The
+camera track is especially relevant to real hardware because its training data
+can come from the actual sensor and operating environment.</p>
 
 
 

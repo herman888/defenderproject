@@ -86,6 +86,7 @@ nav:
       - Detection pipeline reference: reference/detection-pipeline-reference.md
   - ML training:
       - Training and datasets: ml-training/training.md
+      - Camera and vision training: ml-training/vision-training.md
       - Controller evaluation: ml-training/evaluation.md
   - Validation:
       - Workbench overview: validation/overview.md

@@ -13,6 +13,7 @@ This page separates running code from validated evidence and future work.
 | Sensors | Simulated radar, rendered EO/segmentation, optional YOLO, fusion |
 | Guidance | APN default with command limits |
 | ML | Optional bounded residual PPO and Gymnasium training environment |
+| Vision training | Capture, extract, auto-label, merge, fine-tune, and live YOLO scripts |
 | Scenarios | Interactive profiles plus eight deterministic stress cases |
 | Evidence | Mission JSONL, event log, hashes, ACMI, JSON/CSV/HTML reports |
 | External integration | Versioned `aegis.tactical.v1` UDP telemetry |
@@ -62,3 +63,16 @@ still follows its original practical architecture:
 
 Higher-fidelity rendering is an adapter around this working core, not a claim
 that the core has already migrated to Unreal.
+
+## Training value
+
+The project has two complementary training tracks:
+
+- **Guidance ML:** procedural scenarios and APN expert data train and evaluate
+  bounded residual policies against a classical baseline.
+- **Camera ML:** real day/IR camera recordings train a detector that can run in
+  the live hardware pipeline or the rendered-camera simulation path.
+
+The guidance track improves autonomy research and regression coverage. The
+camera track is especially relevant to real hardware because its training data
+can come from the actual sensor and operating environment.

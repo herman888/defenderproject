@@ -20,6 +20,7 @@ hardware integration, Betaflight firmware, and YOLO detection.
 | **Hardware** | Omnibus F4 + Fury F4 OSD quads, Spektrum / DX4e radio, InnoMaker USB camera |
 | **Firmware** | Betaflight flash, DFU recovery, ST-Link fallback |
 | **Software** | PyBullet digital twin, Qt command center, radar/EO fusion, APN and residual RL |
+| **Training** | Residual-policy curriculum plus real-camera YOLO capture-to-fine-tune pipeline |
 | **Validation** | Named stress campaigns, mission records, ACMI replay, SIL/HIL readiness |
 | **Demo** | Detect → fuse → track → intercept → replay and evidence reporting |
 
