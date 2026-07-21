@@ -21,3 +21,4 @@ venv*/
 
 # MkDocs build output
 site/
+public/

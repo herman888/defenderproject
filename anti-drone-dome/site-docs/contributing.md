@@ -73,6 +73,6 @@ mkdocs build
 
 ---
 
-## Out of scope for now
+## Deploy to Vercel
 
-GitHub Pages / public deploy — local `mkdocs serve` only. When you want hosting later, we can add a `gh-pages` workflow.
+See [Deploy to Vercel](deploy-vercel.md) for connecting this docs site to **projectlarp.vercel.app**.

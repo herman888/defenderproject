@@ -1,0 +1,9 @@
+{
+  "name": "projectlarp",
+  "private": true,
+  "description": "Project LARP documentation site (MkDocs Material)",
+  "scripts": {
+    "build": "pip3 install -r requirements-docs.txt && mkdocs build -d public",
+    "dev": "mkdocs serve -a 127.0.0.1:8000"
+  }
+}

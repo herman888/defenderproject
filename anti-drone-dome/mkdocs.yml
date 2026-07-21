@@ -1,6 +1,7 @@
 site_name: Project LARP
 site_description: Localised Aerial Response Platform — Anti-Drone Dome documentation
 site_author: Herman Isayenka
+site_url: https://projectlarp.vercel.app
 
 docs_dir: site-docs
 site_dir: site
@@ -64,3 +65,4 @@ nav:
   - Gallery:
       - Overview: gallery/overview.md
   - Contributing: contributing.md
+  - Deploy to Vercel: deploy-vercel.md
