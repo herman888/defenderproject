@@ -18,6 +18,7 @@ def build_perception_packet(
     *,
     source: str = "innomaker-uvc",
     model_id: str | None = None,
+    timestamp_clock: str | None = None,
 ) -> dict:
     if sequence < 0 or timestamp_ns < 0:
         raise ValueError("sequence and timestamp_ns must be non-negative")
@@ -54,6 +55,10 @@ def build_perception_packet(
     }
     if model_id:
         packet["model_id"] = model_id
+    if timestamp_clock:
+        if timestamp_clock not in {"monotonic", "recording-relative", "ptp"}:
+            raise ValueError("unsupported timestamp clock")
+        packet["timestamp_clock"] = timestamp_clock
     return packet
 
 

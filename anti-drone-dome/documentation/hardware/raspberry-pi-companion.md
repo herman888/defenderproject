@@ -31,11 +31,41 @@ python scripts\run_companion_smoke.py `
 This checks schema generation and serialization throughput on any computer. The
 versioned profile is `hardware_profiles/raspberry_pi5_companion.json`.
 
+## Lock and replay a detector before hardware arrives
+
+The candidate manifest at `models/vision/drone_detector_candidate.json` is
+intentionally unlocked because detector weights are not committed. After
+downloading or exporting the exact artifact, copy the candidate manifest and
+checksum-lock that copy:
+
+```powershell
+Copy-Item models\vision\drone_detector_candidate.json `
+  models\vision\drone_detector_deployed.json
+python scripts\lock_vision_model.py `
+  --manifest models\vision\drone_detector_deployed.json `
+  --artifact models\yolo11n_drone.pt
+```
+
+Replay untouched video or an ordered image directory through that exact model:
+
+```powershell
+python scripts\replay_camera_recording.py `
+  --input recordings\held-out-day `
+  --manifest models\vision\drone_detector_deployed.json `
+  --output reports\held-out-day.perception.jsonl `
+  --device auto
+```
+
+Replay refuses unlocked, missing, size-mismatched, or checksum-mismatched model
+artifacts. Packets identify the locked model and use a recording-relative clock.
+The sidecar report hashes both the source and output and labels throughput as a
+host replay measurement, not Pi or field performance.
+
 ## When the Pi arrives
 
 1. Install 64-bit Raspberry Pi OS and configure active cooling.
 2. Connect the InnoMaker camera over USB and verify UVC modes and frame rate.
-3. Benchmark the exact exported model at the intended resolution.
+3. Deploy the checksum-locked model already exercised on held-out recordings.
 4. Record CPU, accelerator, memory, temperature, throttling, inference latency,
    frame drops, and power draw.
 5. Replay Pi detections into the simulator before connecting any autopilot.
@@ -55,4 +85,3 @@ inference, while an autopilot or sensor HAT solves a different problem. Confirm:
 - driver lifecycle and reproducible deployment.
 
 Do not purchase based only on advertised TOPS.
-

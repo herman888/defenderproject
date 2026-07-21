@@ -45,6 +45,13 @@ Every candidate detector should retain:
 - model hash, training configuration, and runtime backend;
 - live-camera latency and achieved frame rate.
 
+The repository now enforces these deployment basics with
+`aegis.vision-model.v1`. `scripts/lock_vision_model.py` binds a manifest to the
+exact artifact size and SHA-256 digest. `scripts/replay_camera_recording.py`
+then runs that locked model over held-out video or ordered frames and writes
+versioned companion-perception JSONL plus a hashed replay report. This makes
+recorded evaluation reproducible before Pi hardware is available.
+
 ## Avoiding fake performance
 
 A model is not validated merely because training loss decreases or a few
@@ -58,4 +65,3 @@ dataset, but final claims must remain separated into:
 
 No field-performance claim is currently made without corresponding real
 footage and evaluation evidence.
-

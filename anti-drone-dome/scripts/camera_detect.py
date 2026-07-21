@@ -15,10 +15,13 @@ import time
 from pathlib import Path
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
-if str(_SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPT_DIR))
+_PROJECT_DIR = _SCRIPT_DIR.parent
+for path in (_SCRIPT_DIR, _PROJECT_DIR):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
 
 from drone_model import ensure_drone_weights  # noqa: E402
+from integration.vision_model import resolve_inference_device  # noqa: E402
 
 os.environ.setdefault("OPENCV_LOG_LEVEL", "ERROR")
 
@@ -209,6 +212,12 @@ def main() -> int:
                         help=f"Display confidence threshold (default: {_CONF_DEFAULT}).")
     parser.add_argument("--width",  type=int, default=1280)
     parser.add_argument("--height", type=int, default=720)
+    parser.add_argument(
+        "--inference-device",
+        choices=("auto", "cpu", "cuda"),
+        default="auto",
+        help="Inference backend selection (default: auto).",
+    )
     args = parser.parse_args()
 
     try:
@@ -245,6 +254,7 @@ def main() -> int:
     cv2.resizeWindow(window, min(w, 1280), min(h, 720))
 
     drone_weights              = ensure_drone_weights()
+    inference_device = resolve_inference_device(args.inference_device)
     model_holder, model_ready, model_err = _load_models_async(args.model, drone_weights)
     print("Loading YOLO models in background (preview starts immediately)...", flush=True)
 
@@ -285,7 +295,13 @@ def main() -> int:
                         break
                     coco_names  = coco_model.names  if coco_model  else {}
                     drone_names = drone_model.names if drone_model else {}
-                    print("YOLO ready — GTX 1650 inference active.", flush=True)
+                    device_label = (
+                        "cuda:0" if inference_device == 0 else inference_device
+                    )
+                    print(
+                        f"YOLO ready - inference device {device_label}.",
+                        flush=True,
+                    )
 
                 if frame_i % _DETECT_EVERY == 0:
                     fh, fw  = frame.shape[:2]
@@ -295,9 +311,19 @@ def main() -> int:
                     scale_y = fh / small.shape[0]
                     try:
                         if not args.drone_only:
-                            coco_res = coco_model.predict(source=small, conf=_PREDICT_CONF, verbose=False, device=0)
+                            coco_res = coco_model.predict(
+                                source=small,
+                                conf=_PREDICT_CONF,
+                                verbose=False,
+                                device=inference_device,
+                            )
                             last_coco_boxes = coco_res[0].boxes
-                        drone_res = drone_model.predict(source=small, conf=_PREDICT_CONF, verbose=False, device=0)
+                        drone_res = drone_model.predict(
+                            source=small,
+                            conf=_PREDICT_CONF,
+                            verbose=False,
+                            device=inference_device,
+                        )
                         last_drone_boxes = drone_res[0].boxes
                     except Exception as exc:
                         print(f"Detection error: {exc}", file=sys.stderr)

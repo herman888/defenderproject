@@ -4,7 +4,7 @@
 
 | Area | Evidence |
 |---|---|
-| Tests | 29 tests passed after the regression and rendering upgrade |
+| Tests | 33 tests passed after the vision replay and model-integrity upgrade |
 | Live mission | OpenGL tactical mission intercepted at approximately T+15.7 s |
 | Visual dynamics | Timestamped frames changed 14.5% then 25.6% |
 | Stress campaign | 800/800 APN synthetic interceptions across eight cases |

@@ -2227,6 +2227,12 @@ dataset merging, fine-tuning, and live detection. See the
 <li>model hash, training configuration, and runtime backend;</li>
 <li>live-camera latency and achieved frame rate.</li>
 </ul>
+<p>The repository now enforces these deployment basics with
+<code>aegis.vision-model.v1</code>. <code>scripts/lock_vision_model.py</code> binds a manifest to the
+exact artifact size and SHA-256 digest. <code>scripts/replay_camera_recording.py</code>
+then runs that locked model over held-out video or ordered frames and writes
+versioned companion-perception JSONL plus a hashed replay report. This makes
+recorded evaluation reproducible before Pi hardware is available.</p>
 <h2 id="avoiding-fake-performance">Avoiding fake performance<a class="headerlink" href="#avoiding-fake-performance" title="Permanent link">&para;</a></h2>
 <p>A model is not validated merely because training loss decreases or a few
 screenshots look correct. Report held-out results and test the exact exported

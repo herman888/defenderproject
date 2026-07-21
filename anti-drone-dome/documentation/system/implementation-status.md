@@ -14,7 +14,7 @@ This page separates running code from validated evidence and future work.
 | Guidance | APN default with command limits |
 | ML | Optional bounded residual PPO and Gymnasium training environment |
 | Vision training | Capture, extract, auto-label, merge, fine-tune, and live YOLO scripts |
-| Companion path | Pi 5 read-only profile and versioned perception telemetry |
+| Companion path | Pi 5 read-only profile, locked model manifests, recorded-media replay, and versioned perception telemetry |
 | Scenarios | Interactive profiles plus eight deterministic stress cases |
 | Evidence | Mission JSONL, event log, hashes, ACMI, JSON/CSV/HTML reports |
 | External integration | Versioned `aegis.tactical.v1` UDP telemetry |
@@ -48,6 +48,7 @@ They do not establish real-world interception reliability.
 - Betaflight/MSP actuation bridge
 - physical interceptor actuation
 - sustained Pi 5/InnoMaker/accelerator measurements
+- a selected and checksum-locked production detector artifact
 - field-calibrated radar/EO timing
 - flight-log-derived dynamics model
 - HIL timing and loss-of-link qualification

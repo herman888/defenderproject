@@ -1475,6 +1475,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#lock-and-replay-a-detector-before-hardware-arrives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lock and replay a detector before hardware arrives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#when-the-pi-arrives" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2141,6 +2152,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#lock-and-replay-a-detector-before-hardware-arrives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lock and replay a detector before hardware arrives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#when-the-pi-arrives" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2237,11 +2259,33 @@ not enable actuation.</p>
 </code></pre></div>
 <p>This checks schema generation and serialization throughput on any computer. The
 versioned profile is <code>hardware_profiles/raspberry_pi5_companion.json</code>.</p>
+<h2 id="lock-and-replay-a-detector-before-hardware-arrives">Lock and replay a detector before hardware arrives<a class="headerlink" href="#lock-and-replay-a-detector-before-hardware-arrives" title="Permanent link">&para;</a></h2>
+<p>The candidate manifest at <code>models/vision/drone_detector_candidate.json</code> is
+intentionally unlocked because detector weights are not committed. After
+downloading or exporting the exact artifact, copy the candidate manifest and
+checksum-lock that copy:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">Copy-Item</span> <span class="n">models</span><span class="p">\</span><span class="n">vision</span><span class="p">\</span><span class="n">drone_detector_candidate</span><span class="p">.</span><span class="n">json</span> <span class="p">`</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  <span class="n">models</span><span class="p">\</span><span class="n">vision</span><span class="p">\</span><span class="n">drone_detector_deployed</span><span class="p">.</span><span class="n">json</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">python</span> <span class="n">scripts</span><span class="p">\</span><span class="n">lock_vision_model</span><span class="p">.</span><span class="n">py</span> <span class="p">`</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  <span class="p">-</span><span class="n">-manifest</span> <span class="n">models</span><span class="p">\</span><span class="n">vision</span><span class="p">\</span><span class="n">drone_detector_deployed</span><span class="p">.</span><span class="n">json</span> <span class="p">`</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  <span class="p">-</span><span class="n">-artifact</span> <span class="n">models</span><span class="p">\</span><span class="n">yolo11n_drone</span><span class="p">.</span><span class="n">pt</span>
+</code></pre></div>
+<p>Replay untouched video or an ordered image directory through that exact model:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">python</span> <span class="n">scripts</span><span class="p">\</span><span class="n">replay_camera_recording</span><span class="p">.</span><span class="n">py</span> <span class="p">`</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  <span class="p">-</span><span class="n">-input</span> <span class="n">recordings</span><span class="p">\</span><span class="n">held-out-day</span> <span class="p">`</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  <span class="p">-</span><span class="n">-manifest</span> <span class="n">models</span><span class="p">\</span><span class="n">vision</span><span class="p">\</span><span class="n">drone_detector_deployed</span><span class="p">.</span><span class="n">json</span> <span class="p">`</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  <span class="p">-</span><span class="n">-output</span> <span class="n">reports</span><span class="p">\</span><span class="n">held-out-day</span><span class="p">.</span><span class="n">perception</span><span class="p">.</span><span class="n">jsonl</span> <span class="p">`</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  <span class="p">-</span><span class="n">-device</span> <span class="n">auto</span>
+</code></pre></div>
+<p>Replay refuses unlocked, missing, size-mismatched, or checksum-mismatched model
+artifacts. Packets identify the locked model and use a recording-relative clock.
+The sidecar report hashes both the source and output and labels throughput as a
+host replay measurement, not Pi or field performance.</p>
 <h2 id="when-the-pi-arrives">When the Pi arrives<a class="headerlink" href="#when-the-pi-arrives" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Install 64-bit Raspberry Pi OS and configure active cooling.</li>
 <li>Connect the InnoMaker camera over USB and verify UVC modes and frame rate.</li>
-<li>Benchmark the exact exported model at the intended resolution.</li>
+<li>Deploy the checksum-locked model already exercised on held-out recordings.</li>
 <li>Record CPU, accelerator, memory, temperature, throttling, inference latency,
    frame drops, and power draw.</li>
 <li>Replay Pi detections into the simulator before connecting any autopilot.</li>

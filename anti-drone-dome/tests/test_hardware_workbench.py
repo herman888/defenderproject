@@ -15,6 +15,12 @@ from integration.companion_link import (
     build_perception_packet,
     encode_perception_packet,
 )
+from integration.vision_model import (
+    load_vision_model_manifest,
+    lock_vision_model_artifact,
+    resolve_inference_device,
+)
+from integration.vision_replay import build_recorded_replay_packet
 from validation.flight_log import compare_flight_logs, load_flight_log
 from validation.workbench import evaluate_readiness
 from viz.acmi_writer import ACMIWriter
@@ -77,6 +83,64 @@ def test_pi_companion_profile_and_perception_contract_are_readonly():
                 "bbox_xyxy": [-1, 20, 40, 60],
             }],
         )
+
+
+def test_vision_manifest_locks_and_verifies_exact_artifact(tmp_path):
+    artifact = tmp_path / "detector.pt"
+    artifact.write_bytes(b"deterministic-test-weights")
+    manifest_path = tmp_path / "model.json"
+    manifest_path.write_text(json.dumps({
+        "schema": "aegis.vision-model.v1",
+        "model_id": "test-detector",
+        "task": "object-detection",
+        "artifact": {
+            "path": "missing.pt",
+            "format": "pytorch",
+            "size_bytes": None,
+            "sha256": None,
+        },
+        "input": {"width": 640, "height": 640, "color_space": "BGR"},
+        "classes": [{"id": 0, "label": "drone"}],
+        "inference": {
+            "backend": "ultralytics",
+            "device": "auto",
+            "quantization": "none",
+            "confidence_threshold": 0.25,
+            "iou_threshold": 0.7,
+        },
+    }), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="not checksum-locked"):
+        load_vision_model_manifest(str(manifest_path), require_artifact=True)
+    locked = lock_vision_model_artifact(str(manifest_path), str(artifact))
+    assert locked["artifact"]["size_bytes"] == artifact.stat().st_size
+    manifest = load_vision_model_manifest(
+        str(manifest_path), require_artifact=True
+    )
+    assert manifest.locked_model_id.startswith("test-detector@sha256:")
+    artifact.write_bytes(b"tampered")
+    with pytest.raises(ValueError, match="size mismatch"):
+        manifest.verify_artifact()
+
+
+def test_recorded_replay_marks_relative_clock_and_never_actuates():
+    packet = build_recorded_replay_packet(
+        sequence=3,
+        timestamp_ns=100_000_000,
+        frame_name="clip.mp4:00000003",
+        image_size=(640, 480),
+        detections=[{
+            "class_id": 0,
+            "label": "drone",
+            "confidence": 0.9,
+            "bbox_xyxy": [10, 20, 30, 40],
+        }],
+        model_id="test@sha256:123456789abc",
+    )
+    assert packet["timestamp_clock"] == "recording-relative"
+    assert packet["source"] == "recorded-media-replay"
+    assert "actuation" not in packet
+    assert resolve_inference_device("cpu") == "cpu"
 
 
 def test_mission_recorder_writes_hashed_manifest(tmp_path):
