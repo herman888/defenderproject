@@ -1,4 +1,10 @@
 # Anti-Drone Dome Simulation - Megaprompt V3 (archive)
+
+!!! warning "Design history, not implementation evidence"
+    This archived prompt records a development iteration. Requirements written
+    below are not proof that every item was delivered. Current claims are
+    controlled by the [implementation status](../system/implementation-status.md)
+    and validation evidence.
 # Visual Polish + Tacview ACMI Export + Quality Pass
 # DO NOT SCRAP ANYTHING — surgical improvements only
 # Paste directly into Claude Code

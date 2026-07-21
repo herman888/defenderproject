@@ -6,6 +6,11 @@ This site is the living technical record for the AEGIS counter-UAS research
 stack: simulation, sensor fusion, guidance, machine learning, validation,
 hardware integration, Betaflight firmware, and YOLO detection.
 
+!!! info "Real implementation versus roadmap"
+    The [implementation status](system/implementation-status.md) identifies
+    running code, verified evidence, environment-dependent features, and future
+    work. Archived prompts preserve design history but are not used as proof.
+
 ---
 
 ## What this project covers

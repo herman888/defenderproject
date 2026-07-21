@@ -12,13 +12,13 @@
         <meta name="author" content="Herman Isayenka">
       
       
-        <link rel="canonical" href="https://defenderproject.vercel.app/hardware/flight-controllers/">
+        <link rel="canonical" href="https://defenderproject.vercel.app/system/implementation-status/">
       
       
-        <link rel="prev" href="../overview/">
+        <link rel="prev" href="../architecture/">
       
       
-        <link rel="next" href="../radio/">
+        <link rel="next" href="../data-contracts/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Flight Controllers - Project LARP</title>
+        <title>Implementation status - Project LARP</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#flight-controllers-and-protocol-boundary" class="md-skip">
+        <a href="#implementation-status" class="md-skip">
           Skip to content
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Flight Controllers
+              Implementation status
             
           </span>
         </div>
@@ -382,8 +382,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -394,13 +396,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
           <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
@@ -421,7 +421,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -439,7 +439,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../system/architecture/" class="md-nav__link">
+      <a href="../architecture/" class="md-nav__link">
         
   
   
@@ -464,10 +464,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../system/implementation-status/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation status
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -483,6 +510,81 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#implemented-now" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implemented now
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verified-in-the-current-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verified in the current repository
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implemented-but-environment-dependent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implemented but environment-dependent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#not-implemented-or-not-validated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not implemented or not validated
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architectural-continuity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architectural continuity
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -495,7 +597,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../system/data-contracts/" class="md-nav__link">
+      <a href="../data-contracts/" class="md-nav__link">
         
   
   
@@ -1224,8 +1326,6 @@
       
   
   
-    
-  
   
   
     
@@ -1238,11 +1338,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9" >
         
           
           <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
@@ -1263,7 +1365,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1281,7 +1383,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../overview/" class="md-nav__link">
+      <a href="../../hardware/overview/" class="md-nav__link">
         
   
   
@@ -1306,37 +1408,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Flight Controllers
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../hardware/flight-controllers/" class="md-nav__link">
         
   
   
@@ -1352,109 +1427,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#quick-comparison" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quick comparison
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#hardware-notes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Hardware notes
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Hardware notes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#omnibus-f4-sd" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Omnibus F4 SD
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#fury-f4-osd" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Fury F4 OSD
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#switching-which-drone-you-are-flashing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Switching which drone you are flashing
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#file-map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        File map
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#mac-prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Mac prerequisites
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1467,7 +1439,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../radio/" class="md-nav__link">
+      <a href="../../hardware/radio/" class="md-nav__link">
         
   
   
@@ -1495,7 +1467,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../safety/" class="md-nav__link">
+      <a href="../../hardware/safety/" class="md-nav__link">
         
   
   
@@ -2102,10 +2074,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#quick-comparison" class="md-nav__link">
+  <a href="#implemented-now" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quick comparison
+        Implemented now
       
     </span>
   </a>
@@ -2113,49 +2085,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#hardware-notes" class="md-nav__link">
+  <a href="#verified-in-the-current-repository" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Hardware notes
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Hardware notes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#omnibus-f4-sd" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Omnibus F4 SD
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#fury-f4-osd" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Fury F4 OSD
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#switching-which-drone-you-are-flashing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Switching which drone you are flashing
+        Verified in the current repository
       
     </span>
   </a>
@@ -2163,10 +2096,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#file-map" class="md-nav__link">
+  <a href="#implemented-but-environment-dependent" class="md-nav__link">
     <span class="md-ellipsis">
       
-        File map
+        Implemented but environment-dependent
       
     </span>
   </a>
@@ -2174,10 +2107,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#mac-prerequisites" class="md-nav__link">
+  <a href="#not-implemented-or-not-validated" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Mac prerequisites
+        Not implemented or not validated
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architectural-continuity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architectural continuity
       
     </span>
   </a>
@@ -2201,7 +2145,7 @@
 
 
   
-    <a href="https://github.com/herman888/defenderproject/edit/main/anti-drone-dome/documentation/hardware/flight-controllers.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/herman888/defenderproject/edit/main/anti-drone-dome/documentation/system/implementation-status.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2209,154 +2153,123 @@
   
 
 
-<h1 id="flight-controllers-and-protocol-boundary">Flight controllers and protocol boundary<a class="headerlink" href="#flight-controllers-and-protocol-boundary" title="Permanent link">&para;</a></h1>
-<p>The project has <strong>two physical quads</strong>, each with a different flight controller (FC). Scripts live in <code>scripts/</code> and share helpers in <code>betaflight_common.sh</code> (DFU flash, cloud hex download, CLI over USB).</p>
-<p><strong>Active profile:</strong> <code>betaflight_fc.env</code> currently points at the <strong>Omnibus</strong> drone. Fury scripts source <code>betaflight_fc_fury.env</code> directly.</p>
-<hr />
-<h2 id="quick-comparison">Quick comparison<a class="headerlink" href="#quick-comparison" title="Permanent link">&para;</a></h2>
+<h1 id="implementation-status">Implementation status<a class="headerlink" href="#implementation-status" title="Permanent link">&para;</a></h1>
+<p>This page separates running code from validated evidence and future work.</p>
+<h2 id="implemented-now">Implemented now<a class="headerlink" href="#implemented-now" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th></th>
-<th><strong>Omnibus drone</strong> (original)</th>
-<th><strong>Fury drone</strong></th>
+<th>Capability</th>
+<th>Actual implementation</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Board</strong></td>
-<td>Omnibus F4 (Hobbywing XRotor Micro OMNIBUS F4 G2 class)</td>
-<td>Diatone / Mamba <strong>Fury F4 OSD</strong></td>
+<td>Physics</td>
+<td>PyBullet authoritative dynamics in local ENU coordinates</td>
 </tr>
 <tr>
-<td><strong>Betaflight target</strong></td>
-<td><strong><code>OMNIBUSF4SD</code></strong></td>
-<td><code>FURYF4OSD</code></td>
+<td>Operator interface</td>
+<td>Qt/PyQtGraph integrated command center</td>
 </tr>
 <tr>
-<td><strong>Firmware release</strong></td>
-<td><code>2025.12.5</code></td>
-<td><code>2025.12.5</code></td>
+<td>Tactical rendering</td>
+<td>Embedded PyBullet camera using OpenGL or Tiny Renderer</td>
 </tr>
 <tr>
-<td><strong>Radio build</strong></td>
-<td><strong>Spektrum</strong> (DX4e + satellite)</td>
-<td><strong>Spektrum</strong> (DX4e + satellite)</td>
+<td>Environment</td>
+<td>Procedural terrain plus cached OSM roads and buildings</td>
 </tr>
 <tr>
-<td><strong>Motor protocol</strong></td>
-<td>DSHOT</td>
-<td>DSHOT</td>
+<td>Sensors</td>
+<td>Simulated radar, rendered EO/segmentation, optional YOLO, fusion</td>
 </tr>
 <tr>
-<td><strong>Setup script</strong></td>
-<td><code>setup_omnibus_f4.sh</code></td>
-<td><code>setup_fury_f4.sh</code></td>
+<td>Guidance</td>
+<td>APN default with command limits</td>
 </tr>
 <tr>
-<td><strong>Env file</strong></td>
-<td><code>betaflight_fc_omnibus.env</code></td>
-<td><code>betaflight_fc_fury.env</code></td>
+<td>ML</td>
+<td>Optional bounded residual PPO and Gymnasium training environment</td>
 </tr>
 <tr>
-<td><strong>USB recovery</strong></td>
-<td>Flaky micro-USB → <code>stlink_recover_fc.sh</code> / DFU mass erase</td>
-<td>BOOT + DFU → <code>fix_fury_dfu_flash.sh</code></td>
+<td>Scenarios</td>
+<td>Interactive profiles plus eight deterministic stress cases</td>
 </tr>
 <tr>
-<td><strong>Configurator</strong></td>
-<td><a href="https://app.betaflight.com">app.betaflight.com</a></td>
-<td>Same</td>
+<td>Evidence</td>
+<td>Mission JSONL, event log, hashes, ACMI, JSON/CSV/HTML reports</td>
+</tr>
+<tr>
+<td>External integration</td>
+<td>Versioned <code>aegis.tactical.v1</code> UDP telemetry</td>
+</tr>
+<tr>
+<td>Hardware posture</td>
+<td>SIL/SITL and read-only Betaflight profiles</td>
 </tr>
 </tbody>
 </table>
-<hr />
-<h2 id="hardware-notes">Hardware notes<a class="headerlink" href="#hardware-notes" title="Permanent link">&para;</a></h2>
-<h3 id="omnibus-f4-sd">Omnibus F4 SD<a class="headerlink" href="#omnibus-f4-sd" title="Permanent link">&para;</a></h3>
+<h2 id="verified-in-the-current-repository">Verified in the current repository<a class="headerlink" href="#verified-in-the-current-repository" title="Permanent link">&para;</a></h2>
 <ul>
-<li>PCB may be labeled <strong>HW906-YT4</strong> (Hobbywing). Pad names (SBUS, TX1, 3V3) are <strong>wiring</strong>, not ST-Link.</li>
-<li><strong>BOOT</strong> button by USB enters DFU. <strong>OSD</strong> pads near USB are factory test — not debug.</li>
-<li>If Mac shows <strong>no</strong> <code>/dev/cu.usb*</code> and <code>dfu-util -l</code> is empty, the USB data path may be bad; ST-Link (GND / SWCLK / SWDIO on bottom pads, battery on) is the fallback.</li>
-<li>Spektrum satellite on the <strong>SBUS</strong> pad needs correct Serial Rx (UART1) and often <code>serialrx_inverted</code>.</li>
+<li>29 automated tests pass.</li>
+<li>The strict MkDocs build passes.</li>
+<li>The eight-case APN campaign completed 800/800 synthetic interceptions.</li>
+<li>Live timestamped command-center captures show changing mission state.</li>
+<li>The published regression report matches its generated JSON/CSV evidence.</li>
 </ul>
-<h3 id="fury-f4-osd">Fury F4 OSD<a class="headerlink" href="#fury-f4-osd" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Same STM32 DFU workflow: hold <strong>BOOT</strong>, plug USB, release after ~3 s.</li>
-<li>Radio is wired for <strong>Spektrum serial RX</strong> — after flash, set <strong>Receiver → SPEKTRUM2048 / SPEK2048OR2048</strong> and enable the correct UART under <strong>Ports</strong>.</li>
-</ul>
-<hr />
-<h2 id="switching-which-drone-you-are-flashing">Switching which drone you are flashing<a class="headerlink" href="#switching-which-drone-you-are-flashing" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">cd</span><span class="w"> </span>anti-drone-dome/scripts
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Omnibus</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>bash<span class="w"> </span>setup_omnibus_f4.sh<span class="w">              </span><span class="c1"># diagnose</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>bash<span class="w"> </span>setup_omnibus_f4.sh<span class="w"> </span>--flash<span class="w">      </span><span class="c1"># restore build</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>bash<span class="w"> </span>setup_omnibus_f4.sh<span class="w"> </span>--spektrum<span class="w">   </span><span class="c1"># Spektrum cloud build</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>bash<span class="w"> </span>fix_omnibus_dfu_flash.sh<span class="w">         </span><span class="c1"># mass erase + Spektrum recovery</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Fury</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>bash<span class="w"> </span>setup_fury_f4.sh<span class="w">                 </span><span class="c1"># diagnose + Spektrum instructions</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>bash<span class="w"> </span>setup_fury_f4.sh<span class="w"> </span>--flash<span class="w">         </span><span class="c1"># Spektrum flash</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>bash<span class="w"> </span>fix_fury_dfu_flash.sh<span class="w">            </span><span class="c1"># mass-erase + recovery flash</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>bash<span class="w"> </span>setup_fury_radio.sh<span class="w">              </span><span class="c1"># Spektrum bind / configurator steps</span>
-</code></pre></div>
-<p>To make <strong>Fury</strong> the default for generic scripts, edit <code>betaflight_fc.env</code> to source <code>betaflight_fc_fury.env</code>.</p>
-<hr />
-<h2 id="file-map">File map<a class="headerlink" href="#file-map" title="Permanent link">&para;</a></h2>
+<p>These checks establish repeatability in this software and simulation model.
+They do not establish real-world interception reliability.</p>
+<h2 id="implemented-but-environment-dependent">Implemented but environment-dependent<a class="headerlink" href="#implemented-but-environment-dependent" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>File</th>
-<th>Purpose</th>
+<th>Capability</th>
+<th>Requirement</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>betaflight_fc.env</code></td>
-<td>Active profile pointer (Omnibus by default)</td>
+<td>CUDA PPO/YOLO</td>
+<td>CUDA-enabled PyTorch wheel and compatible NVIDIA runtime</td>
 </tr>
 <tr>
-<td><code>betaflight_fc_omnibus.env</code></td>
-<td>Omnibus target + build flags</td>
+<td>OSM environment</td>
+<td>Approved coordinates and a completed map-cache download</td>
 </tr>
 <tr>
-<td><code>betaflight_fc_fury.env</code></td>
-<td>Fury target + Spektrum build flags</td>
+<td>YOLO perception</td>
+<td>Valid trained weights</td>
 </tr>
 <tr>
-<td><code>betaflight_common.sh</code></td>
-<td>Shared DFU, download, CLI helpers</td>
-</tr>
-<tr>
-<td><code>betaflight_flash.sh</code></td>
-<td>Generic DFU flash (uses active profile)</td>
-</tr>
-<tr>
-<td><code>stlink_recover_fc.sh</code></td>
-<td>Omnibus ST-Link restore</td>
-</tr>
-<tr>
-<td><code>fix_omnibus_dfu_flash.sh</code></td>
-<td>Omnibus DFU erase + Spektrum hex</td>
-</tr>
-<tr>
-<td><code>fix_fury_dfu_flash.sh</code></td>
-<td>Fury DFU erase + Spektrum hex</td>
-</tr>
-<tr>
-<td><code>betaflight_motor_test.py</code></td>
-<td>Interactive motor spin via CLI</td>
+<td>ArduPilot SITL</td>
+<td>Running MAVLink-compatible SITL endpoint and arm acknowledgement</td>
 </tr>
 </tbody>
 </table>
-<hr />
-<h2 id="mac-prerequisites">Mac prerequisites<a class="headerlink" href="#mac-prerequisites" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>brew<span class="w"> </span>install<span class="w"> </span>dfu-util
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># optional for Omnibus ST-Link recovery:</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>brew<span class="w"> </span>install<span class="w"> </span>stlink
-</code></pre></div>
-<p>Python serial access uses the venv at <code>gym-pybullet-drones/.venv</code> (see <code>PY=</code> in the env files).</p>
-<p>See also: <a href="../../firmware/flashing/">Flashing</a> · <a href="../../firmware/recovery/">Recovery</a></p>
+<h2 id="not-implemented-or-not-validated">Not implemented or not validated<a class="headerlink" href="#not-implemented-or-not-validated" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Unreal Engine/Cesium presentation client</li>
+<li>authenticated production telemetry or command transport</li>
+<li>Betaflight/MSP actuation bridge</li>
+<li>physical interceptor actuation</li>
+<li>field-calibrated radar/EO timing</li>
+<li>flight-log-derived dynamics model</li>
+<li>HIL timing and loss-of-link qualification</li>
+<li>regulatory, range, or safety certification</li>
+</ul>
+<h2 id="architectural-continuity">Architectural continuity<a class="headerlink" href="#architectural-continuity" title="Permanent link">&para;</a></h2>
+<p>The first iteration was not discarded or replaced with a mockup. The project
+still follows its original practical architecture:</p>
+<ol>
+<li>PyBullet runs physics and generates authoritative state.</li>
+<li>Sensors transform that state into observations and a fused track.</li>
+<li>APN generates the nominal intercept command.</li>
+<li>Residual ML can add a bounded correction.</li>
+<li>The same state drives the command center, recorder, reports, and UDP stream.</li>
+</ol>
+<p>Higher-fidelity rendering is an adapter around this working core, not a claim
+that the core has already migrated to Unreal.</p>
 
 
 
@@ -2394,7 +2307,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../overview/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Overview">
+          <a href="../architecture/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Architecture">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2404,20 +2317,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Overview
+                Architecture
               </div>
             </div>
           </a>
         
         
           
-          <a href="../radio/" class="md-footer__link md-footer__link--next" aria-label="Next: Radio">
+          <a href="../data-contracts/" class="md-footer__link md-footer__link--next" aria-label="Next: Data contracts">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Radio
+                Data contracts
               </div>
             </div>
             <div class="md-footer__button md-icon">

@@ -1,4 +1,10 @@
 # Anti-Drone Dome Simulation - Megaprompt V4 (archive)
+
+!!! warning "Design history, not implementation evidence"
+    This archived prompt records renderer design intent. The current embedded
+    tactical view is the verified PyBullet/OpenGL implementation. Unreal/Cesium
+    remains an external presentation target connected through the implemented
+    UDP contract; it is not claimed as a completed renderer.
 # VisPy 3D Renderer — Replace PyBullet debug window
 # DO NOT touch physics, guidance, radar, IPC, or dashboard
 # PyBullet stays as physics engine — DIRECT mode only when VisPy is active

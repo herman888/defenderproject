@@ -74,6 +74,7 @@ nav:
       - Installation: getting-started/installation.md
   - System:
       - Architecture: system/architecture.md
+      - Implementation status: system/implementation-status.md
       - Data contracts: system/data-contracts.md
   - Simulation:
       - Quick start: software/simulation.md

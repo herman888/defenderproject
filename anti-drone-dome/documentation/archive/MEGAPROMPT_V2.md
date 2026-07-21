@@ -1,4 +1,14 @@
 # Anti-Drone Dome Simulation - Refinement Megaprompt V2 (archive)
+
+!!! warning "Design history, not implementation evidence"
+    This is the original iteration prompt preserved for traceability. It
+    describes intended work and may contain obsolete commands or aspirational
+    wording. Use the [implementation status](../system/implementation-status.md)
+    and current technical pages to determine what is implemented and verified.
+
+The core approach from this iteration remains the real architecture: PyBullet
+is the authoritative physics process, APN is the nominal guidance baseline, and
+the operational UI consumes live simulation state.
 # Performance, Realism, Visual Quality, Sim Controls
 # Run with: claude --dangerously-skip-permissions < MEGAPROMPT_V2.md
 
