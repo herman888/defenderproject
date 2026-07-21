@@ -5,6 +5,7 @@ import sys
 
 import numpy as np
 import pybullet
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -14,6 +15,7 @@ from ml.observation import encode_observation, encode_observation_v2
 from ml.scenario_curriculum import sample_scenario
 from scenarios import get_environment_for_pattern, get_site_config
 from sim.geospatial import geodetic_to_enu, load_osm_features
+from sim.terrain import ElevationGrid
 from sensors.camera import RenderedCameraSensor
 from sensors.fusion import TrackFusion
 from scenarios import INTRUDER_TYPES
@@ -49,6 +51,45 @@ def test_geodetic_projection_and_osm_loading(tmp_path):
         str(cache), {"latitude": 43.0, "longitude": -79.0}, 900.0
     )
     assert len(features["buildings"]) == 1
+
+
+def test_elevation_grid_bilinear_sampling_and_world_integration(tmp_path):
+    cache = tmp_path / "elevation.json"
+    cache.write_text(json.dumps({
+        "schema": "aegis.elevation-grid.v1",
+        "origin": {"latitude": 43.0, "longitude": -79.0, "altitude_m": 100.0},
+        "x_min_m": -10.0,
+        "y_min_m": -10.0,
+        "spacing_m": 10.0,
+        "elevations_m": [[0.0, 10.0, 20.0], [10.0, 20.0, 30.0], [20.0, 30.0, 40.0]],
+        "source": {"dataset": "test-grid"},
+    }))
+    grid = ElevationGrid.load(str(cache))
+    assert grid.elevation(-5.0, -5.0) == pytest.approx(10.0)
+    assert grid.elevation(5.0, 5.0) == pytest.approx(30.0)
+    world = PhysicsWorld(
+        gui=False,
+        site_config={
+            "origin": {"latitude": 43.0, "longitude": -79.0, "altitude_m": 100.0},
+            "map": {"elevation_cache": str(cache), "radius_m": 0.0},
+        },
+        render_backend="tiny",
+    )
+    try:
+        assert world.terrain_source == "test-grid"
+        assert world.elevation_at(-5.0, -5.0) == pytest.approx(10.0)
+        assert world.elevation_at(100.0, 100.0) == PhysicsWorld.terrain_elevation(
+            100.0, 100.0
+        )
+        hit = pybullet.rayTest(
+            [0.0, 0.0, 100.0],
+            [0.0, 0.0, -100.0],
+            physicsClientId=world.client,
+        )[0]
+        assert hit[0] >= 0
+        assert hit[3][2] == pytest.approx(20.02, abs=0.25)
+    finally:
+        pybullet.disconnect(world.client)
 
 
 def test_training_and_live_observation_shape_matches():

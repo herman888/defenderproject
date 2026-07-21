@@ -184,6 +184,7 @@ def _dashboard_worker(
             "predicted_intercept_enu_m": latest.get("predicted_intercept"),
             "real_time_factor": float(latest.get("real_time_factor", 0.0)),
             "render_backend": latest.get("render_backend"),
+            "terrain_source": latest.get("terrain_source"),
             "intruder_altitude_history": history["intruder"],
             "interceptor_altitude_history": history["interceptor"],
             "event_log": dash._log_text.text(),
@@ -1259,7 +1260,8 @@ def _run_one_mission(
                         time.time() - sim_start,
                         1e-6,
                     ),
-                    "render_backend"     : f"{world.render_backend} + OSM",
+                    "render_backend"     : world.render_backend,
+                    "terrain_source"     : world.terrain_source,
                     "compute_backend"    : (
                         f"PYTORCH {live_policy.device.upper()}"
                         if live_policy else "CLASSICAL APN / CPU"

@@ -11,6 +11,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from hardware.profile import load_hardware_profile, validate_hardware_profile
 from integration.mission_record import MissionRecorder
+from integration.companion_link import (
+    build_perception_packet,
+    encode_perception_packet,
+)
 from validation.flight_log import compare_flight_logs, load_flight_log
 from validation.workbench import evaluate_readiness
 from viz.acmi_writer import ACMIWriter
@@ -36,6 +40,43 @@ def test_reference_and_readonly_profiles_enforce_safe_defaults():
     unsafe["safety"]["actuation_enabled"] = True
     with pytest.raises(ValueError, match="cannot enable actuation"):
         validate_hardware_profile(unsafe)
+
+
+def test_pi_companion_profile_and_perception_contract_are_readonly():
+    profile = load_hardware_profile(
+        os.path.join(ROOT, "hardware_profiles", "raspberry_pi5_companion.json")
+    )
+    assert profile.mode == "hardware_readonly"
+    assert not profile.actuation_enabled
+    assert profile.summary()["compute"]["board"] == "Raspberry Pi 5"
+    packet = build_perception_packet(
+        7,
+        123456789,
+        "camera_optical",
+        (1280, 720),
+        [{
+            "class_id": 0,
+            "label": "drone",
+            "confidence": 0.85,
+            "bbox_xyxy": [10, 20, 40, 60],
+        }],
+        model_id="test-model",
+    )
+    encoded = encode_perception_packet(packet)
+    assert json.loads(encoded)["schema"] == "aegis.companion-perception.v1"
+    with pytest.raises(ValueError, match="outside the image"):
+        build_perception_packet(
+            8,
+            123456790,
+            "camera_optical",
+            (1280, 720),
+            [{
+                "class_id": 0,
+                "label": "drone",
+                "confidence": 0.85,
+                "bbox_xyxy": [-1, 20, 40, 60],
+            }],
+        )
 
 
 def test_mission_recorder_writes_hashed_manifest(tmp_path):

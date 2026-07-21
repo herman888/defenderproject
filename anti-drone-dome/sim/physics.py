@@ -9,6 +9,7 @@ import numpy as np
 import pybullet
 import pybullet_data
 from sim.geospatial import load_osm_features
+from sim.terrain import load_elevation_grid
 
 _TIMESTEP = 1.0 / 240.0
 
@@ -22,6 +23,15 @@ class PhysicsWorld:
     def __init__(self, gui=True, site_config=None, render_backend="auto"):
         self._gui = gui
         self._site_config = site_config
+        map_config = (site_config or {}).get("map", {})
+        self._elevation_grid = load_elevation_grid(
+            map_config.get("elevation_cache")
+        )
+        self.terrain_source = (
+            self._elevation_grid.source.get("dataset", "ELEVATION GRID")
+            if self._elevation_grid
+            else "PROCEDURAL FALLBACK"
+        )
         if render_backend not in {"auto", "opengl", "tiny"}:
             raise ValueError("render_backend must be auto, opengl, or tiny")
         use_opengl = gui or render_backend in {"auto", "opengl"}
@@ -65,19 +75,8 @@ class PhysicsWorld:
             )
 
         # ── Dark military terrain — no checkerboard ────────────────────
-        ground_col = pybullet.createCollisionShape(
-            pybullet.GEOM_BOX, halfExtents=[1500, 1500, 0.5],
-            physicsClientId=self.client,
-        )
-        ground_vis = pybullet.createVisualShape(
-            pybullet.GEOM_BOX, halfExtents=[1500, 1500, 0.5],
-            rgbaColor=[0.18, 0.20, 0.17, 1.0],
-            physicsClientId=self.client,
-        )
-        pybullet.createMultiBody(
-            0, ground_col, ground_vis, [0, 0, -0.5],
-            physicsClientId=self.client,
-        )
+        # The terrain mesh below is both the visible and collidable ground.
+        # Avoid a flat collision plane that would erase real valleys below origin.
         self._draw_terrain_relief()
         self._draw_land_cover()
         zone_vis = pybullet.createVisualShape(
@@ -116,13 +115,19 @@ class PhysicsWorld:
         )
         return max(0.0, ridge * blend)
 
+    def elevation_at(self, x, y):
+        """Return cached site elevation where available, else procedural relief."""
+        if self._elevation_grid and self._elevation_grid.contains(x, y):
+            return self._elevation_grid.elevation(x, y)
+        return self.terrain_elevation(x, y)
+
     def _draw_terrain_relief(self):
         """Add real mesh relief so lighting and depth come from geometry."""
         extent = 1500.0
         cells = 40
         coordinates = np.linspace(-extent, extent, cells + 1)
         vertices = [
-            [float(x), float(y), self.terrain_elevation(x, y) + 0.02]
+            [float(x), float(y), self.elevation_at(x, y) + 0.02]
             for y in coordinates
             for x in coordinates
         ]
@@ -140,6 +145,13 @@ class PhysicsWorld:
                         lower_left, upper_right, upper_left,
                     ]
                 )
+        terrain_collision = pybullet.createCollisionShape(
+            pybullet.GEOM_MESH,
+            vertices=vertices,
+            indices=indices,
+            flags=pybullet.GEOM_FORCE_CONCAVE_TRIMESH,
+            physicsClientId=self.client,
+        )
         terrain_visual = pybullet.createVisualShape(
             pybullet.GEOM_MESH,
             vertices=vertices,
@@ -150,6 +162,7 @@ class PhysicsWorld:
         )
         pybullet.createMultiBody(
             0,
+            baseCollisionShapeIndex=terrain_collision,
             baseVisualShapeIndex=terrain_visual,
             physicsClientId=self.client,
         )
@@ -174,10 +187,10 @@ class PhysicsWorld:
                 if math.hypot(center_x, center_y) < 260.0:
                     continue
                 vertices = [
-                    [x0, y0, self.terrain_elevation(x0, y0) + 0.04],
-                    [x1, y0, self.terrain_elevation(x1, y0) + 0.04],
-                    [x1, y1, self.terrain_elevation(x1, y1) + 0.04],
-                    [x0, y1, self.terrain_elevation(x0, y1) + 0.04],
+                    [x0, y0, self.elevation_at(x0, y0) + 0.04],
+                    [x1, y0, self.elevation_at(x1, y0) + 0.04],
+                    [x1, y1, self.elevation_at(x1, y1) + 0.04],
+                    [x0, y1, self.elevation_at(x0, y1) + 0.04],
                 ]
                 visual = pybullet.createVisualShape(
                     pybullet.GEOM_MESH,
@@ -223,7 +236,7 @@ class PhysicsWorld:
                     basePosition=[
                         (start[0] + end[0]) / 2,
                         (start[1] + end[1]) / 2,
-                        self.terrain_elevation(
+                        self.elevation_at(
                             (start[0] + end[0]) / 2,
                             (start[1] + end[1]) / 2,
                         ) + 0.07,
@@ -243,7 +256,7 @@ class PhysicsWorld:
             center = [
                 center_x,
                 center_y,
-                self.terrain_elevation(center_x, center_y) + height / 2,
+                self.elevation_at(center_x, center_y) + height / 2,
             ]
             collision = pybullet.createCollisionShape(
                 pybullet.GEOM_BOX,
@@ -274,7 +287,7 @@ class PhysicsWorld:
                 basePosition=[
                     center_x,
                     center_y,
-                    self.terrain_elevation(center_x, center_y) + height + 0.12,
+                    self.elevation_at(center_x, center_y) + height + 0.12,
                 ],
                 physicsClientId=self.client,
             )

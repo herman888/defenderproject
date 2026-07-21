@@ -37,7 +37,7 @@ class HardwareProfile:
         return bool(self.data["safety"]["actuation_enabled"])
 
     def summary(self) -> dict:
-        return {
+        summary = {
             "profile_id": self.profile_id,
             "label": self.label,
             "mode": self.mode,
@@ -47,6 +47,9 @@ class HardwareProfile:
             "sensors": self.data["sensors"],
             "validation_gates": self.data["validation_gates"],
         }
+        if "compute" in self.data:
+            summary["compute"] = self.data["compute"]
+        return summary
 
 
 def _require_number(mapping: dict, key: str, minimum: float = 0.0) -> float:
@@ -93,6 +96,20 @@ def validate_hardware_profile(data: dict) -> None:
                 "hardware actuation requires safety.requires_props_removed_ack"
             )
 
+    compute = data.get("compute")
+    if compute is not None:
+        if not isinstance(compute, dict):
+            raise ValueError("compute must be an object")
+        for key in ("board", "architecture", "accelerator_hat"):
+            if not isinstance(compute.get(key), str) or not compute[key]:
+                raise ValueError(f"compute.{key} must be a non-empty string")
+        _require_number(compute, "memory_gb", 1.0)
+        if not isinstance(
+            compute.get("power_and_thermal_validation_required"), bool
+        ):
+            raise ValueError(
+                "compute.power_and_thermal_validation_required must be boolean"
+            )
     gates = data["validation_gates"]
     for key in (
         "minimum_intercept_rate",

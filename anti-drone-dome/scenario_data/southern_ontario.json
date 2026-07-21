@@ -8,6 +8,9 @@
     },
     "map": {
       "osm_cache": "maps/southern_ontario.osm.json",
+      "elevation_cache": "maps/southern_ontario.elevation.json",
+      "elevation_extent_m": 1500.0,
+      "elevation_spacing_m": 90.0,
       "radius_m": 900.0,
       "building_default_height_m": 8.0
     }

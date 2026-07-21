@@ -9,11 +9,12 @@ This page separates running code from validated evidence and future work.
 | Physics | PyBullet authoritative dynamics in local ENU coordinates |
 | Operator interface | Qt/PyQtGraph integrated command center |
 | Tactical rendering | Embedded PyBullet camera using OpenGL or Tiny Renderer |
-| Environment | Procedural terrain plus cached OSM roads and buildings |
+| Environment | Collision terrain from cached elevation, with procedural fallback, plus cached OSM |
 | Sensors | Simulated radar, rendered EO/segmentation, optional YOLO, fusion |
 | Guidance | APN default with command limits |
 | ML | Optional bounded residual PPO and Gymnasium training environment |
 | Vision training | Capture, extract, auto-label, merge, fine-tune, and live YOLO scripts |
+| Companion path | Pi 5 read-only profile and versioned perception telemetry |
 | Scenarios | Interactive profiles plus eight deterministic stress cases |
 | Evidence | Mission JSONL, event log, hashes, ACMI, JSON/CSV/HTML reports |
 | External integration | Versioned `aegis.tactical.v1` UDP telemetry |
@@ -36,6 +37,7 @@ They do not establish real-world interception reliability.
 |---|---|
 | CUDA PPO/YOLO | CUDA-enabled PyTorch wheel and compatible NVIDIA runtime |
 | OSM environment | Approved coordinates and a completed map-cache download |
+| Elevation terrain | Approved coordinates and a completed Copernicus elevation cache |
 | YOLO perception | Valid trained weights |
 | ArduPilot SITL | Running MAVLink-compatible SITL endpoint and arm acknowledgement |
 
@@ -45,6 +47,7 @@ They do not establish real-world interception reliability.
 - authenticated production telemetry or command transport
 - Betaflight/MSP actuation bridge
 - physical interceptor actuation
+- sustained Pi 5/InnoMaker/accelerator measurements
 - field-calibrated radar/EO timing
 - flight-log-derived dynamics model
 - HIL timing and loss-of-link qualification

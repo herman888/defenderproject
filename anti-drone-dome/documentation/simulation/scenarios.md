@@ -43,7 +43,24 @@ site in `scenario_data/southern_ontario.json`. The cache allows later offline
 simulation. OSM data remains subject to OpenStreetMap attribution and the Open
 Database License.
 
+## Elevation truth
+
+The simulator can now load a versioned local-ENU elevation grid and use the same
+surface for rendering, building placement, and PyBullet collision. Generate a
+Copernicus GLO-90 cache through Open-Meteo only after setting an approved site:
+
+```powershell
+python scripts\download_elevation_map.py --acknowledge-approved-site
+```
+
+The cache is normalized to the configured origin and records source dataset,
+resolution, DOI, and generation time. If the cache is absent or a point lies
+outside it, the simulator explicitly uses the procedural fallback.
+
+Copernicus GLO-90 is approximately 90 m resolution. It improves regional terrain
+shape but does not resolve small obstacles, rooflines, wires, or survey-grade
+clearance.
+
 !!! warning
     Public map geometry improves context; it does not establish surveyed
     obstacle accuracy or flight authorization.
-

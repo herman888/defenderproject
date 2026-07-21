@@ -1473,6 +1473,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../hardware/raspberry-pi-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raspberry Pi companion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../hardware/safety/" class="md-nav__link">
         
   
@@ -2179,6 +2207,10 @@
 <td>External renderer</td>
 <td>Versioned <code>aegis.tactical.v1</code> UDP stream implemented</td>
 </tr>
+<tr>
+<td>Companion contract</td>
+<td>10,000 read-only perception packets serialized at 41,274/s on the AMD64 development host</td>
+</tr>
 </tbody>
 </table>
 <h2 id="environment-specific-findings">Environment-specific findings<a class="headerlink" href="#environment-specific-findings" title="Permanent link">&para;</a></h2>
@@ -2186,6 +2218,9 @@
 Python environment contained a CPU-only PyTorch build. CUDA learning and
 inference remain unavailable until a compatible CUDA-enabled wheel is installed
 and verified.</p>
+<p>The companion smoke result measures packet validation and serialization only.
+It is not a Raspberry Pi, camera-capture, inference, thermal, or network
+benchmark.</p>
 <h2 id="not-yet-verified">Not yet verified<a class="headerlink" href="#not-yet-verified" title="Permanent link">&para;</a></h2>
 <ul>
 <li>real radar and EO timing under field conditions</li>

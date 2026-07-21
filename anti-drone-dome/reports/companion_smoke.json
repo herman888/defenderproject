@@ -1,0 +1,10 @@
+{
+  "schema": "aegis.companion-smoke.v1",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "machine": "AMD64",
+  "frames": 10000,
+  "elapsed_s": 0.24227889999747276,
+  "serialization_rate_hz": 41274.74575831536,
+  "mean_packet_bytes": 303.889,
+  "actuation_enabled": false
+}

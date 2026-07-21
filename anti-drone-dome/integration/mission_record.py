@@ -40,6 +40,7 @@ _TELEMETRY_FIELDS = {
     "sim_speed",
     "real_time_factor",
     "render_backend",
+    "terrain_source",
     "compute_backend",
     "hardware_profile",
     "hardware_mode",

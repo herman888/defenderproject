@@ -1,0 +1,54 @@
+{
+  "schema": "aegis.hardware-profile.v1",
+  "profile_id": "raspberry-pi5-companion-v1",
+  "label": "Raspberry Pi 5 companion computer (telemetry-only)",
+  "mode": "hardware_readonly",
+  "autopilot": {
+    "protocol": "udp",
+    "firmware": "companion-perception-only",
+    "endpoint": "127.0.0.1:49100"
+  },
+  "vehicle": {
+    "name": "Lab quadrotor - measurements required",
+    "mass_kg": 1.5,
+    "max_speed_mps": 25.0,
+    "max_accel_mps2": 40.0,
+    "battery_capacity_wh": 50.0
+  },
+  "compute": {
+    "board": "Raspberry Pi 5",
+    "architecture": "aarch64",
+    "memory_gb": 8,
+    "accelerator_hat": "not-selected",
+    "power_and_thermal_validation_required": true
+  },
+  "sensors": [
+    {
+      "name": "InnoMaker U20CAM",
+      "protocol": "usb-uvc",
+      "calibration_required": true
+    }
+  ],
+  "links": [
+    {
+      "name": "Companion perception telemetry",
+      "protocol": "udp",
+      "rate_hz": 15.0,
+      "schema": "aegis.companion-perception.v1"
+    }
+  ],
+  "safety": {
+    "actuation_enabled": false,
+    "requires_explicit_arm_ack": true,
+    "requires_props_removed_ack": true,
+    "approved_test_site_required": true
+  },
+  "validation_gates": {
+    "minimum_intercept_rate": 0.95,
+    "maximum_duration_p95_s": 30.0,
+    "maximum_energy_p95": 6.0,
+    "maximum_action_saturation_fraction": 0.25,
+    "maximum_trajectory_rmse_m": 5.0,
+    "maximum_timing_offset_s": 0.1
+  }
+}

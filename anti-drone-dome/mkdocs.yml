@@ -100,6 +100,7 @@ nav:
       - Overview: hardware/overview.md
       - Flight Controllers: hardware/flight-controllers.md
       - Radio: hardware/radio.md
+      - Raspberry Pi companion: hardware/raspberry-pi-companion.md
       - Safety and integration policy: hardware/safety.md
   - Firmware:
       - Flashing: firmware/flashing.md

@@ -25,6 +25,16 @@ def geodetic_to_enu(latitude, longitude, origin_latitude, origin_longitude):
     return east, north
 
 
+def enu_to_geodetic(east, north, origin_latitude, origin_longitude):
+    earth_radius_m = 6378137.0
+    latitude = origin_latitude + math.degrees(float(north) / earth_radius_m)
+    longitude = origin_longitude + math.degrees(
+        float(east)
+        / (earth_radius_m * math.cos(math.radians(origin_latitude)))
+    )
+    return latitude, longitude
+
+
 def load_osm_features(cache_path, origin, radius_m):
     if not cache_path or not os.path.isfile(cache_path):
         return {"buildings": [], "roads": []}

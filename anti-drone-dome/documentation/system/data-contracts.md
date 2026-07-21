@@ -23,6 +23,8 @@ Flight-log validation can ingest ENU or NED and converts before alignment.
 | `aegis.hardware-profile.v1` | Hardware profile loader | Vehicle, protocol, safety, and gates |
 | `aegis.regression-campaign.v1` | Scenario catalog | Named deterministic stress cases |
 | `aegis.regression-report.v1` | Campaign runner | Episode evidence and gate decisions |
+| `aegis.elevation-grid.v1` | Elevation downloader | Local-ENU terrain samples and provenance |
+| `aegis.companion-perception.v1` | Onboard companion | Timestamped camera detections without actuation |
 
 ## Tactical UDP
 
@@ -47,4 +49,3 @@ than extrapolating indefinitely.
 Completed mission manifests include SHA-256 hashes and byte sizes for telemetry,
 events, and attached artifacts. Raw camera arrays are excluded from JSONL;
 video belongs in a separately encoded artifact.
-
