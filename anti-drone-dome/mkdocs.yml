@@ -1,13 +1,21 @@
 site_name: Project LARP
-site_description: Localised Aerial Response Platform — Anti-Drone Dome documentation
+site_description: Localised Aerial Response Platform - integrated counter-UAS research and validation
 site_author: Herman Isayenka
-site_url: https://projectlarp.vercel.app
+site_url: https://defenderproject.vercel.app
+repo_url: https://github.com/herman888/defenderproject
+repo_name: herman888/defenderproject
+edit_uri: edit/main/anti-drone-dome/documentation/
 
-docs_dir: site-docs
-site_dir: site
+docs_dir: documentation
+site_dir: public
+use_directory_urls: true
+copyright: Research platform documentation - synthetic results are not field certification
 
 theme:
   name: material
+  language: en
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
   palette:
     - scheme: slate
       primary: indigo
@@ -22,18 +30,27 @@ theme:
         icon: material/brightness-7
         name: Switch to dark mode
   features:
+    - navigation.instant
+    - navigation.tracking
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.footer
+    - content.action.edit
     - search.highlight
     - search.suggest
+    - search.share
     - content.code.copy
+    - content.tabs.link
     - toc.follow
   icon:
     repo: fontawesome/brands/github
 
 plugins:
   - search
+
+extra_css:
+  - stylesheets/extra.css
 
 markdown_extensions:
   - admonition
@@ -48,21 +65,52 @@ markdown_extensions:
       permalink: true
   - attr_list
   - md_in_html
+  - def_list
+  - footnotes
 
 nav:
   - Home: index.md
+  - Getting started:
+      - Installation: getting-started/installation.md
+  - System:
+      - Architecture: system/architecture.md
+      - Data contracts: system/data-contracts.md
+  - Simulation:
+      - Quick start: software/simulation.md
+      - Scenarios, environments, and maps: simulation/scenarios.md
+      - Tactical rendering: simulation/rendering.md
+  - Sensors and software:
+      - Software overview: software/overview.md
+      - Detection pipeline: software/detection-pipeline.md
+      - Detection pipeline reference: reference/detection-pipeline-reference.md
+  - ML training:
+      - Training and datasets: ml-training/training.md
+      - Controller evaluation: ml-training/evaluation.md
+  - Validation:
+      - Workbench overview: validation/overview.md
+      - Regression campaign: validation/regression-campaign.md
+      - Hardware readiness: validation/hardware-readiness.md
+      - Current evidence: results/current-evidence.md
+  - Operations:
+      - Mission recording and replay: operations/mission-recording.md
+      - External renderers and clients: integration/external-renderers.md
   - Hardware:
       - Overview: hardware/overview.md
       - Flight Controllers: hardware/flight-controllers.md
       - Radio: hardware/radio.md
-  - Software:
-      - Overview: software/overview.md
-      - Simulation: software/simulation.md
-      - Detection Pipeline: software/detection-pipeline.md
+      - Safety and integration policy: hardware/safety.md
   - Firmware:
       - Flashing: firmware/flashing.md
       - Recovery: firmware/recovery.md
+      - Legacy notes: reference/firmware-legacy.md
   - Gallery:
       - Overview: gallery/overview.md
-  - Contributing: contributing.md
-  - Deploy to Vercel: deploy-vercel.md
+  - Development:
+      - Testing and release checks: development/testing.md
+      - NVIDIA GPU setup: development/gpu-setup.md
+      - Contributing: contributing.md
+      - Deploy to Vercel: deploy-vercel.md
+  - Design archive:
+      - Megaprompt V2: archive/MEGAPROMPT_V2.md
+      - Megaprompt V3: archive/MEGAPROMPT_V3.md
+      - Megaprompt V4: archive/MEGAPROMPT_V4.md

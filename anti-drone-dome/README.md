@@ -1,5 +1,10 @@
 # Anti-drone dome simulation
 
+The complete project website source is consolidated under
+[`documentation/`](documentation/index.md). It covers architecture, scenarios,
+ML training, validation evidence, hardware safety, firmware, operations, and
+deployment.
+
 ## Fix: `ModuleNotFoundError: No module named 'pybullet'`
 
 That means the **`python3` you ran is not the one inside your venv** (system Python has no PyBullet).
@@ -373,7 +378,9 @@ First run downloads YOLO weights into `models/` (gitignored). Press **Q** or **E
 
 ## Physical drones — Betaflight firmware
 
-Two quads in the lab use different FCs: **Omnibus F4** (CRSF, original drone) and **Fury F4 OSD** (Spektrum / DX4e). Flash, recover, and compare targets in **`docs/FIRMWARE.md`**.
+Two quads in the lab use different FCs: **Omnibus F4** and **Fury F4 OSD**.
+Flash, recover, compare targets, and review the current radio configuration in
+the [hardware and firmware documentation](documentation/hardware/flight-controllers.md).
 
 Quick start:
 
