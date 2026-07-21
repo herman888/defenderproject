@@ -1,9 +1,10 @@
 {
   "name": "projectlarp",
   "private": true,
-  "description": "Project LARP documentation site (MkDocs Material)",
+  "description": "Project LARP documentation (static public/ for Vercel)",
   "scripts": {
-    "build": "python3 -m pip install -r requirements-docs.txt && python3 -m mkdocs build -d public",
-    "dev": "mkdocs serve -a 127.0.0.1:8000"
+    "build": "echo prebuilt",
+    "docs:build": "mkdocs build -d public",
+    "docs:dev": "mkdocs serve -a 127.0.0.1:8000"
   }
 }

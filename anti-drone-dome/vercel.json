@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "true",
-  "buildCommand": "python3 -m pip install --upgrade pip && python3 -m pip install -r requirements-docs.txt && python3 -m mkdocs build -d public",
+  "installCommand": "echo 'no install'",
+  "buildCommand": "echo 'prebuilt static site'",
   "outputDirectory": "public",
   "cleanUrls": true
 }

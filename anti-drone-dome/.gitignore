@@ -19,6 +19,6 @@ venv*/
 .venv-docs/
 *.egg-info/
 
-# MkDocs build output
+# MkDocs local/dev build output
 site/
-public/
+# public/ is committed for Vercel static deploy
