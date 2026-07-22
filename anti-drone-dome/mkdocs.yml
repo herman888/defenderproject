@@ -97,6 +97,7 @@ nav:
   - Operations:
       - Mission recording and replay: operations/mission-recording.md
       - External renderers and clients: integration/external-renderers.md
+      - Unreal/Cesium telemetry bridge: integration/unreal-bridge.md
   - Hardware:
       - Overview: hardware/overview.md
       - Flight Controllers: hardware/flight-controllers.md

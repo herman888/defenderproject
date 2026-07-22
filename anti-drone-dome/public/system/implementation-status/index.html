@@ -1382,6 +1382,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/unreal-bridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unreal/Cesium telemetry bridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2319,6 +2347,10 @@
 <td>Validated, georeferenced <code>aegis.tactical.v1</code> UDP telemetry with deterministic JSONL replay</td>
 </tr>
 <tr>
+<td>Presentation bridge</td>
+<td><code>aegis.unreal-bridge.v1</code> UDP bridge enriching tactical telemetry with WGS84 geodetic, heading, and speed for Unreal/Cesium clients</td>
+</tr>
+<tr>
 <td>Hardware posture</td>
 <td>SIL/SITL and read-only Betaflight profiles</td>
 </tr>
@@ -2338,7 +2370,7 @@
 </table>
 <h2 id="verified-in-the-current-repository">Verified in the current repository<a class="headerlink" href="#verified-in-the-current-repository" title="Permanent link">&para;</a></h2>
 <ul>
-<li>42 automated tests pass.</li>
+<li>55 automated tests pass.</li>
 <li>The strict MkDocs build passes.</li>
 <li>The eight-case APN campaign completed 800/800 synthetic interceptions.</li>
 <li>Live timestamped command-center captures show changing mission state.</li>
@@ -2380,7 +2412,7 @@ They do not establish real-world interception reliability.</p>
 </table>
 <h2 id="not-implemented-or-not-validated">Not implemented or not validated<a class="headerlink" href="#not-implemented-or-not-validated" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Unreal Engine/Cesium presentation client</li>
+<li>Unreal Engine/Cesium presentation client (the renderer/consumer; the georeferenced telemetry bridge that feeds it is implemented)</li>
 <li>authenticated production telemetry or command transport</li>
 <li>Betaflight/MSP actuation bridge</li>
 <li>physical interceptor actuation</li>

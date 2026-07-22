@@ -18,6 +18,7 @@ This page separates running code from validated evidence and future work.
 | Scenarios | Interactive profiles plus eight deterministic stress cases |
 | Evidence | Mission JSONL, event log, hashes, ACMI, JSON/CSV/HTML reports |
 | External integration | Validated, georeferenced `aegis.tactical.v1` UDP telemetry with deterministic JSONL replay |
+| Presentation bridge | `aegis.unreal-bridge.v1` UDP bridge enriching tactical telemetry with WGS84 geodetic, heading, and speed for Unreal/Cesium clients |
 | Hardware posture | SIL/SITL and read-only Betaflight profiles |
 | Airframe fidelity | Versioned physical/presentation profiles, profile-synchronized mass/inertia, actuator lag, stall, turbulence, energy use, and voltage sag |
 | Runtime control | Live speed selection plus recorded radar, EO, and actuator failure injection |
@@ -25,7 +26,7 @@ This page separates running code from validated evidence and future work.
 
 ## Verified in the current repository
 
-- 42 automated tests pass.
+- 55 automated tests pass.
 - The strict MkDocs build passes.
 - The eight-case APN campaign completed 800/800 synthetic interceptions.
 - Live timestamped command-center captures show changing mission state.
@@ -47,7 +48,7 @@ They do not establish real-world interception reliability.
 
 ## Not implemented or not validated
 
-- Unreal Engine/Cesium presentation client
+- Unreal Engine/Cesium presentation client (the renderer/consumer; the georeferenced telemetry bridge that feeds it is implemented)
 - authenticated production telemetry or command transport
 - Betaflight/MSP actuation bridge
 - physical interceptor actuation
