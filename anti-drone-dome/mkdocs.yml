@@ -80,6 +80,7 @@ nav:
       - Quick start: software/simulation.md
       - Scenarios, environments, and maps: simulation/scenarios.md
       - Airframe fidelity and controls: simulation/fidelity-and-controls.md
+      - Autonomous swarm coordination: simulation/swarm-coordination.md
       - Tactical rendering: simulation/rendering.md
   - Sensors and software:
       - Software overview: software/overview.md

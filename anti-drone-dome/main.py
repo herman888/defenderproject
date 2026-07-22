@@ -1666,6 +1666,213 @@ def _mission_loop(state_q, ctrl_q, dash_proc, shared_state=None, state_lock=None
             shared_state["app_quit"] = True
 
 
+def _run_swarm_mission(args) -> int:
+    """Headless PyBullet swarm engagement: an airborne coordinator directs an
+    interceptor swarm against a saturation attack.
+
+    This bypasses the interactive command center entirely (the HUD and tactical
+    camera assume a single intruder/interceptor pair). It reuses the real Drone
+    dynamics, APN guidance, and the shared ``swarm`` coordination brain, and
+    optionally streams ``aegis.swarm-coordination.v1`` telemetry.
+    """
+    import numpy as np
+
+    from scenarios import get_site_config  # noqa: F401  (kept for parity/future georef)
+    from swarm.coordinator import SwarmCoordinator
+    from swarm.rf_link import RfLinkModel
+    from swarm.scenario import get_swarm_scenario
+    from swarm.telemetry import SwarmTelemetryPublisher, build_swarm_packet
+
+    try:
+        scenario = get_swarm_scenario(args.swarm)
+    except (OSError, ValueError, KeyError) as exc:
+        print(f"[swarm] {exc}")
+        return 2
+
+    center = [float(c) for c in scenario.protected_center_enu_m]
+    guidance = PurePursuitGuidance()
+    world = PhysicsWorld(gui=False, site_config=None, render_backend="tiny")
+
+    coord_spec = scenario.coordinator
+    coordinator_body = Drone(
+        coord_spec.id, tuple(coord_spec.start_enu_m), world.client,
+        color="gray", airframe_profile_id="interceptor.reference-v1",
+    )
+    coordinator_body.set_target(*coord_spec.start_enu_m)
+
+    interceptors = [
+        {"spec": spec, "drone": Drone(
+            spec.id, tuple(spec.start_enu_m), world.client,
+            color="multi", airframe_profile_id=spec.airframe_profile_id,
+        ), "expended": False}
+        for spec in scenario.interceptors
+    ]
+    threats = [
+        {"spec": spec, "munition": LoiteringMunition(
+            spec.id, tuple(spec.start_enu_m), world.client,
+            intruder_cfg=INTRUDER_TYPES.get(spec.type, {}),
+        ), "status": "ACTIVE", "resolved_time": None}
+        for spec in scenario.threats
+    ]
+
+    coordinator = SwarmCoordinator(
+        RfLinkModel(coord_spec.rf_link, seed=scenario.seed),
+        protected_center=tuple(center), guidance=guidance, policy=coord_spec.policy,
+    )
+
+    publisher = None
+    if getattr(args, "telemetry_udp", None):
+        publisher = SwarmTelemetryPublisher.from_endpoint(args.telemetry_udp)
+
+    dt = 1.0 / 240.0
+    max_steps = int(scenario.duration_limit_s / dt)
+    intercept_r = scenario.intercept_radius_m
+    breach_r = scenario.breach_radius_m
+    t = 0.0
+    print(
+        f"[swarm] {scenario.scenario_id}: {len(interceptors)} interceptors vs "
+        f"{len(threats)} threats, policy={coord_spec.policy}, seed={scenario.seed}"
+    )
+
+    def _margin(order):
+        if order is None or not math.isfinite(order.link_margin_db):
+            return -999.0
+        return float(order.link_margin_db)
+
+    plan = None
+    try:
+        for step in range(max_steps):
+            active_threats = [th for th in threats if th["status"] == "ACTIVE"]
+            active_interceptors = [it for it in interceptors if not it["expended"]]
+            if not active_threats or not active_interceptors:
+                break
+
+            interceptor_states = []
+            for it in active_interceptors:
+                state = it["drone"].get_state()
+                state["id"] = it["spec"].id
+                interceptor_states.append(state)
+            threat_tracks = [{
+                "id": th["spec"].id, "type": th["spec"].type,
+                "threat_level": th["spec"].threat_level,
+                "position_estimate": list(th["munition"].get_position()),
+                "velocity": list(th["munition"].get_velocity()),
+            } for th in active_threats]
+
+            coord_state = {
+                "position": list(coordinator_body.get_position()),
+                "velocity": [0.0, 0.0, 0.0],
+            }
+            plan = coordinator.plan(coord_state, interceptor_states, threat_tracks, t)
+
+            threat_by_id = {th["spec"].id: th for th in active_threats}
+            for it in active_interceptors:
+                order = plan.orders.get(it["spec"].id)
+                target = threat_by_id.get(order.assigned_threat_id) if order else None
+                if target is not None:
+                    track = {
+                        "detected": True,
+                        "position_estimate": list(target["munition"].get_position()),
+                        "velocity": list(target["munition"].get_velocity()),
+                    }
+                    it["drone"].apply_setpoint(
+                        guidance.compute_guidance(it["drone"].get_state(), track)
+                    )
+                else:
+                    hold = it["drone"].get_position()
+                    it["drone"].set_target(hold[0], hold[1], hold[2])
+                    it["drone"].update()
+
+            for th in active_threats:
+                th["munition"].set_target(center[0], center[1], max(center[2], 5.0))
+                th["munition"].update()
+            coordinator_body.update()
+
+            world.step()
+            t += dt
+
+            for th in active_threats:
+                if th["status"] != "ACTIVE":
+                    continue
+                tpos = np.asarray(th["munition"].get_position(), dtype=float)
+                best, best_d = None, intercept_r
+                for it in active_interceptors:
+                    if it["expended"]:
+                        continue
+                    d = float(np.linalg.norm(
+                        np.asarray(it["drone"].get_position(), dtype=float) - tpos
+                    ))
+                    if d <= best_d:
+                        best_d, best = d, it
+                if best is not None:
+                    th["status"], th["resolved_time"] = "NEUTRALIZED", t
+                    best["expended"] = True
+                    continue
+                if float(np.linalg.norm(tpos - np.asarray(center))) <= breach_r:
+                    th["status"], th["resolved_time"] = "BREACHED", t
+
+            if publisher is not None and step % 12 == 0:
+                publisher.publish(build_swarm_packet(
+                    mission_time_s=t,
+                    coordinator={
+                        "id": coord_spec.id,
+                        "position_enu_m": [float(c) for c in coordinator_body.get_position()],
+                        "velocity_enu_mps": [0.0, 0.0, 0.0],
+                    },
+                    interceptors=[{
+                        "id": it["spec"].id,
+                        "position_enu_m": [float(c) for c in it["drone"].get_position()],
+                        "velocity_enu_mps": [float(c) for c in it["drone"].get_velocity()],
+                        "assigned_threat_id": (
+                            plan.orders[it["spec"].id].assigned_threat_id
+                            if it["spec"].id in plan.orders else None
+                        ),
+                        "state": "EXPENDED" if it["expended"] else (
+                            plan.orders[it["spec"].id].state
+                            if it["spec"].id in plan.orders else "RESERVE"
+                        ),
+                        "link_margin_db": _margin(plan.orders.get(it["spec"].id)),
+                        "energy_remaining_fraction": float(
+                            it["drone"].get_state().get("energy_remaining_fraction", 1.0)
+                        ),
+                    } for it in interceptors],
+                    threats=[{
+                        "id": th["spec"].id, "type": th["spec"].type,
+                        "threat_level": th["spec"].threat_level,
+                        "position_enu_m": [float(c) for c in th["munition"].get_position()],
+                        "velocity_enu_mps": [float(c) for c in th["munition"].get_velocity()],
+                        "status": th["status"],
+                    } for th in threats],
+                    assignment=dict(plan.assignment),
+                    link_health=plan.link_health,
+                ))
+    finally:
+        if publisher is not None:
+            publisher.close()
+        try:
+            pybullet.disconnect(world.client)
+        except Exception:
+            pass
+
+    for th in threats:
+        if th["status"] == "ACTIVE":
+            th["status"] = "LEAKER"
+    neutralized = sum(th["status"] == "NEUTRALIZED" for th in threats)
+    breached = sum(th["status"] == "BREACHED" for th in threats)
+    leaked = sum(th["status"] == "LEAKER" for th in threats)
+    link = coordinator._link_health(plan.orders) if plan is not None else {}
+
+    print(f"[swarm] T+{t:5.1f}s  neutralized {neutralized}/{len(threats)}  "
+          f"breached {breached}  leaked {leaked}  "
+          f"interceptors used {sum(it['expended'] for it in interceptors)}/{len(interceptors)}  "
+          f"link delivery {link.get('delivery_ratio', 1.0):.2f}")
+    for th in threats:
+        when = f"@T+{th['resolved_time']:.1f}s" if th["resolved_time"] is not None else ""
+        print(f"    {th['spec'].id:8s} {th['spec'].type:14s} "
+              f"{th['spec'].threat_level:6s} {th['status']} {when}")
+    return 0
+
+
 def main():
     global USE_VISPY, USE_SITL, ML_MODEL, ML_ABSOLUTE_ACTIONS
     global USE_CAMERA_PERCEPTION, CAMERA_MODEL, ML_DEVICE, RENDER_BACKEND
@@ -1741,6 +1948,12 @@ def main():
         default=os.path.join("missions", "runs"),
         help="Directory for versioned mission manifests and JSONL telemetry",
     )
+    parser.add_argument(
+        "--swarm",
+        metavar="SCENARIO",
+        help="Run a headless coordinator-directed interceptor-swarm engagement "
+             "(scenario id from scenario_data/swarm_scenarios_v1.json) and exit",
+    )
     args = parser.parse_args()
     if args.telemetry_udp:
         try:
@@ -1749,6 +1962,8 @@ def main():
             parser.error(str(exc))
     if args.telemetry_record and not args.telemetry_udp:
         parser.error("--telemetry-record requires --telemetry-udp")
+    if args.swarm:
+        raise SystemExit(_run_swarm_mission(args))
     if args.sitl and args.ml_model:
         parser.error("--sitl and --ml-model are mutually exclusive guidance sources")
     if args.sitl and not args.allow_sitl_arm:

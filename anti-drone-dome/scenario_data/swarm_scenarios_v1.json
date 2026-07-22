@@ -1,0 +1,86 @@
+{
+  "schema": "aegis.swarm-scenarios.v1",
+  "scenarios": [
+    {
+      "scenario_id": "saturation_6v4",
+      "description": "Six mixed threats converge on the protected asset; a four-interceptor swarm under one airborne coordinator engages by priority.",
+      "seed": 4204,
+      "protected_center_enu_m": [0.0, 0.0, 0.0],
+      "duration_limit_s": 90.0,
+      "breach_radius_m": 12.0,
+      "intercept_radius_m": 18.0,
+      "coordinator": {
+        "id": "coordinator-01",
+        "start_enu_m": [0.0, -110.0, 150.0],
+        "policy": "greedy",
+        "rf_link": {
+          "max_range_m": 3500.0,
+          "link_budget_margin_db": 8.0,
+          "loss_spread_db": 3.0,
+          "base_latency_s": 0.05,
+          "retx_penalty_s": 0.01,
+          "update_rate_hz": 10.0
+        },
+        "compute": {
+          "board": "airborne-edge-coordinator",
+          "note": "Representative high-compute airborne C2 node; not a validated device."
+        }
+      },
+      "interceptors": [
+        {"id": "int-1", "airframe_profile_id": "interceptor.reference-v1", "start_enu_m": [-90.0, -160.0, 6.0], "max_speed_mps": 70.0},
+        {"id": "int-2", "airframe_profile_id": "interceptor.reference-v1", "start_enu_m": [-30.0, -175.0, 6.0], "max_speed_mps": 70.0},
+        {"id": "int-3", "airframe_profile_id": "interceptor.reference-v1", "start_enu_m": [30.0, -175.0, 6.0], "max_speed_mps": 70.0},
+        {"id": "int-4", "airframe_profile_id": "interceptor.reference-v1", "start_enu_m": [90.0, -160.0, 6.0], "max_speed_mps": 70.0}
+      ],
+      "threats": [
+        {"id": "thr-1", "type": "shahed136", "threat_level": "HIGH", "start_enu_m": [-620.0, 500.0, 120.0], "max_speed_mps": 51.0},
+        {"id": "thr-2", "type": "shahed136", "threat_level": "HIGH", "start_enu_m": [640.0, 520.0, 130.0], "max_speed_mps": 51.0},
+        {"id": "thr-3", "type": "fpv_attack", "threat_level": "HIGH", "start_enu_m": [-300.0, 720.0, 90.0], "max_speed_mps": 32.0},
+        {"id": "thr-4", "type": "fpv_attack", "threat_level": "HIGH", "start_enu_m": [310.0, 700.0, 95.0], "max_speed_mps": 32.0},
+        {"id": "thr-5", "type": "consumer_quad", "threat_level": "MEDIUM", "start_enu_m": [-140.0, 640.0, 80.0], "max_speed_mps": 16.0},
+        {"id": "thr-6", "type": "consumer_quad", "threat_level": "MEDIUM", "start_enu_m": [160.0, 660.0, 85.0], "max_speed_mps": 16.0}
+      ]
+    },
+    {
+      "scenario_id": "overwhelm_8v3",
+      "description": "Eight threats against only three interceptors: a deliberate over-saturation to exercise priority triage and leakage reporting.",
+      "seed": 8303,
+      "protected_center_enu_m": [0.0, 0.0, 0.0],
+      "duration_limit_s": 90.0,
+      "breach_radius_m": 12.0,
+      "intercept_radius_m": 18.0,
+      "coordinator": {
+        "id": "coordinator-01",
+        "start_enu_m": [0.0, -120.0, 160.0],
+        "policy": "greedy",
+        "rf_link": {
+          "max_range_m": 3000.0,
+          "link_budget_margin_db": 6.0,
+          "loss_spread_db": 3.0,
+          "base_latency_s": 0.06,
+          "retx_penalty_s": 0.015,
+          "update_rate_hz": 8.0
+        },
+        "compute": {
+          "board": "airborne-edge-coordinator",
+          "note": "Representative high-compute airborne C2 node; not a validated device."
+        }
+      },
+      "interceptors": [
+        {"id": "int-1", "airframe_profile_id": "interceptor.reference-v1", "start_enu_m": [-70.0, -170.0, 6.0], "max_speed_mps": 70.0},
+        {"id": "int-2", "airframe_profile_id": "interceptor.reference-v1", "start_enu_m": [0.0, -180.0, 6.0], "max_speed_mps": 70.0},
+        {"id": "int-3", "airframe_profile_id": "interceptor.reference-v1", "start_enu_m": [70.0, -170.0, 6.0], "max_speed_mps": 70.0}
+      ],
+      "threats": [
+        {"id": "thr-1", "type": "shahed136", "threat_level": "HIGH", "start_enu_m": [-560.0, 560.0, 120.0], "max_speed_mps": 51.0},
+        {"id": "thr-2", "type": "shahed136", "threat_level": "HIGH", "start_enu_m": [580.0, 540.0, 125.0], "max_speed_mps": 51.0},
+        {"id": "thr-3", "type": "shahed136", "threat_level": "HIGH", "start_enu_m": [40.0, 760.0, 130.0], "max_speed_mps": 51.0},
+        {"id": "thr-4", "type": "fpv_attack", "threat_level": "HIGH", "start_enu_m": [-360.0, 640.0, 90.0], "max_speed_mps": 32.0},
+        {"id": "thr-5", "type": "fpv_attack", "threat_level": "HIGH", "start_enu_m": [360.0, 620.0, 95.0], "max_speed_mps": 32.0},
+        {"id": "thr-6", "type": "consumer_quad", "threat_level": "MEDIUM", "start_enu_m": [-180.0, 700.0, 80.0], "max_speed_mps": 16.0},
+        {"id": "thr-7", "type": "consumer_quad", "threat_level": "MEDIUM", "start_enu_m": [180.0, 700.0, 82.0], "max_speed_mps": 16.0},
+        {"id": "thr-8", "type": "consumer_quad", "threat_level": "MEDIUM", "start_enu_m": [0.0, 820.0, 86.0], "max_speed_mps": 16.0}
+      ]
+    }
+  ]
+}

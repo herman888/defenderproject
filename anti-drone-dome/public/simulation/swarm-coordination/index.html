@@ -12,13 +12,13 @@
         <meta name="author" content="Herman Isayenka">
       
       
-        <link rel="canonical" href="https://defenderproject.vercel.app/operations/mission-recording/">
+        <link rel="canonical" href="https://defenderproject.vercel.app/simulation/swarm-coordination/">
       
       
-        <link rel="prev" href="../../results/current-evidence/">
+        <link rel="prev" href="../fidelity-and-controls/">
       
       
-        <link rel="next" href="../../integration/external-renderers/">
+        <link rel="next" href="../rendering/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Mission recording and replay - Project LARP</title>
+        <title>Autonomous swarm coordination - Project LARP</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#mission-recording-and-replay" class="md-skip">
+        <a href="#autonomous-swarm-coordination" class="md-skip">
           Skip to content
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Mission recording and replay
+              Autonomous swarm coordination
             
           </span>
         </div>
@@ -527,8 +527,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -539,13 +541,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
           <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
@@ -566,7 +566,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -612,7 +612,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../simulation/scenarios/" class="md-nav__link">
+      <a href="../scenarios/" class="md-nav__link">
         
   
   
@@ -640,7 +640,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../simulation/fidelity-and-controls/" class="md-nav__link">
+      <a href="../fidelity-and-controls/" class="md-nav__link">
         
   
   
@@ -665,10 +665,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../simulation/swarm-coordination/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Autonomous swarm coordination
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -684,6 +711,92 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-it-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What it models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-it-standalone-headless-fast" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run it standalone (headless, fast)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-it-in-pybullet-real-dynamics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run it in PyBullet (real dynamics)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenarios
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Telemetry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Boundaries
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -696,7 +809,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../simulation/rendering/" class="md-nav__link">
+      <a href="../rendering/" class="md-nav__link">
         
   
   
@@ -1191,8 +1304,6 @@
       
   
   
-    
-  
   
   
     
@@ -1205,11 +1316,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
         
           
           <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
@@ -1230,7 +1343,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1245,37 +1358,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Mission recording and replay
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../operations/mission-recording/" class="md-nav__link">
         
   
   
@@ -1291,59 +1377,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#manifest" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Manifest
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#telemetry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Telemetry
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#acmi" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ACMI
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2192,10 +2225,43 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#manifest" class="md-nav__link">
+  <a href="#what-it-models" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Manifest
+        What it models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-it-standalone-headless-fast" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run it standalone (headless, fast)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-it-in-pybullet-real-dynamics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run it in PyBullet (real dynamics)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenarios
       
     </span>
   </a>
@@ -2214,10 +2280,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#acmi" class="md-nav__link">
+  <a href="#boundaries" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ACMI
+        Boundaries
       
     </span>
   </a>
@@ -2241,7 +2307,7 @@
 
 
   
-    <a href="https://github.com/herman888/defenderproject/edit/main/anti-drone-dome/documentation/operations/mission-recording.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/herman888/defenderproject/edit/main/anti-drone-dome/documentation/simulation/swarm-coordination.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2249,35 +2315,66 @@
   
 
 
-<h1 id="mission-recording-and-replay">Mission recording and replay<a class="headerlink" href="#mission-recording-and-replay" title="Permanent link">&para;</a></h1>
-<p>Each recorded run receives a UTC-derived ID and its own directory:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mission_records/&lt;run_id&gt;/
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  manifest.json
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  telemetry.jsonl
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  events.jsonl
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  mission.acmi
-</code></pre></div>
-<h2 id="manifest">Manifest<a class="headerlink" href="#manifest" title="Permanent link">&para;</a></h2>
-<p>The <code>aegis.mission.v1</code> manifest records:</p>
+<h1 id="autonomous-swarm-coordination">Autonomous swarm coordination<a class="headerlink" href="#autonomous-swarm-coordination" title="Permanent link">&para;</a></h1>
+<p>The swarm layer adds an <strong>airborne coordinator</strong> — a higher-compute, longer-range RF
+node — that directs a swarm of interceptors to autonomously defeat a <strong>saturation
+attack</strong> of many simultaneous threats. It sits on top of the single-target
+interception core without changing it.</p>
+<p>The coordination brain is <strong>substrate independent</strong>: it operates only on ENU state
+dicts (the same shape as <code>Drone.get_state()</code>) and never imports PyBullet. The same
+brain runs in the fast headless point-mass runner and in the PyBullet mission.</p>
+<h2 id="what-it-models">What it models<a class="headerlink" href="#what-it-models" title="Permanent link">&para;</a></h2>
 <ul>
-<li>mission and hardware profile</li>
-<li>Python and platform identity</li>
-<li>local ENU units and coordinate frame</li>
-<li>final status and result</li>
-<li>sample and event counts</li>
-<li>artifact paths, sizes, and SHA-256 hashes</li>
+<li><strong>Physical coordinator.</strong> A real airborne node whose position sets the RF range to
+  every interceptor. It is a single point of failure — interceptors beyond its range
+  lose command link.</li>
+<li><strong>RF datalink</strong> (<code>swarm/rf_link.py</code>). One-way free-space path loss
+  (<code>20·log10(range)</code>), a logistic margin→packet-loss curve, a hard maximum range, and
+  range-dependent latency with a per-interceptor delayed-delivery queue. Deterministic
+  given a seed.</li>
+<li><strong>Weapon-target assignment</strong> (<code>swarm/assignment.py</code>). A cost matrix of expected
+  time-to-intercept (reusing <code>PurePursuitGuidance.time_to_intercept</code>) feeds a
+  priority-greedy allocator (highest-value threats covered first, so a saturation
+  attack degrades by leaking the <em>least</em> dangerous threats). A numpy-only Hungarian
+  solver is included as a cost-optimal alternative.</li>
+<li><strong>Autonomous re-tasking</strong> (<code>swarm/coordinator.py</code>). Each interceptor is <code>ASSIGNED</code>,
+  <code>COASTING</code> (link stale, still pursuing its last order), <code>AUTONOMOUS_LOCAL</code> (link lost
+  and last target gone — self-selects the nearest threat), or <code>RESERVE</code>. The
+  coordinator re-plans when threats are neutralised or appear, with hysteresis (a
+  minimum dwell and a margin-to-switch) to prevent assignment thrash.</li>
 </ul>
-<p>Incomplete runs are explicitly marked <code>incomplete</code> with a reason.</p>
+<h2 id="run-it-standalone-headless-fast">Run it standalone (headless, fast)<a class="headerlink" href="#run-it-standalone-headless-fast" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">python</span> <span class="n">swarm</span><span class="p">\</span><span class="n">runner</span><span class="p">.</span><span class="n">py</span> <span class="p">-</span><span class="n">-scenario</span> <span class="n">saturation_6v4</span> <span class="p">-</span><span class="n">-seed</span> <span class="n">42</span>
+</code></pre></div>
+<p>Prints a deterministic evidence report: per-threat outcome and time-to-neutralise,
+leakage, interceptors expended, re-tasking events, and RF link health. Options:
+<code>--policy {greedy,hungarian}</code>, <code>--seed</code>, <code>--output report.json</code>,
+<code>--telemetry-udp HOST:PORT</code>.</p>
+<h2 id="run-it-in-pybullet-real-dynamics">Run it in PyBullet (real dynamics)<a class="headerlink" href="#run-it-in-pybullet-real-dynamics" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">python</span> <span class="n">main</span><span class="p">.</span><span class="n">py</span> <span class="p">-</span><span class="n">-swarm</span> <span class="n">saturation_6v4</span>
+</code></pre></div>
+<p>A headless PyBullet engagement that reuses the real <code>Drone</code> dynamics and APN guidance
+with the same coordination brain, and optionally streams telemetry via
+<code>--telemetry-udp</code>. This mode deliberately bypasses the single-target command-center
+HUD and tactical camera; it prints a debrief and (optionally) streams the swarm feed.</p>
+<h2 id="scenarios">Scenarios<a class="headerlink" href="#scenarios" title="Permanent link">&para;</a></h2>
+<p><code>scenario_data/swarm_scenarios_v1.json</code> (schema <code>aegis.swarm-scenarios.v1</code>, validated by
+<code>swarm/scenario.py</code>):</p>
+<ul>
+<li><strong><code>saturation_6v4</code></strong> — six mixed threats vs four interceptors; the four highest-value
+  threats are neutralised and the two lowest-value leak.</li>
+<li><strong><code>overwhelm_8v3</code></strong> — a deliberate over-saturation (eight threats, three
+  interceptors) that exercises priority triage and leakage reporting.</li>
+</ul>
 <h2 id="telemetry">Telemetry<a class="headerlink" href="#telemetry" title="Permanent link">&para;</a></h2>
-<p>Normalized samples include positions, velocities, fused sensor state, weather,
-guidance mode, predicted intercept, confidence, TTI, backend identity, events,
-and real-time factor.</p>
-<p>Raw image arrays are deliberately excluded. Store video as an encoded,
-separately hashed artifact to prevent telemetry files from growing by hundreds
-of megabytes during a short mission.</p>
-<h2 id="acmi">ACMI<a class="headerlink" href="#acmi" title="Permanent link">&para;</a></h2>
-<p>The recorder exports Tacview-compatible ACMI for post-mission trajectory review.
-ACMI complements, but does not replace, the normalized JSONL evidence.</p>
+<p><code>swarm/telemetry.py</code> publishes <code>aegis.swarm-coordination.v1</code>: coordinator, interceptor
+list (position, assigned threat, link state, margin, energy), threat list (position,
+priority, status), the live assignment map, and RF link health — a multi-track sibling
+of <a href="../../operations/mission-recording/"><code>aegis.tactical.v1</code></a>, reusing its validators.</p>
+<h2 id="boundaries">Boundaries<a class="headerlink" href="#boundaries" title="Permanent link">&para;</a></h2>
+<p>Representative, unvalidated envelopes — not a validated device or doctrine. RF,
+compute, and airframe parameters are placeholders to be replaced with measured data.
+The feed is local research telemetry, not an authenticated command channel.</p>
 
 
 
@@ -2315,7 +2412,7 @@ ACMI complements, but does not replace, the normalized JSONL evidence.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../../results/current-evidence/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Current evidence">
+          <a href="../fidelity-and-controls/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Airframe fidelity and controls">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2325,20 +2422,20 @@ ACMI complements, but does not replace, the normalized JSONL evidence.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Current evidence
+                Airframe fidelity and controls
               </div>
             </div>
           </a>
         
         
           
-          <a href="../../integration/external-renderers/" class="md-footer__link md-footer__link--next" aria-label="Next: External renderers and clients">
+          <a href="../rendering/" class="md-footer__link md-footer__link--next" aria-label="Next: Tactical rendering">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                External renderers and clients
+                Tactical rendering
               </div>
             </div>
             <div class="md-footer__button md-icon">
