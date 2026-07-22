@@ -1280,10 +1280,32 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#what-is-available-before-unreal-is-installed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is available before Unreal is installed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#unrealcesium-adapter-responsibilities" class="md-nav__link">
     <span class="md-ellipsis">
       
         Unreal/Cesium adapter responsibilities
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#first-unreal-milestone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        First Unreal milestone
       
     </span>
   </a>
@@ -2108,10 +2130,32 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#what-is-available-before-unreal-is-installed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is available before Unreal is installed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#unrealcesium-adapter-responsibilities" class="md-nav__link">
     <span class="md-ellipsis">
       
         Unreal/Cesium adapter responsibilities
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#first-unreal-milestone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        First Unreal milestone
       
     </span>
   </a>
@@ -2166,21 +2210,71 @@
 
 
 <h1 id="unreal-cesium-ros-and-external-clients">Unreal, Cesium, ROS, and external clients<a class="headerlink" href="#unreal-cesium-ros-and-external-clients" title="Permanent link">&para;</a></h1>
-<p>Launch the simulator with a UDP destination:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">python</span> <span class="n">main</span><span class="p">.</span><span class="n">py</span> <span class="p">-</span><span class="n">-telemetry-udp</span> <span class="n">127</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">1</span><span class="p">:</span><span class="n">49000</span>
+<p>Launch the simulator with a UDP destination and retain the exact transmitted
+packets for offline client development:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">python</span> <span class="n">main</span><span class="p">.</span><span class="n">py</span> <span class="p">`</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  <span class="p">-</span><span class="n">-telemetry-udp</span> <span class="n">127</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">1</span><span class="p">:</span><span class="n">49000</span> <span class="p">`</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  <span class="p">-</span><span class="n">-telemetry-record</span> <span class="n">missions</span><span class="p">\</span><span class="n">renderer</span><span class="p">\</span><span class="n">tactical</span><span class="p">.</span><span class="n">jsonl</span>
 </code></pre></div>
+<p>Recording creation never overwrites evidence. If the requested path exists,
+the publisher selects the first free numbered sibling such as
+<code>tactical.001.jsonl</code>. This also keeps repeated missions in one simulator
+session from colliding.</p>
 <p>The <code>aegis.tactical.v1</code> packet is a presentation boundary. It keeps PyBullet,
 sensor fusion, guidance, and ML authoritative while allowing another process to
 render geospatial terrain, buildings, atmosphere, effects, and operator views.</p>
+<p>The checked-in JSON Schema is published at
+<a href="../../schemas/aegis.tactical.v1.schema.json"><code>/schemas/aegis.tactical.v1.schema.json</code></a>.
+The Python publisher performs equivalent runtime checks without adding a
+<code>jsonschema</code> dependency.</p>
+<h2 id="what-is-available-before-unreal-is-installed">What is available before Unreal is installed<a class="headerlink" href="#what-is-available-before-unreal-is-installed" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Explicit local ENU axes, metre units, and PyBullet <code>xyzw</code> quaternions</li>
+<li>Geodetic latitude, longitude, and altitude for the Cesium georeference</li>
+<li>An explicit <code>placeholder</code> or <code>approved</code> origin status</li>
+<li>Stable track, role, type, and renderer asset identifiers</li>
+<li>Terrain provenance and confirmation that the same terrain drives collision</li>
+<li>Strict non-negative sequence and simulation-relative mission time</li>
+<li>Validated JSONL recording and exact UDP replay</li>
+<li>Duplicate, out-of-order, backwards-time, and sequence-gap detection</li>
+</ul>
+<p>Replay a recorded mission without running PyBullet:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">python</span> <span class="n">scripts</span><span class="p">\</span><span class="n">replay_tactical_stream</span><span class="p">.</span><span class="n">py</span> <span class="p">`</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  <span class="p">-</span><span class="n">-input</span> <span class="n">missions</span><span class="p">\</span><span class="n">renderer</span><span class="p">\</span><span class="n">tactical</span><span class="p">.</span><span class="n">jsonl</span> <span class="p">`</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  <span class="p">-</span><span class="n">-udp</span> <span class="n">127</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">1</span><span class="p">:</span><span class="n">49000</span> <span class="p">`</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  <span class="p">-</span><span class="n">-rate</span> <span class="n">1</span><span class="p">.</span><span class="n">0</span>
+</code></pre></div>
+<p>Use <code>--no-wait</code> for parser/load testing. It preserves packet sequence and
+mission timestamps but intentionally does not preserve wall-clock pacing.</p>
 <h2 id="unrealcesium-adapter-responsibilities">Unreal/Cesium adapter responsibilities<a class="headerlink" href="#unrealcesium-adapter-responsibilities" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Parse and validate the schema and sequence.</li>
-<li>Convert local ENU to the selected Cesium georeference.</li>
-<li>Interpolate visuals between valid packets without changing simulation state.</li>
-<li>Render each track from one canonical actor and one label anchor.</li>
-<li>Mark stale or missing telemetry rather than hiding the failure.</li>
+<li>Validate each datagram before putting it on Unreal's game thread.</li>
+<li>Reject sequence numbers less than or equal to the last accepted value.</li>
+<li>Count sequence gaps as packet loss and show that health state to the operator.</li>
+<li>Set the Cesium georeference from <code>georeference.origin</code>; do not silently use
+   the current placeholder as an approved field site.</li>
+<li>Convert <code>position_enu_m</code> from metres into the georeferenced Unreal world.</li>
+<li>Convert PyBullet <code>orientation_xyzw</code> explicitly rather than reordering by guess.</li>
+<li>Map <code>asset_id</code> to one canonical actor and one label anchor.</li>
+<li>Buffer two valid snapshots and interpolate presentation only. Never feed
+   interpolated state back into guidance, sensors, or evidence.</li>
+<li>Mark telemetry stale after a configured receive timeout and stop
+   extrapolating. UDP has no built-in loss-of-link signal.</li>
 <li>Keep operator commands on a separate authenticated and safety-gated channel.</li>
 </ol>
+<h2 id="first-unreal-milestone">First Unreal milestone<a class="headerlink" href="#first-unreal-milestone" title="Permanent link">&para;</a></h2>
+<p>The first client should remain deliberately small:</p>
+<ol>
+<li>One Cesium world and georeference</li>
+<li>One UDP receiver bound to <code>127.0.0.1:49000</code></li>
+<li>Schema/sequence validation off the game thread</li>
+<li>One actor registry keyed by track ID</li>
+<li>Shahed and interceptor placeholder assets selected by <code>asset_id</code></li>
+<li>Position/orientation interpolation and a visible stale-data indicator</li>
+<li>Live mode and deterministic JSONL replay producing the same poses</li>
+</ol>
+<p>Photorealistic assets, weather, EO/IR effects, and operator controls should come
+after that contract test passes.</p>
 <h2 id="why-udp">Why UDP<a class="headerlink" href="#why-udp" title="Permanent link">&para;</a></h2>
 <p>UDP offers a small dependency-free prototype boundary and does not block the
 physics loop. A production deployment may wrap the same versioned state in

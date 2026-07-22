@@ -21,7 +21,13 @@ from sensors.fusion import TrackFusion
 from scenarios import INTRUDER_TYPES
 from sim.drone import LoiteringMunition
 from sim.physics import PhysicsWorld
-from integration.tactical_stream import TacticalUdpPublisher, UdpEndpoint
+from integration.tactical_stream import (
+    TacticalSequenceTracker,
+    TacticalUdpPublisher,
+    UdpEndpoint,
+    iter_tactical_recording,
+    replay_tactical_recording,
+)
 from main import _coalesce_dashboard_messages
 from dome.killzone import DomeKillZone
 from guidance.intercept import PurePursuitGuidance
@@ -389,23 +395,114 @@ def test_shahed_uses_dedicated_fixed_wing_airframe():
         pybullet.disconnect(client)
 
 
-def test_versioned_udp_tactical_stream_round_trip():
+def _tactical_state(mission_time_s=1.25):
+    return {
+        "mission_time_s": mission_time_s,
+        "timestamp_clock": "simulation-relative",
+        "status": "TRACKING",
+        "site": "Synthetic renderer test site",
+        "guidance": "apn",
+        "coordinate_frame": {
+            "type": "local-tangent-plane",
+            "axes": "ENU",
+            "position_unit": "m",
+            "velocity_unit": "m/s",
+            "orientation": "xyzw",
+        },
+        "georeference": {
+            "origin": {
+                "latitude": 43.0,
+                "longitude": -79.0,
+                "altitude_m": 0.0,
+            },
+            "status": "placeholder",
+        },
+        "terrain": {
+            "source": "PROCEDURAL TEST",
+            "collision_authoritative": True,
+        },
+        "tracks": {
+            "intruder": {
+                "id": "TRK-001",
+                "role": "intruder",
+                "asset_id": "intruder/shahed136",
+                "type": "shahed136",
+                "position_enu_m": [100.0, 200.0, 50.0],
+                "velocity_enu_mps": [-10.0, 0.0, 0.0],
+                "orientation_xyzw": [0.0, 0.0, 0.0, 1.0],
+            },
+            "interceptor": None,
+        },
+    }
+
+
+def test_versioned_udp_tactical_stream_round_trip_and_recording(tmp_path):
     receiver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     receiver.bind(("127.0.0.1", 0))
     receiver.settimeout(1.0)
     host, port = receiver.getsockname()
-    publisher = TacticalUdpPublisher(UdpEndpoint(host, port))
+    recording = tmp_path / "tactical.jsonl"
+    publisher = TacticalUdpPublisher(
+        UdpEndpoint(host, port),
+        recording_path=recording,
+    )
     try:
-        publisher.publish({
-            "mission_time_s": 1.25,
-            "status": "TRACKING",
-            "tracks": {"intruder": {"id": "TRK-001"}},
-        })
+        published = publisher.publish(_tactical_state())
         payload, _ = receiver.recvfrom(65535)
         packet = json.loads(payload)
         assert packet["schema"] == "aegis.tactical.v1"
         assert packet["sequence"] == 0
         assert packet["tracks"]["intruder"]["id"] == "TRK-001"
+        assert packet["coordinate_frame"]["axes"] == "ENU"
+        assert packet["georeference"]["status"] == "placeholder"
+        assert packet["tracks"]["intruder"]["orientation_xyzw"][-1] == 1.0
+        assert published == packet
     finally:
         publisher.close()
+        receiver.close()
+    assert list(iter_tactical_recording(recording)) == [packet]
+
+
+def test_tactical_recording_preserves_existing_evidence(tmp_path):
+    recording = tmp_path / "existing.jsonl"
+    recording.write_text("existing evidence\n", encoding="utf-8")
+    publisher = TacticalUdpPublisher(
+        UdpEndpoint("127.0.0.1", 49000),
+        recording_path=recording,
+    )
+    try:
+        assert publisher.recording_path == tmp_path / "existing.001.jsonl"
+    finally:
+        publisher.close()
+    assert recording.read_text(encoding="utf-8") == "existing evidence\n"
+    assert (tmp_path / "existing.001.jsonl").exists()
+
+
+def test_tactical_sequence_tracking_and_exact_udp_replay(tmp_path):
+    receiver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    receiver.bind(("127.0.0.1", 0))
+    receiver.settimeout(1.0)
+    host, port = receiver.getsockname()
+    recording = tmp_path / "tactical.jsonl"
+    packet = {"schema": "aegis.tactical.v1", "sequence": 0, **_tactical_state()}
+    recording.write_text(json.dumps(packet) + "\n", encoding="utf-8")
+
+    tracker = TacticalSequenceTracker()
+    assert tracker.accept(packet) == 0
+    with pytest.raises(ValueError, match="stale tactical sequence"):
+        tracker.accept(packet)
+    skipped = json.loads(json.dumps(packet))
+    skipped["sequence"] = 2
+    skipped["mission_time_s"] = 2.0
+    assert tracker.accept(skipped) == 1
+
+    try:
+        assert replay_tactical_recording(
+            recording,
+            UdpEndpoint(host, port),
+            wait=False,
+        ) == 1
+        payload, _ = receiver.recvfrom(65535)
+        assert json.loads(payload) == packet
+    finally:
         receiver.close()

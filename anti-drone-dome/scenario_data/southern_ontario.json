@@ -6,6 +6,7 @@
       "longitude": -79.0,
       "altitude_m": 0.0
     },
+    "origin_status": "placeholder",
     "map": {
       "osm_cache": "maps/southern_ontario.osm.json",
       "elevation_cache": "maps/southern_ontario.elevation.json",

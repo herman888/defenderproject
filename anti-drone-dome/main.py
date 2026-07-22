@@ -64,6 +64,7 @@ ML_DEVICE = "auto"
 RENDER_BACKEND = "auto"
 INTEGRATED_C2 = True
 TELEMETRY_UDP = None
+TELEMETRY_RECORD = None
 HARDWARE_PROFILE = None
 MISSION_RECORD_DIR = os.path.join("missions", "runs")
 _SITL_ADDR  = "127.0.0.1"
@@ -456,7 +457,10 @@ def _run_one_mission(
         hardware_profile=HARDWARE_PROFILE.summary(),
     )
     tactical_publisher = (
-        TacticalUdpPublisher.from_endpoint(TELEMETRY_UDP)
+        TacticalUdpPublisher.from_endpoint(
+            TELEMETRY_UDP,
+            recording_path=TELEMETRY_RECORD,
+        )
         if TELEMETRY_UDP else None
     )
 
@@ -1169,8 +1173,14 @@ def _run_one_mission(
                 pass
             if tactical_publisher is not None:
                 try:
+                    intruder_state = intruder.get_state()
+                    interceptor_state = (
+                        interceptor.get_state()
+                        if int_pos is not None else None
+                    )
                     tactical_publisher.publish({
                         "mission_time_s": float(sim_time),
+                        "timestamp_clock": "simulation-relative",
                         "status": status,
                         "site": site_config["name"],
                         "guidance": (
@@ -1178,20 +1188,49 @@ def _run_one_mission(
                             "ardupilot_sitl" if sitl_bridge else
                             "apn"
                         ),
+                        "coordinate_frame": {
+                            "type": "local-tangent-plane",
+                            "axes": "ENU",
+                            "position_unit": "m",
+                            "velocity_unit": "m/s",
+                            "orientation": "xyzw",
+                        },
+                        "georeference": {
+                            "origin": dict(site_config["origin"]),
+                            "status": site_config.get(
+                                "origin_status", "placeholder"
+                            ),
+                        },
+                        "terrain": {
+                            "source": world.terrain_source,
+                            "collision_authoritative": True,
+                        },
                         "tracks": {
                             "intruder": {
                                 "id": "TRK-001",
+                                "role": "intruder",
+                                "asset_id": f"intruder/{intruder_key}",
                                 "type": intruder_key,
                                 "position_enu_m": list(map(float, i_pos)),
                                 "velocity_enu_mps": list(map(float, intruder.get_velocity())),
+                                "orientation_xyzw": list(map(
+                                    float, intruder_state["orientation"]
+                                )),
                             },
                             "interceptor": (
                                 {
                                     "id": "INT-01",
+                                    "role": "interceptor",
+                                    "asset_id": "interceptor/default",
+                                    "type": "interceptor",
                                     "position_enu_m": list(map(float, int_pos)),
                                     "velocity_enu_mps": list(
                                         map(float, interceptor.get_velocity())
                                     ),
+                                    "orientation_xyzw": list(map(
+                                        float,
+                                        interceptor_state["orientation"],
+                                    )),
                                 }
                                 if int_pos is not None else None
                             ),
@@ -1539,7 +1578,8 @@ def _mission_loop(state_q, ctrl_q, dash_proc, shared_state=None, state_lock=None
 def main():
     global USE_VISPY, USE_SITL, ML_MODEL, ML_ABSOLUTE_ACTIONS
     global USE_CAMERA_PERCEPTION, CAMERA_MODEL, ML_DEVICE, RENDER_BACKEND
-    global INTEGRATED_C2, TELEMETRY_UDP, _SITL_ADDR, _SITL_PORT
+    global INTEGRATED_C2, TELEMETRY_UDP, TELEMETRY_RECORD
+    global _SITL_ADDR, _SITL_PORT
     global HARDWARE_PROFILE, MISSION_RECORD_DIR
     mp.freeze_support()
     try:
@@ -1596,6 +1636,11 @@ def main():
         help="Stream versioned tactical state to an external renderer",
     )
     parser.add_argument(
+        "--telemetry-record",
+        metavar="PATH",
+        help="Record transmitted tactical packets as validated JSONL",
+    )
+    parser.add_argument(
         "--hardware-profile",
         default="hardware_profiles/reference_sil.json",
         help="Validated hardware/SIL profile JSON",
@@ -1611,6 +1656,8 @@ def main():
             UdpEndpoint.parse(args.telemetry_udp)
         except (ValueError, TypeError) as exc:
             parser.error(str(exc))
+    if args.telemetry_record and not args.telemetry_udp:
+        parser.error("--telemetry-record requires --telemetry-udp")
     if args.sitl and args.ml_model:
         parser.error("--sitl and --ml-model are mutually exclusive guidance sources")
     if args.sitl and not args.allow_sitl_arm:
@@ -1646,6 +1693,7 @@ def main():
                 "--ml-device cuda requested, but this PyTorch build has no CUDA"
             )
     TELEMETRY_UDP = args.telemetry_udp
+    TELEMETRY_RECORD = args.telemetry_record
     MISSION_RECORD_DIR = args.mission_record_dir
     USE_CAMERA_PERCEPTION = (
         INTEGRATED_C2 or args.camera_perception or bool(args.camera_model)

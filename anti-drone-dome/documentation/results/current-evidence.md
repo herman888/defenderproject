@@ -4,14 +4,14 @@
 
 | Area | Evidence |
 |---|---|
-| Tests | 33 tests passed after the vision replay and model-integrity upgrade |
+| Tests | 35 tests passed after tactical-contract and replay hardening |
 | Live mission | OpenGL tactical mission intercepted at approximately T+15.7 s |
 | Visual dynamics | Timestamped frames changed 14.5% then 25.6% |
 | Stress campaign | 800/800 APN synthetic interceptions across eight cases |
 | Campaign confidence | 96.3% Wilson lower bound per 100/100 case |
 | ML comparison | PPO preserved interception but did not outperform APN |
 | Recording | Raw camera arrays removed from JSONL telemetry |
-| External renderer | Versioned `aegis.tactical.v1` UDP stream implemented |
+| External renderer | Georeferenced `aegis.tactical.v1` validation, JSONL capture, and exact UDP replay implemented |
 | Companion contract | 10,000 read-only perception packets serialized at 41,274/s on the AMD64 development host |
 
 ## Environment-specific findings

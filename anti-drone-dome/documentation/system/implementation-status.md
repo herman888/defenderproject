@@ -17,12 +17,12 @@ This page separates running code from validated evidence and future work.
 | Companion path | Pi 5 read-only profile, locked model manifests, recorded-media replay, and versioned perception telemetry |
 | Scenarios | Interactive profiles plus eight deterministic stress cases |
 | Evidence | Mission JSONL, event log, hashes, ACMI, JSON/CSV/HTML reports |
-| External integration | Versioned `aegis.tactical.v1` UDP telemetry |
+| External integration | Validated, georeferenced `aegis.tactical.v1` UDP telemetry with deterministic JSONL replay |
 | Hardware posture | SIL/SITL and read-only Betaflight profiles |
 
 ## Verified in the current repository
 
-- 29 automated tests pass.
+- 35 automated tests pass.
 - The strict MkDocs build passes.
 - The eight-case APN campaign completed 800/800 synthetic interceptions.
 - Live timestamped command-center captures show changing mission state.

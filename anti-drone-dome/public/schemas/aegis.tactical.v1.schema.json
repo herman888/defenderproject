@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-larp.local/schemas/aegis.tactical.v1.schema.json",
+  "title": "AEGIS tactical presentation packet",
+  "type": "object",
+  "required": [
+    "schema",
+    "sequence",
+    "mission_time_s",
+    "timestamp_clock",
+    "status",
+    "site",
+    "guidance",
+    "coordinate_frame",
+    "georeference",
+    "terrain",
+    "tracks"
+  ],
+  "properties": {
+    "schema": {
+      "const": "aegis.tactical.v1"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "mission_time_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "timestamp_clock": {
+      "const": "simulation-relative"
+    },
+    "status": {
+      "type": "string",
+      "minLength": 1
+    },
+    "site": {
+      "type": "string",
+      "minLength": 1
+    },
+    "guidance": {
+      "type": "string",
+      "minLength": 1
+    },
+    "coordinate_frame": {
+      "type": "object",
+      "required": [
+        "type",
+        "axes",
+        "position_unit",
+        "velocity_unit",
+        "orientation"
+      ],
+      "properties": {
+        "type": {
+          "const": "local-tangent-plane"
+        },
+        "axes": {
+          "const": "ENU"
+        },
+        "position_unit": {
+          "const": "m"
+        },
+        "velocity_unit": {
+          "const": "m/s"
+        },
+        "orientation": {
+          "const": "xyzw"
+        }
+      },
+      "additionalProperties": false
+    },
+    "georeference": {
+      "type": "object",
+      "required": [
+        "origin",
+        "status"
+      ],
+      "properties": {
+        "origin": {
+          "type": "object",
+          "required": [
+            "latitude",
+            "longitude",
+            "altitude_m"
+          ],
+          "properties": {
+            "latitude": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "longitude": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "altitude_m": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": true
+        },
+        "status": {
+          "enum": [
+            "placeholder",
+            "approved"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "terrain": {
+      "type": "object",
+      "required": [
+        "source",
+        "collision_authoritative"
+      ],
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "collision_authoritative": {
+          "const": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "tracks": {
+      "type": "object",
+      "required": [
+        "intruder",
+        "interceptor"
+      ],
+      "properties": {
+        "intruder": {
+          "$ref": "#/$defs/track"
+        },
+        "interceptor": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/track"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "vector3": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "quaternion": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "track": {
+      "type": "object",
+      "required": [
+        "id",
+        "role",
+        "asset_id",
+        "type",
+        "position_enu_m",
+        "velocity_enu_mps",
+        "orientation_xyzw"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "asset_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "position_enu_m": {
+          "$ref": "#/$defs/vector3"
+        },
+        "velocity_enu_mps": {
+          "$ref": "#/$defs/vector3"
+        },
+        "orientation_xyzw": {
+          "$ref": "#/$defs/quaternion"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

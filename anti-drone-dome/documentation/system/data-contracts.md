@@ -25,6 +25,8 @@ Flight-log validation can ingest ENU or NED and converts before alignment.
 | `aegis.regression-report.v1` | Campaign runner | Episode evidence and gate decisions |
 | `aegis.elevation-grid.v1` | Elevation downloader | Local-ENU terrain samples and provenance |
 | `aegis.companion-perception.v1` | Onboard companion | Timestamped camera detections without actuation |
+| `aegis.vision-model.v1` | Vision manifest tools | Exact detector identity, artifact hash, and inference configuration |
+| `aegis.vision-replay-report.v1` | Vision replay | Source/output hashes and host replay performance |
 
 ## Tactical UDP
 
@@ -32,17 +34,53 @@ Flight-log validation can ingest ENU or NED and converts before alignment.
 {
   "schema": "aegis.tactical.v1",
   "sequence": 42,
-  "mission_time": 8.2,
-  "intruder_pos": [210.0, 430.0, 120.0],
-  "interceptor_pos": [35.0, 80.0, 62.0],
-  "fused_track": {},
-  "predicted_intercept": [145.0, 295.0, 88.0]
+  "mission_time_s": 8.2,
+  "timestamp_clock": "simulation-relative",
+  "status": "ENGAGING",
+  "site": "Southern Ontario training site",
+  "guidance": "apn",
+  "coordinate_frame": {
+    "type": "local-tangent-plane",
+    "axes": "ENU",
+    "position_unit": "m",
+    "velocity_unit": "m/s",
+    "orientation": "xyzw"
+  },
+  "georeference": {
+    "origin": {
+      "latitude": 43.0,
+      "longitude": -79.0,
+      "altitude_m": 0.0
+    },
+    "status": "placeholder"
+  },
+  "terrain": {
+    "source": "Copernicus DEM GLO-90",
+    "collision_authoritative": true
+  },
+  "tracks": {
+    "intruder": {
+      "id": "TRK-001",
+      "role": "intruder",
+      "asset_id": "intruder/shahed136",
+      "type": "shahed136",
+      "position_enu_m": [210.0, 430.0, 120.0],
+      "velocity_enu_mps": [-21.0, -38.0, 0.0],
+      "orientation_xyzw": [0.0, 0.0, 0.88, 0.47]
+    },
+    "interceptor": null
+  }
 }
 ```
 
 UDP is intentionally lightweight and unordered. Consumers must reject malformed
 packets, monitor sequence gaps, and treat stale state as unavailable rather
 than extrapolating indefinitely.
+
+The canonical schema is
+[`aegis.tactical.v1.schema.json`](../schemas/aegis.tactical.v1.schema.json).
+The current geodetic coordinates are explicitly marked as placeholders and must
+not be interpreted as an approved operating site.
 
 ## Evidence integrity
 
