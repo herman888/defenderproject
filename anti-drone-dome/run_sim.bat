@@ -1,4 +1,4 @@
 @echo off
+REM Kept for compatibility - the launcher is now run.bat
 cd /d "%~dp0"
-.\venv312\Scripts\python.exe main.py
-pause
+call run.bat sim
