@@ -45,6 +45,9 @@ _TELEMETRY_FIELDS = {
     "hardware_profile",
     "hardware_mode",
     "mission_run_id",
+    "airframe_profiles",
+    "energy_remaining",
+    "injected_failures",
 }
 
 

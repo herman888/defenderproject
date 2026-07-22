@@ -27,6 +27,8 @@ Flight-log validation can ingest ENU or NED and converts before alignment.
 | `aegis.companion-perception.v1` | Onboard companion | Timestamped camera detections without actuation |
 | `aegis.vision-model.v1` | Vision manifest tools | Exact detector identity, artifact hash, and inference configuration |
 | `aegis.vision-replay-report.v1` | Vision replay | Source/output hashes and host replay performance |
+| `aegis.airframe-profiles.v1` | Airframe catalog | Physical, aerodynamic, propulsion, energy, visual, and evidence parameters |
+| `aegis.airframe-calibration.v1` | Calibration tool | Bounded candidate recommendations from aligned logs |
 
 ## Tactical UDP
 

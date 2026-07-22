@@ -232,7 +232,14 @@ def _dashboard_worker(
 
     # ── Control publish: SimControl → ctrl_q ──────────────────────────────
     def _publish_ctrl():
-        msg = {"paused": ctrl.paused, "stopped": ctrl.stopped}
+        msg = {
+            "paused": ctrl.paused,
+            "stopped": ctrl.stopped,
+            "runtime_speed": ctrl.runtime_speed,
+            "radar_failure": ctrl.radar_failure,
+            "camera_failure": ctrl.camera_failure,
+            "actuator_failure": ctrl.actuator_failure,
+        }
         if ctrl.restart:
             msg["restart"] = True
             ctrl.restart = False
@@ -543,6 +550,7 @@ def _run_one_mission(
         kp=6.5, kd=4.2,
         urdf=_int_urdf if os.path.isfile(_int_urdf) else None,
         global_scaling=1.8,
+        airframe_profile_id="interceptor.reference-v1",
     )
 
     for _ in range(50):
@@ -572,6 +580,16 @@ def _run_one_mission(
         elev_max_deg     = environment["radar_elevation_max_deg"],
         min_vel          = 0.8,
         noise_std        = environment["radar_noise_std_m"],
+        process_noise    = environment.get("radar_process_noise", 5.0),
+        dwell_steps      = environment.get("radar_dwell_steps", 1),
+        latency_steps    = environment.get("radar_latency_steps", 0),
+        false_alarm_probability=environment.get(
+            "radar_false_alarm_probability", 0.0
+        ),
+        seed=(
+            list(INTRUDER_TYPES).index(intruder_key) * 100
+            + list(ATTACK_PATTERNS).index(pattern_key)
+        ),
     )
     fusion = TrackFusion()
     camera_sensor = None
@@ -581,6 +599,16 @@ def _run_one_mission(
             position=(0.0, 0.0, 12.0),
             max_range_m=min(1200.0, environment["visibility_m"]),
             position_noise_std_m=max(0.5, environment["radar_noise_std_m"]),
+            dropout_probability=environment["sensor_dropout_probability"],
+            latency_frames=environment.get("camera_latency_frames", 0),
+            exposure_gain=environment.get("camera_exposure_gain", 1.0),
+            image_noise_std=environment.get("camera_image_noise_std", 0.0),
+            lens_distortion_fraction=environment.get(
+                "camera_lens_distortion_fraction", 0.0
+            ),
+            rolling_shutter_readout_s=environment.get(
+                "camera_rolling_shutter_readout_s", 0.0
+            ),
             model_path=CAMERA_MODEL,
             model_device=(0 if ML_DEVICE == "cuda" else None),
             renderer=world.camera_renderer,
@@ -661,6 +689,14 @@ def _run_one_mission(
         "stopped": False,
         "speed": 1,
         "camera_view": "overview",
+        "radar_failure": False,
+        "camera_failure": False,
+        "actuator_failure": False,
+    }
+    previous_failures = {
+        "radar_failure": False,
+        "camera_failure": False,
+        "actuator_failure": False,
     }
 
     # Wall-clock throttle for dashboard state pushes (decoupled from physics tick rate).
@@ -688,12 +724,29 @@ def _run_one_mission(
             try:
                 msg = ctrl_q.get_nowait()
                 dash_ctrl.update(msg)
+                requested_speed = msg.get("runtime_speed")
+                if requested_speed in {0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0}:
+                    sim_speed = float(requested_speed)
                 if pybullet_gui:
                     z = msg.get("camera_zoom")
                     if z in ("in", "out"):
                         _apply_pybullet_zoom(world.client, z)
             except Exception:
                 break
+        for failure_name, previous in previous_failures.items():
+            current = bool(dash_ctrl.get(failure_name))
+            if current != previous:
+                label = failure_name.replace("_", " ").upper()
+                pending_events.append(
+                    f"{label} {'INJECTED' if current else 'CLEARED'}"
+                )
+                if failure_name == "radar_failure":
+                    radar.reset_latency()
+                elif failure_name == "camera_failure" and camera_sensor:
+                    camera_sensor.reset_latency()
+                    if current:
+                        fusion.clear_camera_track()
+                previous_failures[failure_name] = current
 
         if pybullet_gui:
             try:
@@ -819,14 +872,22 @@ def _run_one_mission(
 
             # Radar scan — every physics step keeps detection rate correct
             i_pos        = intruder.get_position()
-            radar_return = radar.scan(i_pos, target_rcs=target_rcs)
+            radar_return = (
+                {"detected": False, "injected_failure": True, "source": "radar"}
+                if dash_ctrl.get("radar_failure")
+                else radar.scan(i_pos, target_rcs=target_rcs)
+            )
             if radar_return.get("detected") and not radar_acquired:
                 radar_acquired = True
                 pending_events.append("Radar track acquired")
             if radar_return.get("locked") and not radar_locked:
                 radar_locked = True
                 pending_events.append("Radar track locked")
-            if camera_sensor and step % 12 == 0:
+            if (
+                camera_sensor
+                and step % 12 == 0
+                and not dash_ctrl.get("camera_failure")
+            ):
                 radar_cue = radar.get_last_track()
                 if radar_cue:
                     camera_cue = radar_cue["position_estimate"]
@@ -835,13 +896,21 @@ def _run_one_mission(
                 camera_return = camera_sensor.observe(
                     intruder.body_id, camera_cue, step * _TIMESTEP
                 )
+            elif dash_ctrl.get("camera_failure"):
+                camera_return = {
+                    "detected": False,
+                    "source": "camera",
+                    "injected_failure": True,
+                }
             fused_track = fusion.update(
                 radar_return,
                 camera_return,
                 radar.track_confidence(),
                 step * _TIMESTEP,
             )
-            guidance_track = fused_track or radar.get_last_track()
+            guidance_track = fused_track
+            if guidance_track is None and not dash_ctrl.get("radar_failure"):
+                guidance_track = radar.get_last_track()
             if (
                 fused_track
                 and fused_track.get("source") == "RADAR+EO"
@@ -881,7 +950,9 @@ def _run_one_mission(
                 )
 
             try:
-                if USE_SITL and sitl_bridge is not None:
+                if dash_ctrl.get("actuator_failure"):
+                    pass
+                elif USE_SITL and sitl_bridge is not None:
                     # Send setpoint to ArduPilot at 20 Hz; sync PyBullet body
                     # every step so position/velocity reads stay accurate.
                     if step % _SITL_SEND_INTERVAL == 0:
@@ -1308,6 +1379,26 @@ def _run_one_mission(
                     "hardware_profile"   : HARDWARE_PROFILE.label,
                     "hardware_mode"      : HARDWARE_PROFILE.mode.upper(),
                     "mission_run_id"     : mission_recorder.run_id,
+                    "airframe_profiles"  : {
+                        "intruder": intruder.get_state().get(
+                            "airframe_profile_id"
+                        ),
+                        "interceptor": interceptor.get_state().get(
+                            "airframe_profile_id"
+                        ),
+                    },
+                    "energy_remaining"   : {
+                        "intruder": intruder.get_state().get(
+                            "energy_remaining_fraction", 1.0
+                        ),
+                        "interceptor": interceptor.get_state().get(
+                            "energy_remaining_fraction", 1.0
+                        ),
+                    },
+                    "injected_failures"  : {
+                        key: bool(dash_ctrl.get(key))
+                        for key in previous_failures
+                    },
                 }
             mission_recorder.record_snapshot(dashboard_state)
             pending_events = []

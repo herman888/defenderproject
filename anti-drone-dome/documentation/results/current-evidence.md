@@ -4,7 +4,7 @@
 
 | Area | Evidence |
 |---|---|
-| Tests | 35 tests passed after tactical-contract and replay hardening |
+| Tests | 42 tests passed after airframe, sensor, control, and calibration integration |
 | Live mission | OpenGL tactical mission intercepted at approximately T+15.7 s |
 | Visual dynamics | Timestamped frames changed 14.5% then 25.6% |
 | Stress campaign | 800/800 APN synthetic interceptions across eight cases |
@@ -12,6 +12,7 @@
 | ML comparison | PPO preserved interception but did not outperform APN |
 | Recording | Raw camera arrays removed from JSONL telemetry |
 | External renderer | Georeferenced `aegis.tactical.v1` validation, JSONL capture, and exact UDP replay implemented |
+| Fidelity smoke | Profile-driven 200 kg representative Shahed intercepted at T+60.6 s in a headless 8x mission |
 | Companion contract | 10,000 read-only perception packets serialized at 41,274/s on the AMD64 development host |
 
 ## Environment-specific findings

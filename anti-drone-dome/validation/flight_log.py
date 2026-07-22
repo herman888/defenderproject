@@ -142,6 +142,13 @@ def compare_flight_logs(
     vector_error = interpolated - reference["position_enu_m"][mask]
     distance_error = np.linalg.norm(vector_error, axis=1)
     axis_rmse = np.sqrt(np.mean(vector_error * vector_error, axis=0))
+    axis_bias = np.mean(vector_error, axis=0)
+    reference_velocity = np.gradient(
+        reference["position_enu_m"][mask], aligned_time, axis=0
+    )
+    candidate_velocity = np.gradient(interpolated, aligned_time, axis=0)
+    velocity_error = candidate_velocity - reference_velocity
+    velocity_distance_error = np.linalg.norm(velocity_error, axis=1)
     return {
         "schema": "aegis.flight-log-comparison.v1",
         "aligned_sample_count": int(len(aligned_time)),
@@ -155,4 +162,18 @@ def compare_flight_logs(
             "north": float(axis_rmse[1]),
             "up": float(axis_rmse[2]),
         },
+        "axis_bias_m": {
+            "east": float(axis_bias[0]),
+            "north": float(axis_bias[1]),
+            "up": float(axis_bias[2]),
+        },
+        "velocity_rmse_mps": math.sqrt(
+            float(np.mean(velocity_distance_error ** 2))
+        ),
+        "reference_mean_speed_mps": float(
+            np.mean(np.linalg.norm(reference_velocity, axis=1))
+        ),
+        "candidate_mean_speed_mps": float(
+            np.mean(np.linalg.norm(candidate_velocity, axis=1))
+        ),
     }

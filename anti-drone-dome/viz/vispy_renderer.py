@@ -269,11 +269,11 @@ def _set_cam(view, cam_pos, look_at):
 # ═══════════════════════════════════════════════════════════ Renderer ═════════
 
 _INTRUDER_SCALES = {
-    "shahed136":     30.0,   # ~30m wingspan — clearly visible at 200m dome scale
-    "consumer_quad": 20.0,
-    "fpv_attack":    16.0,
+    "shahed136":      5.0,   # 2x tactical magnification over 2.5 m wingspan
+    "consumer_quad":  1.2,   # 3x tactical magnification over 0.4 m span
+    "fpv_attack":     1.0,   # ~3x tactical magnification over 0.32 m span
 }
-_INTERCEPTOR_SCALE = 20.0
+_INTERCEPTOR_SCALE = 1.65    # 3x tactical magnification over 0.55 m span
 
 
 class SimRenderer:

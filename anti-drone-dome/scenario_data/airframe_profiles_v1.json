@@ -1,0 +1,177 @@
+{
+  "schema": "aegis.airframe-profiles.v1",
+  "profiles": [
+    {
+      "profile_id": "intruder.shahed136.representative-v1",
+      "vehicle_role": "intruder",
+      "vehicle_type": "shahed136",
+      "dynamics_model": "fidelity_v1",
+      "geometry": {
+        "length_m": 3.5,
+        "wingspan_m": 2.5,
+        "height_m": 0.5,
+        "visual_scale": 1.0
+      },
+      "rigid_body": {
+        "mass_kg": 200.0,
+        "inertia_kg_m2": [35.0, 120.0, 145.0]
+      },
+      "propulsion": {
+        "max_speed_mps": 51.0,
+        "max_horizontal_force_n": 1600.0,
+        "vertical_force_min_n": -900.0,
+        "vertical_force_max_n": 2300.0,
+        "actuator_time_constant_s": 0.35,
+        "force_slew_rate_nps": 4500.0,
+        "energy_capacity_wh": 12000.0,
+        "minimum_voltage_fraction": 0.72
+      },
+      "aerodynamics": {
+        "drag_coefficient": 0.2,
+        "drag_area_m2": 0.3,
+        "lift_coefficient": 0.65,
+        "wing_area_m2": 2.0,
+        "stall_speed_mps": 29.0,
+        "stall_angle_deg": 16.0
+      },
+      "disturbance": {
+        "turbulence_force_std_n": 18.0,
+        "seed": 136
+      },
+      "evidence": {
+        "status": "representative-unvalidated",
+        "source": "publicly reported dimensions and approximate simulation parameters",
+        "notes": "Not a manufacturer model; calibrate against approved data before field claims."
+      }
+    },
+    {
+      "profile_id": "intruder.consumer-quad.representative-v1",
+      "vehicle_role": "intruder",
+      "vehicle_type": "consumer_quad",
+      "dynamics_model": "fidelity_v1",
+      "geometry": {
+        "length_m": 0.35,
+        "wingspan_m": 0.4,
+        "height_m": 0.12,
+        "visual_scale": 1.0
+      },
+      "rigid_body": {
+        "mass_kg": 0.9,
+        "inertia_kg_m2": [0.012, 0.012, 0.021]
+      },
+      "propulsion": {
+        "max_speed_mps": 16.0,
+        "max_horizontal_force_n": 28.0,
+        "vertical_force_min_n": -18.0,
+        "vertical_force_max_n": 40.0,
+        "actuator_time_constant_s": 0.12,
+        "force_slew_rate_nps": 180.0,
+        "energy_capacity_wh": 60.0,
+        "minimum_voltage_fraction": 0.68
+      },
+      "aerodynamics": {
+        "drag_coefficient": 0.45,
+        "drag_area_m2": 0.012,
+        "lift_coefficient": 0.0,
+        "wing_area_m2": 0.001,
+        "stall_speed_mps": 0.0,
+        "stall_angle_deg": 90.0
+      },
+      "disturbance": {
+        "turbulence_force_std_n": 0.8,
+        "seed": 400
+      },
+      "evidence": {
+        "status": "representative-unvalidated",
+        "source": "generic sub-kilogram consumer quadrotor envelope",
+        "notes": "Replace with the exact aircraft datasheet and flight-log calibration."
+      }
+    },
+    {
+      "profile_id": "intruder.fpv.representative-v1",
+      "vehicle_role": "intruder",
+      "vehicle_type": "fpv_attack",
+      "dynamics_model": "fidelity_v1",
+      "geometry": {
+        "length_m": 0.28,
+        "wingspan_m": 0.32,
+        "height_m": 0.12,
+        "visual_scale": 1.0
+      },
+      "rigid_body": {
+        "mass_kg": 1.0,
+        "inertia_kg_m2": [0.014, 0.014, 0.024]
+      },
+      "propulsion": {
+        "max_speed_mps": 32.0,
+        "max_horizontal_force_n": 55.0,
+        "vertical_force_min_n": -30.0,
+        "vertical_force_max_n": 62.0,
+        "actuator_time_constant_s": 0.07,
+        "force_slew_rate_nps": 420.0,
+        "energy_capacity_wh": 95.0,
+        "minimum_voltage_fraction": 0.65
+      },
+      "aerodynamics": {
+        "drag_coefficient": 0.38,
+        "drag_area_m2": 0.008,
+        "lift_coefficient": 0.0,
+        "wing_area_m2": 0.001,
+        "stall_speed_mps": 0.0,
+        "stall_angle_deg": 90.0
+      },
+      "disturbance": {
+        "turbulence_force_std_n": 1.2,
+        "seed": 500
+      },
+      "evidence": {
+        "status": "representative-unvalidated",
+        "source": "generic 7-inch FPV performance envelope",
+        "notes": "Payload, propeller, motor, and battery selection can materially change this profile."
+      }
+    },
+    {
+      "profile_id": "interceptor.reference-v1",
+      "vehicle_role": "interceptor",
+      "vehicle_type": "interceptor",
+      "dynamics_model": "fidelity_v1",
+      "geometry": {
+        "length_m": 0.55,
+        "wingspan_m": 0.55,
+        "height_m": 0.2,
+        "visual_scale": 1.0
+      },
+      "rigid_body": {
+        "mass_kg": 1.5,
+        "inertia_kg_m2": [0.045, 0.045, 0.08]
+      },
+      "propulsion": {
+        "max_speed_mps": 45.0,
+        "max_horizontal_force_n": 260.0,
+        "vertical_force_min_n": -80.0,
+        "vertical_force_max_n": 260.0,
+        "actuator_time_constant_s": 0.06,
+        "force_slew_rate_nps": 2200.0,
+        "energy_capacity_wh": 180.0,
+        "minimum_voltage_fraction": 0.68
+      },
+      "aerodynamics": {
+        "drag_coefficient": 0.7,
+        "drag_area_m2": 0.025,
+        "lift_coefficient": 0.0,
+        "wing_area_m2": 0.001,
+        "stall_speed_mps": 0.0,
+        "stall_angle_deg": 90.0
+      },
+      "disturbance": {
+        "turbulence_force_std_n": 1.5,
+        "seed": 100
+      },
+      "evidence": {
+        "status": "design-placeholder",
+        "source": "current Project LARP simulation envelope",
+        "notes": "Must be replaced by measured mass, inertia, thrust and battery data."
+      }
+    }
+  ]
+}

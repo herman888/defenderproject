@@ -12,31 +12,31 @@
         <meta name="author" content="Herman Isayenka">
       
       
-        <link rel="canonical" href="https://defenderproject.vercel.app/contributing/">
+        <link rel="canonical" href="https://defenderproject.vercel.app/simulation/fidelity-and-controls/">
       
       
-        <link rel="prev" href="../development/gpu-setup/">
+        <link rel="prev" href="../scenarios/">
       
       
-        <link rel="next" href="../deploy-vercel/">
+        <link rel="next" href="../rendering/">
       
       
         
       
       
-      <link rel="icon" href="../assets/logo.svg">
+      <link rel="icon" href="../../assets/logo.svg">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>Contributing - Project LARP</title>
+        <title>Airframe fidelity and controls - Project LARP</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -55,9 +55,9 @@
       
     
     
-      <link rel="stylesheet" href="../stylesheets/extra.css">
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#contributing-add-docs" class="md-skip">
+        <a href="#airframe-fidelity-sensors-and-operator-controls" class="md-skip">
           Skip to content
         </a>
       
@@ -98,9 +98,9 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Project LARP" class="md-header__button md-logo" aria-label="Project LARP" data-md-component="logo">
+    <a href="../.." title="Project LARP" class="md-header__button md-logo" aria-label="Project LARP" data-md-component="logo">
       
-  <img src="../assets/logo.svg" alt="logo">
+  <img src="../../assets/logo.svg" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Contributing
+              Airframe fidelity and controls
             
           </span>
         </div>
@@ -240,9 +240,9 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Project LARP" class="md-nav__button md-logo" aria-label="Project LARP" data-md-component="logo">
+    <a href="../.." title="Project LARP" class="md-nav__button md-logo" aria-label="Project LARP" data-md-component="logo">
       
-  <img src="../assets/logo.svg" alt="logo">
+  <img src="../../assets/logo.svg" alt="logo">
 
     </a>
     Project LARP
@@ -269,7 +269,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -350,7 +350,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting-started/installation/" class="md-nav__link">
+      <a href="../../getting-started/installation/" class="md-nav__link">
         
   
   
@@ -439,7 +439,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../system/architecture/" class="md-nav__link">
+      <a href="../../system/architecture/" class="md-nav__link">
         
   
   
@@ -467,7 +467,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../system/implementation-status/" class="md-nav__link">
+      <a href="../../system/implementation-status/" class="md-nav__link">
         
   
   
@@ -495,7 +495,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../system/data-contracts/" class="md-nav__link">
+      <a href="../../system/data-contracts/" class="md-nav__link">
         
   
   
@@ -527,8 +527,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -539,13 +541,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
           <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
@@ -566,7 +566,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -584,7 +584,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../software/simulation/" class="md-nav__link">
+      <a href="../../software/simulation/" class="md-nav__link">
         
   
   
@@ -612,7 +612,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../simulation/scenarios/" class="md-nav__link">
+      <a href="../scenarios/" class="md-nav__link">
         
   
   
@@ -637,10 +637,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../simulation/fidelity-and-controls/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Airframe fidelity and controls
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -656,6 +683,131 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#versioned-airframe-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Versioned airframe profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dynamics-added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dynamics added
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-rendering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model rendering
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-command-center-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime command-center controls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sensor-fidelity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensor fidelity
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sensor fidelity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#radar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Radar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EO
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flight-log-calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flight-log calibration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verified-software-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verified software evidence
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -668,7 +820,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../simulation/rendering/" class="md-nav__link">
+      <a href="../rendering/" class="md-nav__link">
         
   
   
@@ -757,7 +909,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../software/overview/" class="md-nav__link">
+      <a href="../../software/overview/" class="md-nav__link">
         
   
   
@@ -785,7 +937,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../software/detection-pipeline/" class="md-nav__link">
+      <a href="../../software/detection-pipeline/" class="md-nav__link">
         
   
   
@@ -813,7 +965,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/detection-pipeline-reference/" class="md-nav__link">
+      <a href="../../reference/detection-pipeline-reference/" class="md-nav__link">
         
   
   
@@ -902,7 +1054,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ml-training/training/" class="md-nav__link">
+      <a href="../../ml-training/training/" class="md-nav__link">
         
   
   
@@ -930,7 +1082,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ml-training/vision-training/" class="md-nav__link">
+      <a href="../../ml-training/vision-training/" class="md-nav__link">
         
   
   
@@ -958,7 +1110,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ml-training/evaluation/" class="md-nav__link">
+      <a href="../../ml-training/evaluation/" class="md-nav__link">
         
   
   
@@ -1047,7 +1199,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../validation/overview/" class="md-nav__link">
+      <a href="../../validation/overview/" class="md-nav__link">
         
   
   
@@ -1075,7 +1227,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../validation/regression-campaign/" class="md-nav__link">
+      <a href="../../validation/regression-campaign/" class="md-nav__link">
         
   
   
@@ -1103,7 +1255,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../validation/hardware-readiness/" class="md-nav__link">
+      <a href="../../validation/hardware-readiness/" class="md-nav__link">
         
   
   
@@ -1131,7 +1283,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../results/current-evidence/" class="md-nav__link">
+      <a href="../../results/current-evidence/" class="md-nav__link">
         
   
   
@@ -1220,7 +1372,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../operations/mission-recording/" class="md-nav__link">
+      <a href="../../operations/mission-recording/" class="md-nav__link">
         
   
   
@@ -1248,7 +1400,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../integration/external-renderers/" class="md-nav__link">
+      <a href="../../integration/external-renderers/" class="md-nav__link">
         
   
   
@@ -1337,7 +1489,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../hardware/overview/" class="md-nav__link">
+      <a href="../../hardware/overview/" class="md-nav__link">
         
   
   
@@ -1365,7 +1517,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../hardware/flight-controllers/" class="md-nav__link">
+      <a href="../../hardware/flight-controllers/" class="md-nav__link">
         
   
   
@@ -1393,7 +1545,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../hardware/radio/" class="md-nav__link">
+      <a href="../../hardware/radio/" class="md-nav__link">
         
   
   
@@ -1421,7 +1573,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../hardware/raspberry-pi-companion/" class="md-nav__link">
+      <a href="../../hardware/raspberry-pi-companion/" class="md-nav__link">
         
   
   
@@ -1449,7 +1601,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../hardware/safety/" class="md-nav__link">
+      <a href="../../hardware/safety/" class="md-nav__link">
         
   
   
@@ -1538,7 +1690,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../firmware/flashing/" class="md-nav__link">
+      <a href="../../firmware/flashing/" class="md-nav__link">
         
   
   
@@ -1566,7 +1718,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../firmware/recovery/" class="md-nav__link">
+      <a href="../../firmware/recovery/" class="md-nav__link">
         
   
   
@@ -1594,7 +1746,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/firmware-legacy/" class="md-nav__link">
+      <a href="../../reference/firmware-legacy/" class="md-nav__link">
         
   
   
@@ -1683,7 +1835,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../gallery/overview/" class="md-nav__link">
+      <a href="../../gallery/overview/" class="md-nav__link">
         
   
   
@@ -1715,8 +1867,6 @@
       
   
   
-    
-  
   
   
     
@@ -1729,11 +1879,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_12" >
         
           
           <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="">
@@ -1754,7 +1906,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_12">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1772,7 +1924,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/testing/" class="md-nav__link">
+      <a href="../../development/testing/" class="md-nav__link">
         
   
   
@@ -1800,7 +1952,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/gpu-setup/" class="md-nav__link">
+      <a href="../../development/gpu-setup/" class="md-nav__link">
         
   
   
@@ -1825,37 +1977,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Contributing
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
         
   
   
@@ -1871,81 +1996,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#run-locally" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Run locally
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#add-a-new-page" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Add a new page
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#add-a-new-section" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Add a new section
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#style-tips" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Style tips
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#deploy-to-vercel" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Deploy to Vercel
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1958,7 +2008,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../deploy-vercel/" class="md-nav__link">
+      <a href="../../deploy-vercel/" class="md-nav__link">
         
   
   
@@ -2047,7 +2097,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../archive/MEGAPROMPT_V2/" class="md-nav__link">
+      <a href="../../archive/MEGAPROMPT_V2/" class="md-nav__link">
         
   
   
@@ -2075,7 +2125,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../archive/MEGAPROMPT_V3/" class="md-nav__link">
+      <a href="../../archive/MEGAPROMPT_V3/" class="md-nav__link">
         
   
   
@@ -2103,7 +2153,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../archive/MEGAPROMPT_V4/" class="md-nav__link">
+      <a href="../../archive/MEGAPROMPT_V4/" class="md-nav__link">
         
   
   
@@ -2158,10 +2208,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#run-locally" class="md-nav__link">
+  <a href="#versioned-airframe-profiles" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Run locally
+        Versioned airframe profiles
       
     </span>
   </a>
@@ -2169,10 +2219,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#add-a-new-page" class="md-nav__link">
+  <a href="#dynamics-added" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Add a new page
+        Dynamics added
       
     </span>
   </a>
@@ -2180,10 +2230,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#add-a-new-section" class="md-nav__link">
+  <a href="#model-rendering" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Add a new section
+        Model rendering
       
     </span>
   </a>
@@ -2191,10 +2241,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#style-tips" class="md-nav__link">
+  <a href="#runtime-command-center-controls" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Style tips
+        Runtime command-center controls
       
     </span>
   </a>
@@ -2202,10 +2252,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#deploy-to-vercel" class="md-nav__link">
+  <a href="#sensor-fidelity" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Deploy to Vercel
+        Sensor fidelity
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sensor fidelity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#radar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Radar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EO
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flight-log-calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flight-log calibration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verified-software-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verified software evidence
       
     </span>
   </a>
@@ -2229,7 +2329,7 @@
 
 
   
-    <a href="https://github.com/herman888/defenderproject/edit/main/anti-drone-dome/documentation/contributing.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/herman888/defenderproject/edit/main/anti-drone-dome/documentation/simulation/fidelity-and-controls.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2237,65 +2337,153 @@
   
 
 
-<h1 id="contributing-add-docs">Contributing (add docs)<a class="headerlink" href="#contributing-add-docs" title="Permanent link">&para;</a></h1>
-<p>This site is <strong>MkDocs Material</strong>. Edit Markdown under <code>documentation/</code>; the
-sidebar comes from <code>mkdocs.yml</code>.</p>
-<hr />
-<h2 id="run-locally">Run locally<a class="headerlink" href="#run-locally" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">cd</span><span class="w"> </span>anti-drone-dome
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv-docs
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">source</span><span class="w"> </span>.venv-docs/bin/activate
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements-docs.txt
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>mkdocs<span class="w"> </span>serve
-</code></pre></div>
-<p>Open <a href="http://127.0.0.1:8000">http://127.0.0.1:8000</a>. Edits auto-reload.</p>
-<p>Next time (venv already created):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">cd</span><span class="w"> </span>anti-drone-dome
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">source</span><span class="w"> </span>.venv-docs/bin/activate
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>mkdocs<span class="w"> </span>serve
-</code></pre></div>
-<p>Build static HTML (optional):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mkdocs<span class="w"> </span>build<span class="w"> </span>--strict
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="c1"># output in anti-drone-dome/public/</span>
-</code></pre></div>
-<hr />
-<h2 id="add-a-new-page">Add a new page<a class="headerlink" href="#add-a-new-page" title="Permanent link">&para;</a></h2>
-<ol>
-<li>Create a file, e.g. <code>documentation/hardware/battery.md</code></li>
-<li>Write Markdown (headings, tables, code fences)</li>
-<li>Register it in <code>mkdocs.yml</code> under <code>nav:</code>:</li>
-</ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Hardware</span><span class="p">:</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Overview</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hardware/overview.md</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Flight Controllers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hardware/flight-controllers.md</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Radio</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hardware/radio.md</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Battery</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hardware/battery.md</span><span class="w">   </span><span class="c1"># ← new</span>
-</code></pre></div>
-<ol>
-<li>Save — the sidebar updates on refresh</li>
-</ol>
-<hr />
-<h2 id="add-a-new-section">Add a new section<a class="headerlink" href="#add-a-new-section" title="Permanent link">&para;</a></h2>
-<ol>
-<li>Create a folder: <code>documentation/guidance/</code></li>
-<li>Add <code>overview.md</code> (or any page)</li>
-<li>Add a nav block in <code>mkdocs.yml</code>:</li>
-</ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Guidance</span><span class="p">:</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Overview</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guidance/overview.md</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Intercept</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guidance/intercept.md</span>
-</code></pre></div>
-<hr />
-<h2 id="style-tips">Style tips<a class="headerlink" href="#style-tips" title="Permanent link">&para;</a></h2>
+<h1 id="airframe-fidelity-sensors-and-operator-controls">Airframe fidelity, sensors, and operator controls<a class="headerlink" href="#airframe-fidelity-sensors-and-operator-controls" title="Permanent link">&para;</a></h1>
+<p>This release improves the authoritative simulation rather than only enlarging
+or beautifying rendered models. PyBullet remains authoritative, APN remains the
+nominal controller, and every new physical parameter carries an evidence status.</p>
+<h2 id="versioned-airframe-profiles">Versioned airframe profiles<a class="headerlink" href="#versioned-airframe-profiles" title="Permanent link">&para;</a></h2>
+<p><code>aegis.airframe-profiles.v1</code> defines four profiles:</p>
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>Physical model</th>
+<th>Evidence status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>intruder.shahed136.representative-v1</code></td>
+<td>200 kg, 3.5 m length, 2.5 m span</td>
+<td>representative, unvalidated</td>
+</tr>
+<tr>
+<td><code>intruder.consumer-quad.representative-v1</code></td>
+<td>0.9 kg generic consumer quad</td>
+<td>representative, unvalidated</td>
+</tr>
+<tr>
+<td><code>intruder.fpv.representative-v1</code></td>
+<td>1.0 kg generic FPV</td>
+<td>representative, unvalidated</td>
+</tr>
+<tr>
+<td><code>interceptor.reference-v1</code></td>
+<td>1.5 kg reference interceptor</td>
+<td>design placeholder</td>
+</tr>
+</tbody>
+</table>
+<p>Profiles separate:</p>
 <ul>
-<li>Use <code>!!! note</code> / <code>!!! warning</code> admonitions (Material)</li>
-<li>Prefer relative links: <code>[Radio](hardware/radio.md)</code></li>
-<li>Keep one source of truth under <code>documentation/</code>; repository READMEs should
-  link here rather than duplicate procedures.</li>
+<li>physical dimensions and rigid-body mass/inertia</li>
+<li>presentation scale</li>
+<li>propulsion and force envelopes</li>
+<li>aerodynamic coefficients, areas, stall speed, and stall angle</li>
+<li>actuator time constant and force slew limit</li>
+<li>energy capacity and minimum voltage fraction</li>
+<li>deterministic turbulence</li>
+<li>source, notes, and validation status</li>
 </ul>
-<hr />
-<h2 id="deploy-to-vercel">Deploy to Vercel<a class="headerlink" href="#deploy-to-vercel" title="Permanent link">&para;</a></h2>
-<p>See <a href="../deploy-vercel/">Deploy to Vercel</a> for connecting this docs site to <strong>projectlarp.vercel.app</strong>.</p>
+<p>The loader rejects duplicate IDs, missing sections, invalid inertia, non-finite
+values, unsupported dynamics models, and unknown evidence states. PyBullet body
+mass and inertia are synchronized from the selected profile.</p>
+<p>These are not manufacturer-grade digital twins. The values are bounded,
+representative starting points that must be replaced or calibrated using
+approved aircraft data.</p>
+<h2 id="dynamics-added">Dynamics added<a class="headerlink" href="#dynamics-added" title="Permanent link">&para;</a></h2>
+<p>The <code>fidelity_v1</code> path adds:</p>
+<ol>
+<li>rigid-body mass and diagonal inertia from the profile</li>
+<li>aerodynamic drag from density, coefficient, area, and airspeed</li>
+<li>speed- and angle-dependent lift reduction through stall</li>
+<li>first-order actuator response and force slew limits</li>
+<li>deterministic turbulence force</li>
+<li>mechanical-power energy consumption</li>
+<li>voltage sag that reduces available force as energy declines</li>
+<li>profile and remaining-energy telemetry in mission evidence</li>
+</ol>
+<p>The current attitude layer remains kinematically aligned because torque-level
+motor and control-surface identification has not been measured. That is the
+next dynamics step after real thrust and inertia data are available.</p>
+<h2 id="model-rendering">Model rendering<a class="headerlink" href="#model-rendering" title="Permanent link">&para;</a></h2>
+<p>The old tactical renderer magnified the Shahed to roughly 30 m and small
+quadrotors to 16-20 m. That made them visible but visually misleading.</p>
+<p>The renderer now uses restrained tactical magnification:</p>
+<ul>
+<li>Shahed: 5 m displayed span, or 2x physical</li>
+<li>consumer quad: 1.2 m, or 3x physical</li>
+<li>FPV: 1.0 m, or approximately 3x physical</li>
+<li>interceptor: 1.65 m, or 3x physical</li>
+</ul>
+<p>Track corners, labels, chase cameras, and prediction cues provide long-range
+visibility instead of extreme model inflation. Unreal/Cesium can later offer a
+strict 1:1 presentation mode.</p>
+<h2 id="runtime-command-center-controls">Runtime command-center controls<a class="headerlink" href="#runtime-command-center-controls" title="Permanent link">&para;</a></h2>
+<p>The command center now supports:</p>
+<ul>
+<li>pause and resume</li>
+<li>restart and abort</li>
+<li>live simulation-rate changes from 0.5x through 8x</li>
+<li>radar failure injection</li>
+<li>EO failure injection</li>
+<li>interceptor actuator failure injection</li>
+<li>existing intruder, route, launch-pad, and camera-view selection</li>
+</ul>
+<p>Failure state transitions are written to mission events. Active failures,
+airframe profile IDs, and remaining energy are recorded in telemetry. Actuator
+failure also suppresses SITL setpoint transmission, so the injection does not
+pretend a command was applied.</p>
+<p>Hot-swapping an airframe or route inside a mission is intentionally unsupported.
+Abort to the menu and start a new recorded run so evidence remains attributable
+to one immutable scenario configuration.</p>
+<h2 id="sensor-fidelity">Sensor fidelity<a class="headerlink" href="#sensor-fidelity" title="Permanent link">&para;</a></h2>
+<h3 id="radar">Radar<a class="headerlink" href="#radar" title="Permanent link">&para;</a></h3>
+<p>The radar now supports deterministic:</p>
+<ul>
+<li>scan dwell cadence</li>
+<li>processing latency</li>
+<li>false-alarm probability</li>
+<li>measurement noise</li>
+<li>Kalman process-noise tuning</li>
+<li>seeded Swerling-style acquisition</li>
+<li>Doppler clutter rejection and lock/coast behavior</li>
+</ul>
+<h3 id="eo">EO<a class="headerlink" href="#eo" title="Permanent link">&para;</a></h3>
+<p>The rendered EO path now supports:</p>
+<ul>
+<li>environment dropout probability</li>
+<li>frame latency</li>
+<li>exposure gain</li>
+<li>image noise before YOLO inference</li>
+<li>bounded lens-position distortion</li>
+<li>rolling-shutter position bias</li>
+</ul>
+<p>Segmentation remains the simulation reference detector. Image exposure/noise is
+applied to the YOLO image path; geometric effects are represented in the
+reported track estimate. Real camera calibration is still required.</p>
+<h2 id="flight-log-calibration">Flight-log calibration<a class="headerlink" href="#flight-log-calibration" title="Permanent link">&para;</a></h2>
+<p>The calibration tool compares measured and simulated ENU or NED trajectories:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">python</span> <span class="n">scripts</span><span class="p">\</span><span class="n">calibrate_airframe</span><span class="p">.</span><span class="n">py</span> <span class="p">`</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  <span class="p">-</span><span class="n">-profile</span> <span class="n">interceptor</span><span class="p">.</span><span class="n">reference-v1</span> <span class="p">`</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  <span class="p">-</span><span class="n">-reference</span> <span class="n">evidence</span><span class="p">\</span><span class="n">measured</span><span class="p">.</span><span class="n">csv</span> <span class="p">`</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  <span class="p">-</span><span class="n">-simulation</span> <span class="n">evidence</span><span class="p">\</span><span class="n">simulation</span><span class="p">.</span><span class="n">csv</span> <span class="p">`</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  <span class="p">-</span><span class="n">-output</span> <span class="n">evidence</span><span class="p">\</span><span class="n">calibration</span><span class="p">.</span><span class="n">json</span>
+</code></pre></div>
+<p>The report includes time alignment, trajectory RMSE, axis RMSE and bias,
+velocity RMSE, and mean speeds. It emits propulsion and drag scale suggestions
+bounded to <code>0.8-1.2</code>.</p>
+<p>It never edits a profile automatically. Every report is marked
+<code>candidate-only</code>, <code>review_required</code>, and <code>automatic_profile_mutation: false</code>.</p>
+<h2 id="verified-software-evidence">Verified software evidence<a class="headerlink" href="#verified-software-evidence" title="Permanent link">&para;</a></h2>
+<ul>
+<li>42 automated tests pass.</li>
+<li>A headless 8x mission with the 200 kg representative Shahed, radar dwell and
+  latency, actuator lag, turbulence, and energy model intercepted at T+60.6 s.</li>
+<li>The run produced a hashed mission manifest and telemetry.</li>
+</ul>
+<p>This proves software integration and repeatability in the model. It does not
+prove physical interception performance or validate the representative values.</p>
 
 
 
@@ -2333,7 +2521,7 @@ sidebar comes from <code>mkdocs.yml</code>.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../development/gpu-setup/" class="md-footer__link md-footer__link--prev" aria-label="Previous: NVIDIA GPU setup">
+          <a href="../scenarios/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Scenarios, environments, and maps">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2343,20 +2531,20 @@ sidebar comes from <code>mkdocs.yml</code>.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                NVIDIA GPU setup
+                Scenarios, environments, and maps
               </div>
             </div>
           </a>
         
         
           
-          <a href="../deploy-vercel/" class="md-footer__link md-footer__link--next" aria-label="Next: Deploy to Vercel">
+          <a href="../rendering/" class="md-footer__link md-footer__link--next" aria-label="Next: Tactical rendering">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Deploy to Vercel
+                Tactical rendering
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -2397,10 +2585,10 @@ sidebar comes from <code>mkdocs.yml</code>.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "navigation.footer", "content.action.edit", "search.highlight", "search.suggest", "search.share", "content.code.copy", "content.tabs.link", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "navigation.footer", "content.action.edit", "search.highlight", "search.suggest", "search.share", "content.code.copy", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

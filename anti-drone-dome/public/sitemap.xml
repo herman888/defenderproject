@@ -2,146 +2,150 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://defenderproject.vercel.app/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/contributing/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/deploy-vercel/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/archive/MEGAPROMPT_V2/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/archive/MEGAPROMPT_V3/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/archive/MEGAPROMPT_V4/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/development/gpu-setup/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/development/testing/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/firmware/flashing/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/firmware/recovery/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/gallery/overview/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/getting-started/installation/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/hardware/flight-controllers/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/hardware/overview/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/hardware/radio/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/hardware/raspberry-pi-companion/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/hardware/safety/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/integration/external-renderers/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/ml-training/evaluation/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/ml-training/training/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/ml-training/vision-training/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/operations/mission-recording/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/reference/detection-pipeline-reference/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/reference/firmware-legacy/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/results/current-evidence/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>https://defenderproject.vercel.app/simulation/fidelity-and-controls/</loc>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/simulation/rendering/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/simulation/scenarios/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/software/detection-pipeline/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/software/overview/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/software/simulation/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/system/architecture/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/system/data-contracts/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/system/implementation-status/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/validation/hardware-readiness/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/validation/overview/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>https://defenderproject.vercel.app/validation/regression-campaign/</loc>
-         <lastmod>2026-07-21</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
 </urlset>

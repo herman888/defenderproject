@@ -67,6 +67,7 @@ _WAYPOINTS = {
 
 INTRUDER_TYPES = {
     "shahed136": {
+        "airframe_profile_id": "intruder.shahed136.representative-v1",
         "label":              "■ SHAHED-136",
         "description":        "Shahed-136 loitering munition — 51 m/s cruise, delta wing, low RCS",
         "max_speed":          51.0,          # m/s  (~185 km/h cruise)
@@ -87,6 +88,7 @@ INTRUDER_TYPES = {
     },
 
     "consumer_quad": {
+        "airframe_profile_id": "intruder.consumer-quad.representative-v1",
         "label":              "⬡ CONSUMER",
         "description":        "Consumer quadrotor (DJI Mavic type) — 16 m/s, ISR or small payload",
         "max_speed":          16.0,          # m/s  (~58 km/h)
@@ -106,6 +108,7 @@ INTRUDER_TYPES = {
     },
 
     "fpv_attack": {
+        "airframe_profile_id": "intruder.fpv.representative-v1",
         "label":              "✕ FPV ATTACK",
         "description":        "Modified FPV racer — 32 m/s, agile, carbon-fibre frame, near-zero RCS",
         "max_speed":          32.0,          # m/s  (~115 km/h)
@@ -235,7 +238,10 @@ for _pattern_name, _environment_name in SCENARIO_CONFIG["pattern_environment"].i
 def get_environment_for_pattern(pattern_name: str) -> dict:
     pattern = ATTACK_PATTERNS[pattern_name]
     name = pattern.get("environment", "clear")
-    return dict(SCENARIO_CONFIG["environments"][name])
+    return {
+        **SCENARIO_CONFIG.get("sensor_defaults", {}),
+        **SCENARIO_CONFIG["environments"][name],
+    }
 
 
 def get_site_config() -> dict:

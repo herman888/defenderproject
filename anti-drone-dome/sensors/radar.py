@@ -14,7 +14,7 @@ AFTER:  Physical station on south dome perimeter (0, -10, 3) — 3 m mast.
 
 import math
 import time
-import random
+from collections import deque
 import numpy as np
 
 _DT        = 1.0 / 240.0   # physics timestep
@@ -30,7 +30,14 @@ class KalmanTracker:
     Acceleration: LP-filtered derivative of Kalman velocity output.
     """
 
-    def __init__(self, pos0: np.ndarray, meas_std: float, dt: float = _DT):
+    def __init__(
+        self,
+        pos0: np.ndarray,
+        meas_std: float,
+        dt: float = _DT,
+        process_noise: float = _PROC_NOISE,
+        acceleration_alpha: float = _ACC_ALPHA,
+    ):
         self.dt = dt
         self.x  = np.array([*pos0, 0.0, 0.0, 0.0], dtype=float)
         self.P  = np.diag([meas_std**2]*3 + [10.0]*3)
@@ -41,12 +48,13 @@ class KalmanTracker:
         self.H      = np.zeros((3, 6))
         self.H[0,0] = self.H[1,1] = self.H[2,2] = 1.0
 
-        q      = _PROC_NOISE
+        q      = float(process_noise)
         self.Q = np.diag([0.5*q*dt**2]*3 + [q*dt]*3)
         self.R = np.eye(3) * (meas_std**2)
 
         self._prev_vel = np.zeros(3)
         self._acc      = np.zeros(3)
+        self._acc_alpha = float(acceleration_alpha)
 
     def step(self, meas: np.ndarray):
         # Predict
@@ -61,7 +69,10 @@ class KalmanTracker:
         # LP-filtered acceleration
         vel           = self.x[3:6]
         raw_acc       = (vel - self._prev_vel) / self.dt
-        self._acc     = _ACC_ALPHA * raw_acc + (1.0 - _ACC_ALPHA) * self._acc
+        self._acc = (
+            self._acc_alpha * raw_acc
+            + (1.0 - self._acc_alpha) * self._acc
+        )
         self._prev_vel = vel.copy()
 
     @property
@@ -94,6 +105,12 @@ class RadarNode:
         elev_max_deg: float = 60.0,
         min_vel: float     = 0.5,
         noise_std: float   = 0.15,
+        process_noise: float = _PROC_NOISE,
+        acceleration_alpha: float = _ACC_ALPHA,
+        dwell_steps: int = 1,
+        latency_steps: int = 0,
+        false_alarm_probability: float = 0.0,
+        seed: int | None = None,
     ):
         self.station_pos      = np.array(station_pos,      dtype=float)
         self.protected_center = np.array(protected_center, dtype=float)
@@ -101,6 +118,20 @@ class RadarNode:
         self._elev_max        = math.radians(elev_max_deg)
         self._min_vel         = min_vel
         self._noise_std       = noise_std
+        self._process_noise = float(process_noise)
+        self._acceleration_alpha = float(acceleration_alpha)
+        self._dwell_steps = int(dwell_steps)
+        self._latency_steps = int(latency_steps)
+        self._false_alarm_probability = float(false_alarm_probability)
+        if self._dwell_steps <= 0 or self._latency_steps < 0:
+            raise ValueError("radar dwell_steps must be positive and latency non-negative")
+        if not 0.0 <= self._false_alarm_probability <= 1.0:
+            raise ValueError("false_alarm_probability must be in [0, 1]")
+        self._rng = np.random.default_rng(seed)
+        self._scan_calls = 0
+        self._latency_queue = deque()
+        self._held_result = {"detected": False, "seq": 0}
+        self._last_delivered_track: dict | None = None
 
         self._tracker: KalmanTracker | None = None
         self._hits       = 0
@@ -142,16 +173,18 @@ class RadarNode:
         return abs(float(np.dot(vel, u))) >= self._min_vel
 
     def get_last_track(self) -> dict | None:
-        """Return last Kalman state for guidance coasting when radar loses lock."""
-        if self._tracker is None:
+        """Return only a track that has passed through the configured latency."""
+        if self._last_delivered_track is None:
             return None
-        return {
-            "detected"          : True,   # treat as valid for guidance
-            "coasted"           : True,
-            "position_estimate" : self._tracker.pos,
-            "velocity"          : self._tracker.vel,
-            "acceleration"      : self._tracker.acc,
-        }
+        track = dict(self._last_delivered_track)
+        track["coasted"] = True
+        return track
+
+    def reset_latency(self):
+        """Discard delayed outputs when radar availability changes."""
+        self._latency_queue.clear()
+        self._held_result = {"detected": False, "seq": self._seq}
+        self._last_delivered_track = None
 
     def _link_margin_db(self, range_m: float, target_rcs: float) -> float:
         """Relative radar link margin: 0 dB at max range for reference RCS."""
@@ -163,6 +196,47 @@ class RadarNode:
 
     # ------------------------------------------------------------------
     def scan(self, true_pos: tuple, target_rcs: float = 0.05) -> dict:
+        """Apply dwell, false-alarm, and latency behavior around one radar frame."""
+        self._scan_calls += 1
+        if (self._scan_calls - 1) % self._dwell_steps:
+            held = dict(self._held_result)
+            held["held_for_dwell"] = True
+            return held
+        result = self._scan_now(true_pos, target_rcs)
+        if (
+            not result.get("detected")
+            and self._rng.random() < self._false_alarm_probability
+        ):
+            bearing = self._rng.uniform(0.0, 2.0 * math.pi)
+            distance = self._rng.uniform(0.1 * self.max_range, self.max_range)
+            altitude = self._rng.uniform(1.0, 0.25 * self.max_range)
+            position = (
+                float(self.station_pos[0] + distance * math.cos(bearing)),
+                float(self.station_pos[1] + distance * math.sin(bearing)),
+                float(self.station_pos[2] + altitude),
+            )
+            result = {
+                "detected": True,
+                "false_alarm": True,
+                "seq": result["seq"],
+                "position_estimate": position,
+                "velocity": (0.0, 0.0, 0.0),
+                "acceleration": (0.0, 0.0, 0.0),
+                "confidence": 0.05,
+            }
+        self._latency_queue.append(result)
+        if len(self._latency_queue) <= self._latency_steps:
+            delayed = {"detected": False, "seq": result["seq"], "latency_pending": True}
+        else:
+            delayed = self._latency_queue.popleft()
+        delayed = dict(delayed)
+        delayed["latency_steps"] = self._latency_steps
+        self._held_result = delayed
+        if delayed.get("detected"):
+            self._last_delivered_track = dict(delayed)
+        return delayed
+
+    def _scan_now(self, true_pos: tuple, target_rcs: float = 0.05) -> dict:
         """
         target_rcs : radar cross-section of the target (m²).
           Shahed-136  ≈ 0.05  (composite body, some metal engine)
@@ -199,7 +273,7 @@ class RadarNode:
                 return {"detected": False, "seq": self._seq}
 
             self._miss_count = 0
-            meas = t + np.random.normal(0.0, self._noise_std, 3)
+            meas = t + self._rng.normal(0.0, self._noise_std, 3)
             self._tracker.step(meas)
             self.last_detection_time = time.time()
             self._track_history.append(self._tracker.pos)
@@ -239,17 +313,23 @@ class RadarNode:
 
         p_det = max(0.02, min(0.96, p_base * rcs_factor))
 
-        if random.random() > p_det:
+        if self._rng.random() > p_det:
             self._hits = max(0, self._hits - 1)
             return {"detected": False, "seq": self._seq}
 
         if not self._doppler_ok(t):
             return {"detected": False, "seq": self._seq, "clutter_rejected": True}
 
-        meas = t + np.random.normal(0.0, self._noise_std, 3)
+        meas = t + self._rng.normal(0.0, self._noise_std, 3)
 
         if self._tracker is None:
-            self._tracker = KalmanTracker(meas, self._noise_std)
+            self._tracker = KalmanTracker(
+                meas,
+                self._noise_std,
+                dt=_DT * self._dwell_steps,
+                process_noise=self._process_noise,
+                acceleration_alpha=self._acceleration_alpha,
+            )
             if self._first:
                 print(f"RADAR: Track acquired — range {rng:.1f} m  "
                       f"bearing {bearing_deg:.1f} deg  elev {math.degrees(elev):.1f} deg")

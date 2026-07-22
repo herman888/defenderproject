@@ -72,3 +72,8 @@ class TrackFusion:
             "elevation_deg": best.get("elevation_deg"),
             "timestamp": float(timestamp),
         }
+
+    def clear_camera_track(self):
+        """Invalidate cached EO data when the camera is taken offline."""
+        self._camera_track = None
+        self._camera_time = None

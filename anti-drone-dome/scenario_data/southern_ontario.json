@@ -16,6 +16,17 @@
       "building_default_height_m": 8.0
     }
   },
+  "sensor_defaults": {
+    "radar_process_noise": 5.0,
+    "radar_dwell_steps": 4,
+    "radar_latency_steps": 8,
+    "radar_false_alarm_probability": 0.0005,
+    "camera_latency_frames": 2,
+    "camera_exposure_gain": 1.0,
+    "camera_image_noise_std": 2.0,
+    "camera_lens_distortion_fraction": 0.001,
+    "camera_rolling_shutter_readout_s": 0.012
+  },
   "environments": {
     "clear": {
       "wind_mean_mps": [0.0, 0.0, 0.0],

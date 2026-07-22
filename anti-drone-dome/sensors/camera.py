@@ -1,6 +1,7 @@
 """Rendered electro-optical sensor using PyBullet RGB/depth/segmentation."""
 
 import math
+from collections import deque
 
 import numpy as np
 import pybullet
@@ -21,6 +22,11 @@ class RenderedCameraSensor:
         model_device=None,
         renderer=pybullet.ER_TINY_RENDERER,
         seed=None,
+        latency_frames=0,
+        exposure_gain=1.0,
+        image_noise_std=0.0,
+        lens_distortion_fraction=0.0,
+        rolling_shutter_readout_s=0.0,
     ):
         self.client = physics_client
         self.position = np.asarray(position, dtype=float)
@@ -32,6 +38,20 @@ class RenderedCameraSensor:
         self.dropout_probability = float(dropout_probability)
         self.model_device = model_device
         self.renderer = renderer
+        self.latency_frames = int(latency_frames)
+        self.exposure_gain = float(exposure_gain)
+        self.image_noise_std = float(image_noise_std)
+        self.lens_distortion_fraction = float(lens_distortion_fraction)
+        self.rolling_shutter_readout_s = float(rolling_shutter_readout_s)
+        if self.latency_frames < 0:
+            raise ValueError("camera latency_frames must be non-negative")
+        if self.exposure_gain <= 0.0 or self.image_noise_std < 0.0:
+            raise ValueError("camera exposure must be positive and noise non-negative")
+        if (
+            self.lens_distortion_fraction < 0.0
+            or self.rolling_shutter_readout_s < 0.0
+        ):
+            raise ValueError("camera distortion and readout must be non-negative")
         self._model = None
         if model_path:
             from ultralytics import YOLO
@@ -40,8 +60,42 @@ class RenderedCameraSensor:
         self._rng = np.random.default_rng(seed)
         self._last_position = None
         self._last_time = None
+        self._latency_queue = deque()
 
     def observe(self, target_body_id, cue_position, timestamp):
+        result = self._observe_now(target_body_id, cue_position, timestamp)
+        if result.get("detected"):
+            position = np.asarray(result["position_estimate"], dtype=float)
+            velocity = np.asarray(result["velocity"], dtype=float)
+            relative = position - self.position
+            position += (
+                relative * self.lens_distortion_fraction
+                + velocity * self.rolling_shutter_readout_s * 0.5
+            )
+            result = dict(result)
+            result["position_estimate"] = tuple(position)
+            result["latency_frames"] = self.latency_frames
+            result["effects"] = {
+                "exposure_gain": self.exposure_gain,
+                "image_noise_std": self.image_noise_std,
+                "lens_distortion_fraction": self.lens_distortion_fraction,
+                "rolling_shutter_readout_s": self.rolling_shutter_readout_s,
+            }
+        self._latency_queue.append(result)
+        if len(self._latency_queue) <= self.latency_frames:
+            return {
+                "detected": False,
+                "source": "camera",
+                "latency_pending": True,
+                "latency_frames": self.latency_frames,
+            }
+        return self._latency_queue.popleft()
+
+    def reset_latency(self):
+        """Discard delayed detections when camera availability changes."""
+        self._latency_queue.clear()
+
+    def _observe_now(self, target_body_id, cue_position, timestamp):
         cue = np.asarray(cue_position, dtype=float)
         delta = cue - self.position
         distance = float(np.linalg.norm(delta))
@@ -89,6 +143,12 @@ class RenderedCameraSensor:
             rgb = np.asarray(image[2], dtype=np.uint8).reshape(
                 self.height, self.width, 4
             )[:, :, :3]
+            rgb = np.clip(
+                rgb.astype(float) * self.exposure_gain
+                + self._rng.normal(0.0, self.image_noise_std, rgb.shape),
+                0.0,
+                255.0,
+            ).astype(np.uint8)
             predict_options = {
                 "conf": 0.15,
                 "imgsz": max(self.width, self.height),

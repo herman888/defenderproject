@@ -22,6 +22,7 @@ from integration.vision_model import (
 )
 from integration.vision_replay import build_recorded_replay_packet
 from validation.flight_log import compare_flight_logs, load_flight_log
+from validation.model_calibration import build_calibration_report
 from validation.workbench import evaluate_readiness
 from viz.acmi_writer import ACMIWriter
 
@@ -191,6 +192,34 @@ def test_ned_named_columns_convert_to_enu_and_align(tmp_path):
     comparison = compare_flight_logs(loaded, loaded)
     assert comparison["trajectory_rmse_m"] == pytest.approx(0.0)
     assert comparison["estimated_candidate_time_offset_s"] == pytest.approx(0.0)
+    assert comparison["velocity_rmse_mps"] == pytest.approx(0.0)
+    assert comparison["axis_bias_m"] == {
+        "east": pytest.approx(0.0),
+        "north": pytest.approx(0.0),
+        "up": pytest.approx(0.0),
+    }
+
+
+def test_airframe_calibration_is_bounded_and_never_mutates_profile(tmp_path):
+    reference = {
+        "time_s": np.asarray([0.0, 1.0, 2.0]),
+        "position_enu_m": np.asarray(
+            [[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [20.0, 0.0, 0.0]]
+        ),
+    }
+    simulation = {
+        "time_s": np.asarray([0.0, 1.0, 2.0]),
+        "position_enu_m": np.asarray(
+            [[0.0, 0.0, 0.0], [5.0, 0.0, 0.0], [10.0, 0.0, 0.0]]
+        ),
+    }
+    report = build_calibration_report(
+        "interceptor.reference-v1", reference, simulation
+    )
+    assert report["recommendations"]["propulsion_force_scale"] == 1.2
+    assert report["validation_status"] == "candidate-only"
+    assert report["review_required"]
+    assert not report["automatic_profile_mutation"]
 
 
 def test_readiness_reports_lab_inputs_without_authorizing_actuation():

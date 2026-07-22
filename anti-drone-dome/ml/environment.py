@@ -302,6 +302,8 @@ class InterceptionEnv(gym.Env):
             ),
             "scenario_profile": self.pattern_name_active,
             "intruder_type": self.intruder_type_active,
+            "airframe_profile_id": self.intruder.get("airframe_profile_id"),
+            "dynamics_model": "ml-point-mass-v2",
             "curriculum_level": self.curriculum_level,
             "configured_sensor_latency_s": self.sensor_latency_s,
             "sensor_dropout_probability": self.environment.get(

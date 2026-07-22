@@ -753,6 +753,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../simulation/fidelity-and-controls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Airframe fidelity and controls
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../simulation/rendering/" class="md-nav__link">
         
   
@@ -2294,14 +2322,27 @@
 <td>Hardware posture</td>
 <td>SIL/SITL and read-only Betaflight profiles</td>
 </tr>
+<tr>
+<td>Airframe fidelity</td>
+<td>Versioned physical/presentation profiles, profile-synchronized mass/inertia, actuator lag, stall, turbulence, energy use, and voltage sag</td>
+</tr>
+<tr>
+<td>Runtime control</td>
+<td>Live speed selection plus recorded radar, EO, and actuator failure injection</td>
+</tr>
+<tr>
+<td>Model calibration</td>
+<td>ENU/NED log alignment with bias, velocity error, and bounded candidate recommendations</td>
+</tr>
 </tbody>
 </table>
 <h2 id="verified-in-the-current-repository">Verified in the current repository<a class="headerlink" href="#verified-in-the-current-repository" title="Permanent link">&para;</a></h2>
 <ul>
-<li>35 automated tests pass.</li>
+<li>42 automated tests pass.</li>
 <li>The strict MkDocs build passes.</li>
 <li>The eight-case APN campaign completed 800/800 synthetic interceptions.</li>
 <li>Live timestamped command-center captures show changing mission state.</li>
+<li>A headless profile-driven Shahed mission intercepted at T+60.6 s.</li>
 <li>The published regression report matches its generated JSON/CSV evidence.</li>
 </ul>
 <p>These checks establish repeatability in this software and simulation model.
@@ -2346,7 +2387,7 @@ They do not establish real-world interception reliability.</p>
 <li>sustained Pi 5/InnoMaker/accelerator measurements</li>
 <li>a selected and checksum-locked production detector artifact</li>
 <li>field-calibrated radar/EO timing</li>
-<li>flight-log-derived dynamics model</li>
+<li>flight-log-derived, physically validated dynamics parameters</li>
 <li>HIL timing and loss-of-link qualification</li>
 <li>regulatory, range, or safety certification</li>
 </ul>

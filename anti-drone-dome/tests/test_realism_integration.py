@@ -18,9 +18,15 @@ from sim.geospatial import geodetic_to_enu, load_osm_features
 from sim.terrain import ElevationGrid
 from sensors.camera import RenderedCameraSensor
 from sensors.fusion import TrackFusion
+from sensors.radar import RadarNode
 from scenarios import INTRUDER_TYPES
-from sim.drone import LoiteringMunition
+from sim.drone import Drone, LoiteringMunition
 from sim.physics import PhysicsWorld
+from sim.airframe_profiles import (
+    get_airframe_profile,
+    load_airframe_catalog,
+    validate_airframe_profile,
+)
 from integration.tactical_stream import (
     TacticalSequenceTracker,
     TacticalUdpPublisher,
@@ -31,7 +37,7 @@ from integration.tactical_stream import (
 from main import _coalesce_dashboard_messages
 from dome.killzone import DomeKillZone
 from guidance.intercept import PurePursuitGuidance
-from viz.dashboard import _altitude_time_window
+from viz.dashboard import SimControl, _altitude_time_window
 from scripts.benchmark_controllers import paired_comparison, summarize
 
 
@@ -40,6 +46,101 @@ def test_scenario_site_and_environment_are_externalized():
     environment = get_environment_for_pattern("nap_earth")
     assert site["origin"]["latitude"] == 43.0
     assert environment["wind_gust_mps"] > 0
+    assert environment["radar_dwell_steps"] == 4
+
+
+def test_airframe_profiles_separate_physics_visuals_and_evidence():
+    catalog = load_airframe_catalog()
+    assert len(catalog) == 4
+    shahed = get_airframe_profile("intruder.shahed136.representative-v1")
+    assert shahed["rigid_body"]["mass_kg"] == 200.0
+    assert shahed["geometry"]["wingspan_m"] == 2.5
+    assert shahed["geometry"]["visual_scale"] == 1.0
+    assert shahed["evidence"]["status"] == "representative-unvalidated"
+    assert shahed["dynamics_model"] == "fidelity_v1"
+    shahed["propulsion"]["vertical_force_min_n"] = 3000.0
+    with pytest.raises(ValueError, match="cannot exceed"):
+        validate_airframe_profile(shahed)
+
+
+def test_profile_driven_shahed_syncs_pybullet_mass_and_reports_energy():
+    client = pybullet.connect(pybullet.DIRECT)
+    try:
+        intruder = LoiteringMunition(
+            "shahed",
+            (0.0, 30.0, 12.0),
+            client,
+            intruder_cfg=INTRUDER_TYPES["shahed136"],
+        )
+        mass = pybullet.getDynamicsInfo(
+            intruder.body_id, -1, physicsClientId=client
+        )[0]
+        assert mass == pytest.approx(200.0)
+        before = intruder.get_state()["energy_remaining_fraction"]
+        intruder.set_target(100.0, 30.0, 12.0)
+        for _ in range(20):
+            intruder.update()
+            pybullet.stepSimulation(physicsClientId=client)
+        state = intruder.get_state()
+        assert state["airframe_profile_id"].startswith("intruder.shahed136")
+        assert 0.0 < state["energy_remaining_fraction"] <= before
+    finally:
+        pybullet.disconnect(client)
+
+
+def test_interceptor_profile_enforces_independent_force_limits():
+    client = pybullet.connect(pybullet.DIRECT)
+    try:
+        interceptor = Drone(
+            "interceptor",
+            (0.0, 0.0, 5.0),
+            client,
+            airframe_profile_id="interceptor.reference-v1",
+        )
+        limited = interceptor._limit_force([1000.0, 0.0, 1000.0])
+        assert np.linalg.norm(limited[:2]) == pytest.approx(260.0)
+        assert limited[2] == pytest.approx(260.0)
+        assert interceptor._limit_force([0.0, 0.0, -1000.0])[2] == -80.0
+    finally:
+        pybullet.disconnect(client)
+
+
+def test_radar_seed_dwell_and_latency_are_reproducible():
+    options = {
+        "station_pos": (0.0, 0.0, 0.0),
+        "max_range": 100.0,
+        "noise_std": 0.2,
+        "dwell_steps": 2,
+        "latency_steps": 1,
+        "seed": 42,
+    }
+    first = RadarNode(**options)
+    second = RadarNode(**options)
+    first_results = [first.scan((10.0, 0.0, 5.0)) for _ in range(8)]
+    second_results = [second.scan((10.0, 0.0, 5.0)) for _ in range(8)]
+    assert first_results == second_results
+    assert any(item.get("held_for_dwell") for item in first_results)
+    assert any(item.get("latency_pending") for item in first_results)
+    assert first._tracker is not None
+    assert first._tracker.dt == pytest.approx(2.0 / 240.0)
+
+
+def test_radar_coast_track_cannot_bypass_latency_or_reset():
+    radar = RadarNode(
+        station_pos=(0.0, 0.0, 0.0),
+        max_range=100.0,
+        min_vel=0.0,
+        latency_steps=1,
+        seed=42,
+    )
+    pending = radar.scan((10.0, 0.0, 5.0))
+    assert pending["latency_pending"]
+    assert radar.get_last_track() is None
+    delivered = radar.scan((10.1, 0.0, 5.0))
+    assert delivered["detected"]
+    assert radar.get_last_track()["coasted"]
+    radar.reset_latency()
+    assert radar.get_last_track() is None
 
 
 def test_geodetic_projection_and_osm_loading(tmp_path):
@@ -192,15 +293,33 @@ def test_rendered_camera_detects_target_body():
             position=(0.0, 0.0, 12.0),
             position_noise_std_m=0.0,
             dropout_probability=0.0,
+            latency_frames=1,
+            exposure_gain=0.9,
+            lens_distortion_fraction=0.001,
+            rolling_shutter_readout_s=0.01,
         )
-        detection = sensor.observe(target, (0.0, 30.0, 12.0), 0.0)
+        pending = sensor.observe(target, (0.0, 30.0, 12.0), 0.0)
+        assert pending["latency_pending"]
+        sensor.reset_latency()
+        pending = sensor.observe(target, (0.0, 30.0, 12.0), 0.05)
+        assert pending["latency_pending"]
+        detection = sensor.observe(target, (0.0, 30.0, 12.0), 0.10)
         assert detection["detected"]
         assert detection["pixel_count"] > 0
+        assert detection["effects"]["exposure_gain"] == 0.9
         assert np.linalg.norm(
             np.asarray(detection["position_estimate"]) - np.asarray([0.0, 30.0, 12.0])
         ) < 5.0
     finally:
         pybullet.disconnect(client)
+
+
+def test_command_center_control_state_exposes_runtime_failures():
+    control = SimControl()
+    assert control.runtime_speed == 1.0
+    assert not control.radar_failure
+    assert not control.camera_failure
+    assert not control.actuator_failure
 
 
 def test_loitering_munition_exposes_camera_body_id():

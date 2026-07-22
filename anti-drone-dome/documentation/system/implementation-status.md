@@ -19,13 +19,17 @@ This page separates running code from validated evidence and future work.
 | Evidence | Mission JSONL, event log, hashes, ACMI, JSON/CSV/HTML reports |
 | External integration | Validated, georeferenced `aegis.tactical.v1` UDP telemetry with deterministic JSONL replay |
 | Hardware posture | SIL/SITL and read-only Betaflight profiles |
+| Airframe fidelity | Versioned physical/presentation profiles, profile-synchronized mass/inertia, actuator lag, stall, turbulence, energy use, and voltage sag |
+| Runtime control | Live speed selection plus recorded radar, EO, and actuator failure injection |
+| Model calibration | ENU/NED log alignment with bias, velocity error, and bounded candidate recommendations |
 
 ## Verified in the current repository
 
-- 35 automated tests pass.
+- 42 automated tests pass.
 - The strict MkDocs build passes.
 - The eight-case APN campaign completed 800/800 synthetic interceptions.
 - Live timestamped command-center captures show changing mission state.
+- A headless profile-driven Shahed mission intercepted at T+60.6 s.
 - The published regression report matches its generated JSON/CSV evidence.
 
 These checks establish repeatability in this software and simulation model.
@@ -50,7 +54,7 @@ They do not establish real-world interception reliability.
 - sustained Pi 5/InnoMaker/accelerator measurements
 - a selected and checksum-locked production detector artifact
 - field-calibrated radar/EO timing
-- flight-log-derived dynamics model
+- flight-log-derived, physically validated dynamics parameters
 - HIL timing and loss-of-link qualification
 - regulatory, range, or safety certification
 

@@ -101,6 +101,10 @@ class SimControl:
         self.selected_speed      = 1.0
         self.selected_pad        = "mid"
         self.selected_pattern    = "direct"
+        self.runtime_speed       = 1.0
+        self.radar_failure       = False
+        self.camera_failure      = False
+        self.actuator_failure    = False
         self.camera_zoom_pending = None
         self.camera_view_pending = None
 
@@ -824,6 +828,9 @@ class Dashboard(QtWidgets.QMainWindow):
         self._btn_reset = QtWidgets.QPushButton("RESET")
         self._btn_start = QtWidgets.QPushButton("START")
         self._btn_abort = QtWidgets.QPushButton("ABORT")
+        self._btn_radar_fail = QtWidgets.QPushButton("RADAR FAIL")
+        self._btn_camera_fail = QtWidgets.QPushButton("EO FAIL")
+        self._btn_actuator_fail = QtWidgets.QPushButton("ACT FAIL")
         sep_lbl  = QtWidgets.QLabel("3-D CAM")
         sep_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         sep_lbl.setStyleSheet(f"color: {C['textdim']}; font-size: 8px;")
@@ -834,6 +841,15 @@ class Dashboard(QtWidgets.QMainWindow):
         self._btn_reset.setStyleSheet(_btn_style(C["amber"],   C["amber"],   "#141008", "#201808"))
         self._btn_start.setStyleSheet(_btn_style(C["white"],   C["primary"], "#0d2010", "#163015"))
         self._btn_abort.setStyleSheet(_btn_style(C["red"],     C["red"],     "#1e0508", "#2e0810"))
+        for button in (
+            self._btn_radar_fail,
+            self._btn_camera_fail,
+            self._btn_actuator_fail,
+        ):
+            button.setCheckable(True)
+            button.setStyleSheet(
+                _btn_style(C["amber"], C["amber"], "#141008", "#201808", "#5a2108")
+            )
         self._btn_zoom_in.setStyleSheet(
             _btn_style(C["text"], C["border"], C["bg"], C["dim"])
         )
@@ -843,6 +859,8 @@ class Dashboard(QtWidgets.QMainWindow):
 
         for w, s in ((self._btn_pause, 3), (self._btn_reset, 3),
                      (self._btn_start, 3), (self._btn_abort, 3),
+                     (self._btn_radar_fail, 2), (self._btn_camera_fail, 2),
+                     (self._btn_actuator_fail, 2),
                      (sep_lbl, 1), (self._btn_zoom_in, 1), (self._btn_zoom_out, 1)):
             h.addWidget(w, stretch=s)
 
@@ -850,6 +868,15 @@ class Dashboard(QtWidgets.QMainWindow):
         self._btn_reset.clicked.connect(self._on_reset)
         self._btn_start.clicked.connect(self._on_start)
         self._btn_abort.clicked.connect(self._on_abort)
+        self._btn_radar_fail.toggled.connect(
+            lambda checked: setattr(self._ctrl, "radar_failure", checked)
+        )
+        self._btn_camera_fail.toggled.connect(
+            lambda checked: setattr(self._ctrl, "camera_failure", checked)
+        )
+        self._btn_actuator_fail.toggled.connect(
+            lambda checked: setattr(self._ctrl, "actuator_failure", checked)
+        )
         self._btn_zoom_in.clicked.connect(lambda _: self._on_zoom("in"))
         self._btn_zoom_out.clicked.connect(lambda _: self._on_zoom("out"))
 
@@ -1087,6 +1114,7 @@ class Dashboard(QtWidgets.QMainWindow):
 
     def _on_speed_select(self, speed: float):
         self._ctrl.selected_speed = speed
+        self._ctrl.runtime_speed = speed
         for s, b in self._speed_btns.items():
             b.setChecked(s == speed)
 

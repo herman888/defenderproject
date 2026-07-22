@@ -22,6 +22,7 @@ import numpy as np
 
 from config import INTERCEPTOR_MASS, PLACEHOLDER_FC_KV
 from guidance.setpoint import GuidanceSetpoint, ned_to_enu
+from sim.airframe_profiles import get_airframe_profile
 
 _TIMESTEP    = 1.0 / 240.0
 _ROTOR_SPEED = 20.0   # rad/s visual spin (quadrotor interceptor)
@@ -79,19 +80,52 @@ class Drone:
         kd:          float = 5.0,
         urdf: str    = None,
         global_scaling: float = 1.0,
+        airframe_profile_id: str | None = None,
     ):
+        profile = (
+            get_airframe_profile(airframe_profile_id)
+            if airframe_profile_id else None
+        )
+        if profile:
+            propulsion = profile["propulsion"]
+            rigid_body = profile["rigid_body"]
+            max_h_force = propulsion["max_horizontal_force_n"]
+            max_v_force = propulsion["vertical_force_max_n"]
+            max_speed = propulsion["max_speed_mps"]
+            global_scaling = profile["geometry"]["visual_scale"]
+        else:
+            propulsion = {}
+            rigid_body = {}
         self._id_str    = drone_id
         self._client    = physics_client
         self._target    = list(start_position)
         self._prev_error = [0.0, 0.0, 0.0]
         self._rotor_angle = 0.0
         self._smooth_up = np.array([0.0, 0.0, 1.0], dtype=float)
+        self._commanded_force = np.zeros(3, dtype=float)
+        self._actuator_tau_s = float(
+            propulsion.get("actuator_time_constant_s", _TIMESTEP)
+        )
+        self._force_slew_nps = float(
+            propulsion.get("force_slew_rate_nps", float("inf"))
+        )
+        self._energy_capacity_wh = float(
+            propulsion.get("energy_capacity_wh", float("inf"))
+        )
+        self._energy_remaining_wh = self._energy_capacity_wh
+        self._minimum_voltage_fraction = float(
+            propulsion.get("minimum_voltage_fraction", 1.0)
+        )
+        self.airframe_profile_id = airframe_profile_id
         # Trim from rigid-body mass once URDF is loaded (set in _apply_color path)
         self._mass_kg  = float(INTERCEPTOR_MASS)
         self._hover_ff = 9.81 * 1.35
 
         self._max_h  = max_h_force
         self._max_v  = max_v_force
+        self._min_v = float(
+            propulsion.get("vertical_force_min_n", -max_v_force)
+        )
         self._max_spd = max_speed
         self._kp     = kp
         self._kd     = kd
@@ -118,6 +152,14 @@ class Drone:
         self._apply_color(color)
         self._rotor_joints = self._find_rotor_joints()
         try:
+            if profile:
+                pybullet.changeDynamics(
+                    self._body,
+                    -1,
+                    mass=float(rigid_body["mass_kg"]),
+                    localInertiaDiagonal=list(rigid_body["inertia_kg_m2"]),
+                    physicsClientId=self._client,
+                )
             mass = float(
                 pybullet.getDynamicsInfo(self._body, -1, physicsClientId=self._client)[0]
             )
@@ -262,10 +304,6 @@ class Drone:
             self._body, list(vel), [0.0, 0.0, 0.0], physicsClientId=self._client
         )
 
-        # Cap total force magnitude (budget horizontal + vertical actuator)
-        MAX_F = math.sqrt(self._max_h**2 + (self._max_v + self._hover_ff) ** 2)
-        f_mag = min(f_mag, MAX_F)
-
         # Thrust along tilted body-Z + aerodynamic drag
         speed = float(np.linalg.norm(vel_np))
         if speed > self._max_spd:
@@ -276,7 +314,8 @@ class Drone:
 
         thrust = desired_up * f_mag
         drag   = -0.15 * vel_np
-        return (thrust + drag).tolist()
+        limited = self._limit_force(thrust + drag)
+        return self._condition_force(limited, vel_np).tolist()
 
     def _spin_rotors(self):
         for i, joint in enumerate(self._rotor_joints):
@@ -286,6 +325,44 @@ class Drone:
                 force=0.1,
                 physicsClientId=self._client,
             )
+
+    def _condition_force(self, requested, velocity) -> np.ndarray:
+        requested = np.asarray(requested, dtype=float)
+        alpha = min(1.0, _TIMESTEP / max(self._actuator_tau_s, _TIMESTEP))
+        target = self._commanded_force + alpha * (
+            requested - self._commanded_force
+        )
+        delta = target - self._commanded_force
+        max_delta = self._force_slew_nps * _TIMESTEP
+        delta_norm = float(np.linalg.norm(delta))
+        if delta_norm > max_delta:
+            delta *= max_delta / delta_norm
+        self._commanded_force += delta
+
+        if math.isfinite(self._energy_capacity_wh):
+            speed = float(np.linalg.norm(velocity))
+            mechanical_power_w = float(np.linalg.norm(self._commanded_force)) * max(
+                speed, 2.0
+            )
+            self._energy_remaining_wh = max(
+                0.0,
+                self._energy_remaining_wh
+                - mechanical_power_w * _TIMESTEP / (0.78 * 3600.0),
+            )
+            state = self._energy_remaining_wh / self._energy_capacity_wh
+            voltage = self._minimum_voltage_fraction + (
+                1.0 - self._minimum_voltage_fraction
+            ) * state
+            return self._commanded_force * voltage
+        return self._commanded_force.copy()
+
+    def _limit_force(self, force) -> np.ndarray:
+        force = np.asarray(force, dtype=float).copy()
+        horizontal = float(np.linalg.norm(force[:2]))
+        if horizontal > self._max_h:
+            force[:2] *= self._max_h / horizontal
+        force[2] = max(self._min_v, min(self._max_v, force[2]))
+        return force
 
     # ------------------------------------------------------------------
     def apply_setpoint(self, sp: GuidanceSetpoint):
@@ -325,12 +402,10 @@ class Drone:
         # Convert accel command to body force via vehicle mass.
         force = a_cmd_enu * self._mass_kg
 
-        # FC saturates to airframe force envelope.
+        # FC saturates each axis to the profile's physical force envelope.
+        force = self._limit_force(force)
+        force = self._condition_force(force, vel)
         f_mag = float(np.linalg.norm(force))
-        f_max = math.sqrt(self._max_h ** 2 + (self._max_v + self._hover_ff) ** 2)
-        if f_mag > f_max:
-            force = force / f_mag * f_max
-            f_mag = f_max
 
         # Kinematic tilt so the mesh visually banks into the manoeuvre.
         MAX_TILT = math.radians(40)
@@ -401,6 +476,11 @@ class Drone:
             "timestamp"  : time.time(),
             "target"     : tuple(self._target),
             "speed"      : math.sqrt(sum(v*v for v in vel)),
+            "airframe_profile_id": self.airframe_profile_id,
+            "energy_remaining_fraction": (
+                self._energy_remaining_wh / self._energy_capacity_wh
+                if math.isfinite(self._energy_capacity_wh) else 1.0
+            ),
         }
 
 
@@ -436,16 +516,65 @@ class LoiteringMunition:
         kd: float = 4.0,
     ):
         cfg = intruder_cfg or {}
-        aero = {**self._DEFAULT_AERO, **cfg.get("aero", {})}
+        profile_id = cfg.get("airframe_profile_id")
+        profile = get_airframe_profile(profile_id) if profile_id else None
+        if profile:
+            profile_aero = profile["aerodynamics"]
+            profile_propulsion = profile["propulsion"]
+            aero = {
+                "cd": profile_aero["drag_coefficient"],
+                "a": profile_aero["drag_area_m2"],
+                "cl": profile_aero["lift_coefficient"],
+                "a_w": profile_aero["wing_area_m2"],
+                "max_h_force": profile_propulsion["max_horizontal_force_n"],
+                "fz_min": profile_propulsion["vertical_force_min_n"],
+                "fz_max": profile_propulsion["vertical_force_max_n"],
+            }
+        else:
+            profile_propulsion = {}
+            profile_aero = {}
+            aero = {**self._DEFAULT_AERO, **cfg.get("aero", {})}
 
         self._id_str     = drone_id
         self._client     = physics_client
         self._target     = list(start_position)
         self._prev_error = [0.0, 0.0, 0.0]
-        self._max_spd    = cfg.get("max_speed", 51.0)
+        self._max_spd    = profile_propulsion.get(
+            "max_speed_mps", cfg.get("max_speed", 51.0)
+        )
         self._kp         = kp
         self._kd         = kd
-        self._mass       = cfg.get("mass", 1.4)
+        self._mass       = (
+            profile["rigid_body"]["mass_kg"]
+            if profile else cfg.get("mass", 1.4)
+        )
+        self.airframe_profile_id = profile_id
+        self._dynamics_model = (
+            profile["dynamics_model"] if profile else "legacy"
+        )
+        self._actuator_tau_s = float(
+            profile_propulsion.get("actuator_time_constant_s", _TIMESTEP)
+        )
+        self._force_slew_nps = float(
+            profile_propulsion.get("force_slew_rate_nps", float("inf"))
+        )
+        self._commanded_force = np.zeros(3, dtype=float)
+        self._energy_capacity_wh = float(
+            profile_propulsion.get("energy_capacity_wh", float("inf"))
+        )
+        self._energy_remaining_wh = self._energy_capacity_wh
+        self._minimum_voltage_fraction = float(
+            profile_propulsion.get("minimum_voltage_fraction", 1.0)
+        )
+        self._stall_speed = float(profile_aero.get("stall_speed_mps", 0.0))
+        self._stall_angle = math.radians(
+            float(profile_aero.get("stall_angle_deg", 90.0))
+        )
+        disturbance = profile.get("disturbance", {}) if profile else {}
+        self._turbulence_std_n = float(
+            disturbance.get("turbulence_force_std_n", 0.0)
+        )
+        self._rng = np.random.default_rng(disturbance.get("seed"))
 
         # Aerodynamic params (instance vars so _compute_forces uses self.*)
         self._cd       = aero["cd"]
@@ -461,7 +590,10 @@ class LoiteringMunition:
         urdf_name  = cfg.get("urdf", "intruder.urdf")
         urdf_path  = os.path.join(assets_dir, urdf_name)
         fallback   = os.path.join(assets_dir, "drone.urdf")
-        scaling    = cfg.get("scaling", 3.0)
+        scaling = (
+            profile["geometry"]["visual_scale"]
+            if profile else cfg.get("scaling", 3.0)
+        )
 
         for path in (urdf_path, fallback):
             try:
@@ -474,6 +606,14 @@ class LoiteringMunition:
                 break
             except Exception:
                 continue
+        if profile:
+            pybullet.changeDynamics(
+                self._body,
+                -1,
+                mass=self._mass,
+                localInertiaDiagonal=list(profile["rigid_body"]["inertia_kg_m2"]),
+                physicsClientId=self._client,
+            )
 
         # Apply intruder-type colour
         rgba = cfg.get("color_rgba", [0.9, 0.1, 0.1, 1.0])
@@ -610,10 +750,29 @@ class LoiteringMunition:
             fy  -= drag * vel[1] / speed
             fz  -= drag * vel[2] / speed
 
-        # Wing lift (zero for pure-thrust quadrotors where cl=0)
+        # Wing lift (zero for pure-thrust quadrotors where cl=0).
         if self._cl > 0.01:
             v_fwd = math.sqrt(vel[0]**2 + vel[1]**2)
-            fz   += 0.5 * _RHO * self._cl * self._a_wing * v_fwd * v_fwd
+            effective_cl = self._cl
+            if self._dynamics_model == "fidelity_v1":
+                to_target = np.asarray(self._target, dtype=float) - np.asarray(
+                    pos, dtype=float
+                )
+                target_angle = math.atan2(
+                    to_target[2], max(np.linalg.norm(to_target[:2]), 1e-6)
+                )
+                flight_angle = math.atan2(vz, max(v_fwd, 1e-6))
+                angle_of_attack = abs(target_angle - flight_angle)
+                if angle_of_attack > self._stall_angle:
+                    effective_cl *= max(
+                        0.15,
+                        self._stall_angle / max(angle_of_attack, 1e-6),
+                    )
+                if self._stall_speed > 0.0 and v_fwd < self._stall_speed:
+                    effective_cl *= (v_fwd / self._stall_speed) ** 2
+            fz += (
+                0.5 * _RHO * effective_cl * self._a_wing * v_fwd * v_fwd
+            )
 
         # Force caps
         h_mag = math.sqrt(fx*fx + fy*fy)
@@ -629,7 +788,33 @@ class LoiteringMunition:
                 self._body, [v * sc for v in vel],
                 [0.0, 0.0, 0.0], physicsClientId=self._client)
 
-        return fx, fy, fz
+        requested = np.asarray([fx, fy, fz], dtype=float)
+        if self._dynamics_model == "fidelity_v1":
+            requested += self._rng.normal(0.0, self._turbulence_std_n, 3)
+            alpha = min(
+                1.0, _TIMESTEP / max(self._actuator_tau_s, _TIMESTEP)
+            )
+            target = self._commanded_force + alpha * (
+                requested - self._commanded_force
+            )
+            delta = target - self._commanded_force
+            max_delta = self._force_slew_nps * _TIMESTEP
+            delta_norm = float(np.linalg.norm(delta))
+            if delta_norm > max_delta:
+                delta *= max_delta / delta_norm
+            self._commanded_force += delta
+            speed_for_power = max(speed, 2.0)
+            power_w = float(np.linalg.norm(self._commanded_force)) * speed_for_power
+            self._energy_remaining_wh = max(
+                0.0,
+                self._energy_remaining_wh - power_w * _TIMESTEP / (0.78 * 3600.0),
+            )
+            energy_state = self._energy_remaining_wh / self._energy_capacity_wh
+            voltage = self._minimum_voltage_fraction + (
+                1.0 - self._minimum_voltage_fraction
+            ) * energy_state
+            requested = self._commanded_force * voltage
+        return tuple(float(value) for value in requested)
 
     def _spin_rotors(self, fwd_speed: float):
         rpm = max(15.0, min(80.0, 15.0 + fwd_speed * 0.8))
@@ -662,4 +847,9 @@ class LoiteringMunition:
             "timestamp"  : time.time(),
             "target"     : tuple(self._target),
             "speed"      : math.sqrt(sum(v*v for v in vel)),
+            "airframe_profile_id": self.airframe_profile_id,
+            "energy_remaining_fraction": (
+                self._energy_remaining_wh / self._energy_capacity_wh
+                if math.isfinite(self._energy_capacity_wh) else 1.0
+            ),
         }
