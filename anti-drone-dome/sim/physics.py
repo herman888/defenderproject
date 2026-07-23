@@ -582,6 +582,44 @@ class PhysicsWorld:
             },
         }
 
+    def capture_swarm_view(self, positions, protected_center=(0.0, 0.0, 0.0),
+                           width=640, height=360):
+        """Oblique overview frame that frames an arbitrary set of ENU positions.
+
+        Used by the live swarm command-center view (many entities), where the
+        two-entity ``capture_tactical_view`` framing does not apply.
+        """
+        pts = [np.asarray(p, dtype=float) for p in positions if p is not None]
+        if pts:
+            arr = np.stack(pts)
+            focus = arr.mean(axis=0).copy()
+            radius = float(np.max(np.linalg.norm(arr - focus, axis=1)))
+        else:
+            focus = np.asarray(protected_center, dtype=float).copy()
+            radius = 300.0
+        focus[2] = max(20.0, min(140.0, float(focus[2]) * 0.5))
+        camera_distance = min(1600.0, max(360.0, radius * 1.9))
+        eye = focus + camera_distance * np.asarray([0.45, -0.62, 0.66])
+        view = pybullet.computeViewMatrix(
+            cameraEyePosition=eye.tolist(),
+            cameraTargetPosition=focus.tolist(),
+            cameraUpVector=[0.0, 0.0, 1.0],
+        )
+        projection = pybullet.computeProjectionMatrixFOV(
+            fov=50.0, aspect=width / height, nearVal=1.0, farVal=5000.0,
+        )
+        image = pybullet.getCameraImage(
+            width, height, viewMatrix=view, projectionMatrix=projection,
+            renderer=self.camera_renderer,
+            flags=pybullet.ER_NO_SEGMENTATION_MASK,
+            lightDirection=[-0.45, -0.35, -1.0],
+            lightColor=[1.0, 0.96, 0.88],
+            physicsClientId=self.client,
+        )
+        rgb = np.asarray(image[2], dtype=np.uint8).reshape(height, width, 4)[:, :, :3]
+        depth = np.asarray(image[3], dtype=np.float32).reshape(height, width)
+        return self._grade_tactical_frame(rgb, depth)
+
     @staticmethod
     def _camera_direction(preferred, fallback):
         direction = np.asarray(

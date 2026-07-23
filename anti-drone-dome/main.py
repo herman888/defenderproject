@@ -1797,6 +1797,8 @@ def _run_swarm_mission(scenario_id, *, telemetry_udp=None,
     paused = False
     stopped = False
     last_push = 0.0
+    last_cam = -1.0
+    wall_start = time.time()
 
     plan = None
     try:
@@ -1875,6 +1877,14 @@ def _run_swarm_mission(scenario_id, *, telemetry_udp=None,
             world.step()
             t += dt
 
+            # Pace to real time so the command center shows a watchable engagement
+            # (headless runs, with no state_q, stay as fast as possible).
+            if state_q is not None:
+                target_wall = wall_start + t
+                lag = target_wall - time.time()
+                if lag > 0:
+                    time.sleep(min(lag, 0.05))
+
             for th in active_threats:
                 if th["status"] != "ACTIVE":
                     continue
@@ -1900,15 +1910,30 @@ def _run_swarm_mission(scenario_id, *, telemetry_udp=None,
 
             # ── Push the live swarm picture to the command center (~60 Hz) ──
             if state_q is not None and (t - last_push) >= (1.0 / 60.0):
-                dome_status = "ENGAGING"
+                # Capture an oblique 3-D overview for the centre preview at ~20 Hz.
+                frame = None
+                if (t - last_cam) >= (1.0 / 20.0):
+                    positions = [it["drone"].get_position() for it in interceptors
+                                 if not it["expended"]]
+                    positions += [th["munition"].get_position() for th in threats
+                                  if th["status"] == "ACTIVE"]
+                    positions.append(coordinator_body.get_position())
+                    try:
+                        frame = world.capture_swarm_view(positions, protected_center=center)
+                    except Exception:
+                        frame = None
+                    last_cam = t
+                push = {
+                    "dome_status": "ENGAGING",
+                    "mission_time": t,
+                    "sim_speed": 1.0,
+                    "events": [],
+                    "swarm": _swarm_body(),
+                }
+                if frame is not None:
+                    push["camera_frame"] = frame
                 try:
-                    state_q.put_nowait({
-                        "dome_status": dome_status,
-                        "mission_time": t,
-                        "sim_speed": 1.0,
-                        "events": [],
-                        "swarm": _swarm_body(),
-                    })
+                    state_q.put_nowait(push)
                 except Exception:
                     pass
                 last_push = t
