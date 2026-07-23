@@ -73,6 +73,10 @@ _PATTERN_LABELS = [
 ]
 _SPEEDS = [(0.5, "0.5×"), (1.0, "1×"), (2.0, "2×"), (4.0, "4×"), (8.0, "8×")]
 _PADS   = [("near", "NEAR 50m"), ("mid", "MID 180m"), ("far", "FAR 380m")]
+_SWARM_LABELS = [
+    ("saturation_6v4", "SWARM 6v4"),
+    ("overwhelm_8v3",  "SWARM 8v3"),
+]
 
 TRAIL_PERSISTENCE_S = 6.0    # phosphor decay time
 TRAIL_HEAD_SIZE     = 11     # marker size for current-position dot
@@ -810,6 +814,23 @@ class Dashboard(QtWidgets.QMainWindow):
         hint.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         grid.addWidget(hint, 1, 10, 1, 3)
 
+        # Row 2: swarm engagements (launch immediately, no pad/pattern needed)
+        self._swarm_btns: dict[str, QtWidgets.QPushButton] = {}
+        for i, (key, lbl) in enumerate(_SWARM_LABELS):
+            b = QtWidgets.QPushButton(lbl)
+            b.setStyleSheet(_btn_style(
+                C["amber"], C["amber"], "#141008", "#201808"))
+            b.clicked.connect(lambda _, k=key: self._on_swarm_select(k))
+            self._swarm_btns[key] = b
+            grid.addWidget(b, 2, i)
+        swarm_hint = QtWidgets.QLabel(
+            "SWARM — airborne coordinator directs an interceptor swarm vs a "
+            "saturation attack (launches immediately)")
+        swarm_hint.setStyleSheet(
+            f"color: {C['amber']}; font-size: 8px; "
+            f"font-family: 'DejaVu Sans Mono';")
+        grid.addWidget(swarm_hint, 2, 2, 1, 11)
+
         # Even column stretch
         for c in range(13):
             grid.setColumnStretch(c, 1)
@@ -883,6 +904,77 @@ class Dashboard(QtWidgets.QMainWindow):
         root.addWidget(bar)
 
     # ── Initial radar/altitude artists ────────────────────────────────────
+    def _render_swarm(self, swarm: dict) -> None:
+        """Render a live multi-entity swarm on the tactical picture.
+
+        Fully defensive: a malformed field must never crash the dashboard.
+        """
+        try:
+            # Hide the single-entity artists while in swarm mode.
+            self._intruder_label.setVisible(False)
+            self._interceptor_label.setVisible(False)
+            self._pred_dot.setVisible(False)
+            for line in (self._intruder_vector, self._interceptor_vector,
+                         self._intruder_leader, self._interceptor_leader,
+                         self._pred_line):
+                line.setData([], [])
+
+            pos_by_id: dict = {}
+            threats = swarm.get("threats", []) or []
+            interceptors = swarm.get("interceptors", []) or []
+            coordinator = swarm.get("coordinator", {}) or {}
+
+            tx, ty = [], []
+            active = 0
+            nearest = None
+            for th in threats:
+                p = th.get("position_enu_m") or [0.0, 0.0, 0.0]
+                pos_by_id[th.get("id")] = p
+                if th.get("status") == "ACTIVE":
+                    tx.append(p[0]); ty.append(p[1]); active += 1
+                    d = math.hypot(p[0], p[1])
+                    nearest = d if nearest is None else min(nearest, d)
+            self._swarm_threats.setData(tx, ty)
+
+            ix, iy = [], []
+            for it in interceptors:
+                p = it.get("position_enu_m") or [0.0, 0.0, 0.0]
+                pos_by_id[it.get("id")] = p
+                if it.get("state") != "EXPENDED":
+                    ix.append(p[0]); iy.append(p[1])
+            self._swarm_interceptors.setData(ix, iy)
+
+            cp = coordinator.get("position_enu_m")
+            self._swarm_coord.setData([cp[0]] if cp else [], [cp[1]] if cp else [])
+
+            ax_pts, ay_pts = [], []
+            for tid, iid in (swarm.get("assignment", {}) or {}).items():
+                tp, ip = pos_by_id.get(tid), pos_by_id.get(iid)
+                if tp and ip:
+                    ax_pts += [ip[0], tp[0]]; ay_pts += [ip[1], tp[1]]
+            self._swarm_assign.setData(ax_pts, ay_pts, connect="pairs")
+
+            link = swarm.get("link_health", {}) or {}
+            delivery = float(link.get("delivery_ratio", 1.0)) * 100.0
+            self._status_badge.setText(
+                f"●  SWARM  |  {active} threats  |  {len(ix)} interceptors  "
+                f"|  link {delivery:.0f}%"
+            )
+            self._telem_intruder.setText(
+                f"THREATS ACTIVE   {active}\nNEAREST RANGE    "
+                f"{(nearest if nearest is not None else 0):.0f} m"
+            )
+            self._telem_intercept.setText(
+                f"INTERCEPTORS     {len(ix)}\nDATALINK         {delivery:.0f}%"
+            )
+            if nearest is not None:
+                threat = max(0.0, min(1.0, 1.0 - nearest / max(self._dome_radius, 1.0)))
+                self._threat_bar.setValue(int(threat * 100))
+            else:
+                self._threat_bar.setValue(0)
+        except Exception:
+            pass
+
     def _init_artists(self) -> None:
         ax = self._ax_radar
         R  = self._dome_radius
@@ -957,6 +1049,28 @@ class Dashboard(QtWidgets.QMainWindow):
         ax.addItem(self._interceptor_label)
         self._intruder_label.setVisible(False)
         self._interceptor_label.setVisible(False)
+
+        # ── Swarm overlay artists (multi-entity; empty until a swarm mission) ──
+        self._swarm_assign = ax.plot(
+            [], [], pen=pg.mkPen(QtGui.QColor(C["amber"]), width=0.8,
+                                 style=QtCore.Qt.PenStyle.DashLine))
+        self._swarm_assign.setZValue(5)
+        self._swarm_threats = pg.ScatterPlotItem(
+            size=11, symbol="o",
+            pen=pg.mkPen(QtGui.QColor(C["red"]), width=1.5),
+            brush=pg.mkBrush(QtGui.QColor(210, 45, 45, 210)))
+        self._swarm_interceptors = pg.ScatterPlotItem(
+            size=10, symbol="t",
+            pen=pg.mkPen(QtGui.QColor(C["blue"]), width=1.5),
+            brush=pg.mkBrush(QtGui.QColor(45, 130, 255, 220)))
+        self._swarm_coord = pg.ScatterPlotItem(
+            size=16, symbol="d",
+            pen=pg.mkPen(QtGui.QColor(C["amber"]), width=2.0),
+            brush=pg.mkBrush(QtGui.QColor(255, 190, 45, 200)))
+        for _swarm_item in (self._swarm_threats, self._swarm_interceptors,
+                            self._swarm_coord):
+            _swarm_item.setZValue(6)
+            ax.addItem(_swarm_item)
 
         # Status badge
         self._status_badge = pg.TextItem(
@@ -1106,6 +1220,10 @@ class Dashboard(QtWidgets.QMainWindow):
 
     def _on_start(self):
         self._ctrl.selected_mission = self._ctrl.pending_intruder
+
+    def _on_swarm_select(self, scenario_id: str):
+        # Launch a swarm engagement immediately (no pad/pattern/START needed).
+        self._ctrl.selected_mission = f"swarm:{scenario_id}"
 
     def _on_pattern_select(self, key: str):
         self._ctrl.selected_pattern = key
@@ -1402,6 +1520,12 @@ class Dashboard(QtWidgets.QMainWindow):
         # ── Status badge ──────────────────────────────────────────────────
         self._status_badge.setText(f"●  STATUS: {status}")
         self._status_badge.setColor(QtGui.QColor(dome_fg))
+
+        # ── Swarm overlay (multi-entity) takes over the tactical picture ────
+        swarm = sim_state.get("swarm")
+        if swarm is not None:
+            self._render_swarm(swarm)
+            return
 
         # ── Intruder trail ────────────────────────────────────────────────
         if intruder_pos:

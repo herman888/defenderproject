@@ -19,7 +19,8 @@ This page separates running code from validated evidence and future work.
 | Evidence | Mission JSONL, event log, hashes, ACMI, JSON/CSV/HTML reports |
 | External integration | Validated, georeferenced `aegis.tactical.v1` UDP telemetry with deterministic JSONL replay |
 | Presentation bridge | `aegis.unreal-bridge.v1` UDP bridge enriching tactical telemetry with WGS84 geodetic, heading, and speed for Unreal/Cesium clients |
-| Swarm coordination | Airborne coordinator directing an interceptor swarm vs a saturation attack: one-way RF link model, priority-greedy/Hungarian assignment, autonomous re-tasking, headless runner + optional `main.py --swarm`, `aegis.swarm-coordination.v1` telemetry |
+| Swarm coordination | Airborne coordinator directing an interceptor swarm vs a saturation attack: one-way RF link model, priority-greedy/Hungarian assignment, autonomous re-tasking, headless runner, live command-center view (`--swarm-live` / in-menu SWARM buttons), `aegis.swarm-coordination.v1` telemetry |
+| Flight envelope | Realistic turn-g / climb-rate / minimum-airspeed limits (fixed-wing bank-to-turn vs multirotor hover) applied to swarm motion, grounded in per-airframe profile values |
 | Hardware posture | SIL/SITL and read-only Betaflight profiles |
 | Airframe fidelity | Versioned physical/presentation profiles, profile-synchronized mass/inertia, actuator lag, stall, turbulence, energy use, and voltage sag |
 | Runtime control | Live speed selection plus recorded radar, EO, and actuator failure injection |
@@ -27,7 +28,7 @@ This page separates running code from validated evidence and future work.
 
 ## Verified in the current repository
 
-- 91 automated tests pass.
+- 99 automated tests pass.
 - The strict MkDocs build passes.
 - The eight-case APN campaign completed 800/800 synthetic interceptions.
 - Live timestamped command-center captures show changing mission state.

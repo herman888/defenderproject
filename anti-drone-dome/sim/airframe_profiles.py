@@ -46,6 +46,7 @@ def validate_airframe_profile(profile: dict) -> None:
         "propulsion",
         "aerodynamics",
         "disturbance",
+        "flight_envelope",
         "evidence",
     ):
         if key not in profile:
@@ -116,6 +117,16 @@ def validate_airframe_profile(profile: dict) -> None:
     )
     if not isinstance(disturbance.get("seed"), int):
         raise ValueError("disturbance.seed must be an integer")
+    envelope = profile["flight_envelope"]
+    for key in ("max_lateral_accel_g", "max_climb_rate_mps", "max_descent_rate_mps"):
+        _positive(envelope.get(key), f"flight_envelope.{key}")
+    _positive(
+        envelope.get("min_airspeed_mps"),
+        "flight_envelope.min_airspeed_mps",
+        allow_zero=True,
+    )
+    if not isinstance(envelope.get("fixed_wing"), bool):
+        raise ValueError("flight_envelope.fixed_wing must be a boolean")
     evidence = profile["evidence"]
     if evidence.get("status") not in _EVIDENCE_STATUSES:
         raise ValueError("unsupported evidence.status")

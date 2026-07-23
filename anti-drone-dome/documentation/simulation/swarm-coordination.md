@@ -48,8 +48,29 @@ python main.py --swarm saturation_6v4
 
 A headless PyBullet engagement that reuses the real `Drone` dynamics and APN guidance
 with the same coordination brain, and optionally streams telemetry via
-`--telemetry-udp`. This mode deliberately bypasses the single-target command-center
-HUD and tactical camera; it prints a debrief and (optionally) streams the swarm feed.
+`--telemetry-udp`.
+
+## Run it live in the command center
+
+```powershell
+python main.py --swarm-live saturation_6v4
+```
+
+Launches the integrated command center and renders the swarm live on the tactical
+"common operating picture": red threat markers, blue interceptors, an amber
+coordinator diamond, dashed assignment lines, and a threats-remaining meter. You can
+also start the command center normally (`run.bat` → option 1, or `python main.py`) and
+click the **SWARM 6v4 / SWARM 8v3** buttons in the mission panel; PAUSE/ABORT work
+during the engagement.
+
+## Realistic motion
+
+Swarm vehicles fly a real flight envelope (`sim/flight_envelope.py`), driven by each
+airframe's profile: a lateral-g turn limit (finite turn radius `r = v^2 / a_lat`
+instead of instantaneous reversals), climb/descent-rate caps, and — for fixed-wing
+threats like the Shahed-136 — a minimum airspeed (bank-to-turn; it cannot stop, hover,
+or reverse in place). Representative values: Shahed 2.5 g / 30 m/s minimum airspeed,
+FPV 8 g, interceptor 12 g.
 
 ## Scenarios
 

@@ -23,6 +23,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from guidance.intercept import PurePursuitGuidance  # noqa: E402
 from guidance.setpoint import ned_to_enu  # noqa: E402
+from scenarios import INTRUDER_TYPES  # noqa: E402
+from sim.airframe_profiles import get_airframe_profile  # noqa: E402
+from sim.flight_envelope import FlightEnvelope, limit_acceleration  # noqa: E402
 from swarm.coordinator import SwarmCoordinator  # noqa: E402
 from swarm.rf_link import RfLinkModel  # noqa: E402
 from swarm.scenario import SwarmScenario, get_swarm_scenario  # noqa: E402
@@ -30,6 +33,20 @@ from swarm.telemetry import SwarmTelemetryPublisher, build_swarm_packet  # noqa:
 
 _DT = 0.05
 _INTERCEPTOR_ENDURANCE_S = 180.0   # full-power flight seconds to empty
+
+
+def _profile_envelope(profile_id) -> FlightEnvelope:
+    if not profile_id:
+        return FlightEnvelope()
+    try:
+        return FlightEnvelope.from_profile(get_airframe_profile(profile_id))
+    except (KeyError, ValueError):
+        return FlightEnvelope()
+
+
+def _threat_envelope(threat_type) -> FlightEnvelope:
+    cfg = INTRUDER_TYPES.get(threat_type, {})
+    return _profile_envelope(cfg.get("airframe_profile_id"))
 
 
 class _Interceptor:
@@ -40,6 +57,7 @@ class _Interceptor:
         self.applied_accel = np.zeros(3, dtype=float)
         self.max_speed = float(spec.max_speed_mps)
         self.actuator_tau = 0.06
+        self.envelope = _profile_envelope(spec.airframe_profile_id)
         self.energy = 1.0
         self.expended = False
         self.kill: str | None = None
@@ -61,6 +79,7 @@ class _Threat:
         self.position = np.asarray(spec.start_enu_m, dtype=float)
         self.velocity = np.zeros(3, dtype=float)
         self.max_speed = float(spec.max_speed_mps)
+        self.envelope = _threat_envelope(spec.type)
         waypoints = list(spec.waypoints_enu_m) or [tuple(protected_center)]
         self.waypoints = [np.asarray(wp, dtype=float) for wp in waypoints]
         self.waypoint_index = 0
@@ -190,6 +209,9 @@ def run_scenario(
                 cmd = _guide(guidance, interceptor, target)
             else:
                 cmd = -0.5 * interceptor.velocity  # loiter/brake when unassigned
+            cmd = limit_acceleration(
+                interceptor.velocity, cmd, interceptor.envelope, _DT
+            )
             alpha = min(1.0, _DT / interceptor.actuator_tau)
             interceptor.applied_accel += alpha * (cmd - interceptor.applied_accel)
             interceptor.velocity += interceptor.applied_accel * _DT
@@ -215,7 +237,16 @@ def run_scenario(
                 delta = target - threat.position
                 distance = float(np.linalg.norm(delta))
             desired = delta / max(distance, 1e-6) * threat.max_speed
-            threat.velocity += (desired - threat.velocity) * min(1.0, 2.0 * _DT)
+            # Bank-to-turn dynamics: reach the desired velocity only as fast as
+            # the airframe's turn-g / climb / min-airspeed envelope allows.
+            accel_cmd = (desired - threat.velocity) / _DT
+            accel_cmd = limit_acceleration(
+                threat.velocity, accel_cmd, threat.envelope, _DT
+            )
+            threat.velocity += accel_cmd * _DT
+            speed = float(np.linalg.norm(threat.velocity))
+            if speed > threat.max_speed:
+                threat.velocity *= threat.max_speed / speed
             threat.position += threat.velocity * _DT
 
         t += _DT

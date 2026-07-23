@@ -38,6 +38,13 @@
         "turbulence_force_std_n": 18.0,
         "seed": 136
       },
+      "flight_envelope": {
+        "max_lateral_accel_g": 2.5,
+        "max_climb_rate_mps": 5.0,
+        "max_descent_rate_mps": 8.0,
+        "min_airspeed_mps": 30.0,
+        "fixed_wing": true
+      },
       "evidence": {
         "status": "representative-unvalidated",
         "source": "publicly reported dimensions and approximate simulation parameters",
@@ -80,6 +87,13 @@
       "disturbance": {
         "turbulence_force_std_n": 0.8,
         "seed": 400
+      },
+      "flight_envelope": {
+        "max_lateral_accel_g": 2.0,
+        "max_climb_rate_mps": 6.0,
+        "max_descent_rate_mps": 6.0,
+        "min_airspeed_mps": 0.0,
+        "fixed_wing": false
       },
       "evidence": {
         "status": "representative-unvalidated",
@@ -124,6 +138,13 @@
         "turbulence_force_std_n": 1.2,
         "seed": 500
       },
+      "flight_envelope": {
+        "max_lateral_accel_g": 8.0,
+        "max_climb_rate_mps": 15.0,
+        "max_descent_rate_mps": 15.0,
+        "min_airspeed_mps": 0.0,
+        "fixed_wing": false
+      },
       "evidence": {
         "status": "representative-unvalidated",
         "source": "generic 7-inch FPV performance envelope",
@@ -146,7 +167,7 @@
         "inertia_kg_m2": [0.045, 0.045, 0.08]
       },
       "propulsion": {
-        "max_speed_mps": 45.0,
+        "max_speed_mps": 70.0,
         "max_horizontal_force_n": 260.0,
         "vertical_force_min_n": -80.0,
         "vertical_force_max_n": 260.0,
@@ -166,6 +187,13 @@
       "disturbance": {
         "turbulence_force_std_n": 1.5,
         "seed": 100
+      },
+      "flight_envelope": {
+        "max_lateral_accel_g": 12.0,
+        "max_climb_rate_mps": 30.0,
+        "max_descent_rate_mps": 25.0,
+        "min_airspeed_mps": 0.0,
+        "fixed_wing": false
       },
       "evidence": {
         "status": "design-placeholder",

@@ -1595,6 +1595,14 @@ def _mission_loop(state_q, ctrl_q, dash_proc, shared_state=None, state_lock=None
             if current_intruder == "quit":
                 break
 
+            if isinstance(current_intruder, str) and current_intruder.startswith("swarm:"):
+                _run_swarm_mission(
+                    current_intruder.split(":", 1)[1],
+                    state_q=state_q, ctrl_q=ctrl_q,
+                )
+                current_intruder = None
+                continue
+
             result = _run_one_mission(
                 state_q, ctrl_q,
                 intruder_key  = current_intruder,
@@ -1666,27 +1674,33 @@ def _mission_loop(state_q, ctrl_q, dash_proc, shared_state=None, state_lock=None
             shared_state["app_quit"] = True
 
 
-def _run_swarm_mission(args) -> int:
-    """Headless PyBullet swarm engagement: an airborne coordinator directs an
-    interceptor swarm against a saturation attack.
+def _run_swarm_mission(scenario_id, *, telemetry_udp=None,
+                       state_q=None, ctrl_q=None) -> int:
+    """PyBullet swarm engagement: an airborne coordinator directs an interceptor
+    swarm against a saturation attack.
 
-    This bypasses the interactive command center entirely (the HUD and tactical
-    camera assume a single intruder/interceptor pair). It reuses the real Drone
-    dynamics, APN guidance, and the shared ``swarm`` coordination brain, and
-    optionally streams ``aegis.swarm-coordination.v1`` telemetry.
+    Reuses the real Drone dynamics, APN guidance, and the shared ``swarm``
+    coordination brain. When ``state_q`` is given it drives the live command
+    center (pushing a multi-entity ``swarm`` block the dashboard renders on the
+    tactical picture, and honouring pause/stop on ``ctrl_q``); otherwise it runs
+    fully headless. Optionally streams ``aegis.swarm-coordination.v1`` telemetry.
     """
     import numpy as np
 
-    from scenarios import get_site_config  # noqa: F401  (kept for parity/future georef)
     from swarm.coordinator import SwarmCoordinator
     from swarm.rf_link import RfLinkModel
     from swarm.scenario import get_swarm_scenario
     from swarm.telemetry import SwarmTelemetryPublisher, build_swarm_packet
 
     try:
-        scenario = get_swarm_scenario(args.swarm)
+        scenario = get_swarm_scenario(scenario_id)
     except (OSError, ValueError, KeyError) as exc:
         print(f"[swarm] {exc}")
+        if state_q is not None:
+            try:
+                state_q.put_nowait({"type": "show_menu"})
+            except Exception:
+                pass
         return 2
 
     center = [float(c) for c in scenario.protected_center_enu_m]
@@ -1721,8 +1735,8 @@ def _run_swarm_mission(args) -> int:
     )
 
     publisher = None
-    if getattr(args, "telemetry_udp", None):
-        publisher = SwarmTelemetryPublisher.from_endpoint(args.telemetry_udp)
+    if telemetry_udp:
+        publisher = SwarmTelemetryPublisher.from_endpoint(telemetry_udp)
 
     dt = 1.0 / 240.0
     max_steps = int(scenario.duration_limit_s / dt)
@@ -1733,15 +1747,85 @@ def _run_swarm_mission(args) -> int:
         f"[swarm] {scenario.scenario_id}: {len(interceptors)} interceptors vs "
         f"{len(threats)} threats, policy={coord_spec.policy}, seed={scenario.seed}"
     )
+    if state_q is not None:
+        try:
+            state_q.put_nowait({"type": "mission_start"})
+        except Exception:
+            pass
 
     def _margin(order):
         if order is None or not math.isfinite(order.link_margin_db):
             return -999.0
         return float(order.link_margin_db)
 
+    def _swarm_body():
+        return build_swarm_packet(
+            mission_time_s=t,
+            coordinator={
+                "id": coord_spec.id,
+                "position_enu_m": [float(c) for c in coordinator_body.get_position()],
+                "velocity_enu_mps": [0.0, 0.0, 0.0],
+            },
+            interceptors=[{
+                "id": it["spec"].id,
+                "position_enu_m": [float(c) for c in it["drone"].get_position()],
+                "velocity_enu_mps": [float(c) for c in it["drone"].get_velocity()],
+                "assigned_threat_id": (
+                    plan.orders[it["spec"].id].assigned_threat_id
+                    if plan and it["spec"].id in plan.orders else None
+                ),
+                "state": "EXPENDED" if it["expended"] else (
+                    plan.orders[it["spec"].id].state
+                    if plan and it["spec"].id in plan.orders else "RESERVE"
+                ),
+                "link_margin_db": _margin(plan.orders.get(it["spec"].id)) if plan else -999.0,
+                "energy_remaining_fraction": float(
+                    it["drone"].get_state().get("energy_remaining_fraction", 1.0)
+                ),
+            } for it in interceptors],
+            threats=[{
+                "id": th["spec"].id, "type": th["spec"].type,
+                "threat_level": th["spec"].threat_level,
+                "position_enu_m": [float(c) for c in th["munition"].get_position()],
+                "velocity_enu_mps": [float(c) for c in th["munition"].get_velocity()],
+                "status": th["status"],
+            } for th in threats],
+            assignment=dict(plan.assignment) if plan else {},
+            link_health=plan.link_health if plan else {},
+        )
+
+    paused = False
+    stopped = False
+    last_push = 0.0
+
     plan = None
     try:
         for step in range(max_steps):
+            # ── Live command-center control (pause/stop) ──────────────────
+            if ctrl_q is not None:
+                try:
+                    while True:
+                        msg = ctrl_q.get_nowait()
+                        if isinstance(msg, dict):
+                            paused = bool(msg.get("paused", paused))
+                            if msg.get("stopped") or msg.get("restart"):
+                                stopped = True
+                except Exception:
+                    pass
+                if stopped:
+                    break
+                if paused:
+                    if state_q is not None:
+                        try:
+                            state_q.put_nowait({
+                                "dome_status": "PAUSED", "mission_time": t,
+                                "sim_speed": 1.0, "swarm": _swarm_body(),
+                            })
+                        except Exception:
+                            pass
+                    time.sleep(0.05)
+                    continue
+
             active_threats = [th for th in threats if th["status"] == "ACTIVE"]
             active_interceptors = [it for it in interceptors if not it["expended"]]
             if not active_threats or not active_interceptors:
@@ -1812,40 +1896,22 @@ def _run_swarm_mission(args) -> int:
                     th["status"], th["resolved_time"] = "BREACHED", t
 
             if publisher is not None and step % 12 == 0:
-                publisher.publish(build_swarm_packet(
-                    mission_time_s=t,
-                    coordinator={
-                        "id": coord_spec.id,
-                        "position_enu_m": [float(c) for c in coordinator_body.get_position()],
-                        "velocity_enu_mps": [0.0, 0.0, 0.0],
-                    },
-                    interceptors=[{
-                        "id": it["spec"].id,
-                        "position_enu_m": [float(c) for c in it["drone"].get_position()],
-                        "velocity_enu_mps": [float(c) for c in it["drone"].get_velocity()],
-                        "assigned_threat_id": (
-                            plan.orders[it["spec"].id].assigned_threat_id
-                            if it["spec"].id in plan.orders else None
-                        ),
-                        "state": "EXPENDED" if it["expended"] else (
-                            plan.orders[it["spec"].id].state
-                            if it["spec"].id in plan.orders else "RESERVE"
-                        ),
-                        "link_margin_db": _margin(plan.orders.get(it["spec"].id)),
-                        "energy_remaining_fraction": float(
-                            it["drone"].get_state().get("energy_remaining_fraction", 1.0)
-                        ),
-                    } for it in interceptors],
-                    threats=[{
-                        "id": th["spec"].id, "type": th["spec"].type,
-                        "threat_level": th["spec"].threat_level,
-                        "position_enu_m": [float(c) for c in th["munition"].get_position()],
-                        "velocity_enu_mps": [float(c) for c in th["munition"].get_velocity()],
-                        "status": th["status"],
-                    } for th in threats],
-                    assignment=dict(plan.assignment),
-                    link_health=plan.link_health,
-                ))
+                publisher.publish(_swarm_body())
+
+            # ── Push the live swarm picture to the command center (~60 Hz) ──
+            if state_q is not None and (t - last_push) >= (1.0 / 60.0):
+                dome_status = "ENGAGING"
+                try:
+                    state_q.put_nowait({
+                        "dome_status": dome_status,
+                        "mission_time": t,
+                        "sim_speed": 1.0,
+                        "events": [],
+                        "swarm": _swarm_body(),
+                    })
+                except Exception:
+                    pass
+                last_push = t
     finally:
         if publisher is not None:
             publisher.close()
@@ -1870,6 +1936,23 @@ def _run_swarm_mission(args) -> int:
         when = f"@T+{th['resolved_time']:.1f}s" if th["resolved_time"] is not None else ""
         print(f"    {th['spec'].id:8s} {th['spec'].type:14s} "
               f"{th['spec'].threat_level:6s} {th['status']} {when}")
+
+    if state_q is not None:
+        outcome = "INTERCEPTED" if leaked == 0 and breached == 0 else "FAILURE"
+        summary = (
+            f"SWARM DEBRIEF  —  {scenario.scenario_id}\n"
+            f"neutralized {neutralized}/{len(threats)}   "
+            f"breached {breached}   leaked {leaked}\n"
+            f"interceptors used {sum(it['expended'] for it in interceptors)}"
+            f"/{len(interceptors)}   link {link.get('delivery_ratio', 1.0)*100:.0f}%"
+        )
+        try:
+            state_q.put_nowait({
+                "type": "debrief", "result": outcome, "summary": summary,
+                "closest_approach": 0.0, "sim_time": t,
+            })
+        except Exception:
+            pass
     return 0
 
 
@@ -1954,6 +2037,11 @@ def main():
         help="Run a headless coordinator-directed interceptor-swarm engagement "
              "(scenario id from scenario_data/swarm_scenarios_v1.json) and exit",
     )
+    parser.add_argument(
+        "--swarm-live",
+        metavar="SCENARIO",
+        help="Launch the command center and run the swarm scenario live in it",
+    )
     args = parser.parse_args()
     if args.telemetry_udp:
         try:
@@ -1963,7 +2051,7 @@ def main():
     if args.telemetry_record and not args.telemetry_udp:
         parser.error("--telemetry-record requires --telemetry-udp")
     if args.swarm:
-        raise SystemExit(_run_swarm_mission(args))
+        raise SystemExit(_run_swarm_mission(args.swarm, telemetry_udp=args.telemetry_udp))
     if args.sitl and args.ml_model:
         parser.error("--sitl and --ml-model are mutually exclusive guidance sources")
     if args.sitl and not args.allow_sitl_arm:
@@ -2048,7 +2136,13 @@ def main():
             shared_state["app_quit"] = True
             phys_thread.join(timeout=4)
         else:
-            _mission_loop(state_q, ctrl_q, dash_proc)
+            if args.swarm_live:
+                _run_swarm_mission(
+                    args.swarm_live, telemetry_udp=args.telemetry_udp,
+                    state_q=state_q, ctrl_q=ctrl_q,
+                )
+            else:
+                _mission_loop(state_q, ctrl_q, dash_proc)
 
     except KeyboardInterrupt:
         print("\n[SIM] Interrupted by user.")
