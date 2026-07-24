@@ -77,4 +77,4 @@ mkdocs build --strict
 
 ## Deploy to Vercel
 
-See [Deploy to Vercel](deploy-vercel.md) for connecting this docs site to **projectlarp.vercel.app**.
+See [Deploy to Vercel](deploy-vercel.md) for publishing this site to **https://projectlarp.vercel.app**.

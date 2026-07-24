@@ -7,7 +7,7 @@ workbench, hardware profiles, and documentation website live under
 `anti-drone-dome/`. Start with
 [`anti-drone-dome/documentation/index.md`](anti-drone-dome/documentation/index.md)
 or the published site at
-[defenderproject.vercel.app](https://defenderproject.vercel.app).
+[projectlarp.vercel.app](https://projectlarp.vercel.app).
 
 ## Quick start
 

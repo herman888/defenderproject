@@ -1,7 +1,7 @@
 site_name: Project LARP
 site_description: Localised Aerial Response Platform - integrated counter-UAS research and validation
 site_author: Herman Isayenka
-site_url: https://defenderproject.vercel.app
+site_url: https://projectlarp.vercel.app
 repo_url: https://github.com/herman888/defenderproject
 repo_name: herman888/defenderproject
 edit_uri: edit/main/anti-drone-dome/documentation/

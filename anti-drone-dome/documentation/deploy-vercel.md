@@ -1,13 +1,16 @@
 # Deploy Project LARP docs to Vercel
 
-Live URL (after a green deploy): **https://defenderproject.vercel.app**  
-(Rename the Vercel project to `projectlarp` if you want `projectlarp.vercel.app`.)
+Live URL: **https://projectlarp.vercel.app**
 
 Docs are **pre-built** into `anti-drone-dome/public/` and committed. Vercel only **serves** that folder — no `pip` on Vercel.
 
 ---
 
 ## Vercel settings (required)
+
+**Settings → General**
+
+- **Project Name:** `projectlarp` (this creates `projectlarp.vercel.app`)
 
 **Settings → Build and Deployment:**
 
@@ -19,7 +22,9 @@ Docs are **pre-built** into `anti-drone-dome/public/` and committed. Vercel only
 | **Build Command** | `echo 'prebuilt static site'` |
 | **Output Directory** | `public` |
 
-Then **Deployments → Redeploy** the **newest** commit (not the old red one).
+Then **Deployments → Redeploy** the newest commit.
+
+If the project was previously named `defenderproject`, rename it to `projectlarp` under **Settings → General → Project Name**, or add `projectlarp.vercel.app` under **Domains**.
 
 ---
 

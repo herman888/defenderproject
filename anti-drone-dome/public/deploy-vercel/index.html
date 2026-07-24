@@ -12,7 +12,7 @@
         <meta name="author" content="Herman Isayenka">
       
       
-        <link rel="canonical" href="https://defenderproject.vercel.app/deploy-vercel/">
+        <link rel="canonical" href="https://projectlarp.vercel.app/deploy-vercel/">
       
       
         <link rel="prev" href="../contributing/">
@@ -2250,11 +2250,14 @@
 
 
 <h1 id="deploy-project-larp-docs-to-vercel">Deploy Project LARP docs to Vercel<a class="headerlink" href="#deploy-project-larp-docs-to-vercel" title="Permanent link">&para;</a></h1>
-<p>Live URL (after a green deploy): <strong>https://defenderproject.vercel.app</strong><br />
-(Rename the Vercel project to <code>projectlarp</code> if you want <code>projectlarp.vercel.app</code>.)</p>
+<p>Live URL: <strong>https://projectlarp.vercel.app</strong></p>
 <p>Docs are <strong>pre-built</strong> into <code>anti-drone-dome/public/</code> and committed. Vercel only <strong>serves</strong> that folder — no <code>pip</code> on Vercel.</p>
 <hr />
 <h2 id="vercel-settings-required">Vercel settings (required)<a class="headerlink" href="#vercel-settings-required" title="Permanent link">&para;</a></h2>
+<p><strong>Settings → General</strong></p>
+<ul>
+<li><strong>Project Name:</strong> <code>projectlarp</code> (this creates <code>projectlarp.vercel.app</code>)</li>
+</ul>
 <p><strong>Settings → Build and Deployment:</strong></p>
 <table>
 <thead>
@@ -2286,7 +2289,8 @@
 </tr>
 </tbody>
 </table>
-<p>Then <strong>Deployments → Redeploy</strong> the <strong>newest</strong> commit (not the old red one).</p>
+<p>Then <strong>Deployments → Redeploy</strong> the newest commit.</p>
+<p>If the project was previously named <code>defenderproject</code>, rename it to <code>projectlarp</code> under <strong>Settings → General → Project Name</strong>, or add <code>projectlarp.vercel.app</code> under <strong>Domains</strong>.</p>
 <hr />
 <h2 id="after-you-edit-docs-locally">After you edit docs locally<a class="headerlink" href="#after-you-edit-docs-locally" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">cd</span><span class="w"> </span>anti-drone-dome
