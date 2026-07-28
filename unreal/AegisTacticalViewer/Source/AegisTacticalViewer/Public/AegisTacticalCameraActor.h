@@ -39,5 +39,6 @@ private:
     bool bHasIntruder = false;
     bool bHasInterceptor = false;
     bool bClaimedPlayerView = false;
-    int32 PresentationMode = 0;
+    bool bHasFramedTrack = false;
+    int32 PresentationMode = 1;
 };

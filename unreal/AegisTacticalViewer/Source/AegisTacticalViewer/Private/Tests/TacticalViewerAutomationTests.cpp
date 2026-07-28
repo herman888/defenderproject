@@ -73,6 +73,15 @@ bool FPacketValidationTest::RunTest(const FString& Parameters)
         Receiver->ProcessPacketForAutomation(ValidPacket.Replace(TEXT("\"sequence\":1"), TEXT("\"sequence\":1.5"))));
     TestFalse(TEXT("Out-of-order packets are rejected"),
         Receiver->ProcessPacketForAutomation(ValidPacket));
+    const FString LaterMissionPacket = ValidPacket
+        .Replace(TEXT("\"sequence\":1"), TEXT("\"sequence\":20"))
+        .Replace(TEXT("\"mission_time_s\":2.5"), TEXT("\"mission_time_s\":20.0"));
+    TestTrue(TEXT("Later packets in the same mission are accepted"),
+        Receiver->ProcessPacketForAutomation(LaterMissionPacket));
+    const FString NewMissionPacket = ValidPacket
+        .Replace(TEXT("\"mission_time_s\":2.5"), TEXT("\"mission_time_s\":0.5"));
+    TestTrue(TEXT("A near-zero clock and reset sequence begins a new mission epoch"),
+        Receiver->ProcessPacketForAutomation(NewMissionPacket));
     TestEqual(TEXT("The accepted null interceptor packet updates the sequence"),
         Receiver->GetHealth().LastSequence, static_cast<int64>(1));
     TestTrue(TEXT("Rejected packets are visible to the HUD health state"),

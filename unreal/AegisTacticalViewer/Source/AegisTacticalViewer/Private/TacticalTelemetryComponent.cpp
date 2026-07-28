@@ -225,6 +225,22 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
     }
 
     const int64 PacketSequence = FMath::RoundToInt64(Sequence);
+    // The simulator deliberately starts a fresh integer sequence epoch for a
+    // new recorded/demo mission. Accept that only when the relative mission
+    // clock has also restarted near zero; ordinary duplicated or re-ordered
+    // UDP stays rejected.
+    const bool bNewMissionEpoch = Health.LastSequence >= 0
+        && PacketSequence <= 2
+        && PacketSequence < Health.LastSequence
+        && MissionTime <= 1.0
+        && Health.LastMissionTimeSeconds >= 5.0;
+    if (bNewMissionEpoch)
+    {
+        Health.LastSequence = -1;
+        LastSequence = -1;
+        Health.LastMissionTimeSeconds = -1.0;
+    }
+
     if (PacketSequence <= Health.LastSequence
         || (Health.LastMissionTimeSeconds >= 0.0 && MissionTime < Health.LastMissionTimeSeconds))
     {

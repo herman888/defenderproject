@@ -12,7 +12,7 @@ AAegisTacticalCameraActor::AAegisTacticalCameraActor()
     RootComponent = SceneRoot;
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     Camera->SetupAttachment(SceneRoot);
-    Camera->SetFieldOfView(72.0f);
+    Camera->SetFieldOfView(58.0f);
 }
 
 void AAegisTacticalCameraActor::SetTrackWorldPosition(
@@ -79,23 +79,31 @@ void AAegisTacticalCameraActor::Tick(float DeltaSeconds)
     // Aim partway down to the local ground plane so the local terrain remains
     // readable while the actor positions themselves remain authoritative.
     const FVector GroundFocus(TrackFocus.X, TrackFocus.Y, 0.0f);
-    const float FocusFraction[] = {0.58f, 0.34f, 0.46f};
+    const float FocusFraction[] = {0.85f, 0.72f, 0.58f};
     const FVector Directions[] = {
-        FVector(-0.68, -0.68, 0.55),
-        FVector(-0.36, -0.36, 0.86),
-        FVector(-0.82, -0.82, 0.30),
+        FVector(-0.78, -0.78, 0.34),
+        FVector(-0.60, -0.60, 0.62),
+        FVector(-0.82, -0.82, 0.42),
     };
-    const float BaseDistances[] = {30000.0f, 50000.0f, 26000.0f};
+    const float BaseDistances[] = {12000.0f, 22000.0f, 42000.0f};
     const FVector Focus = FMath::Lerp(GroundFocus, TrackFocus, FocusFraction[PresentationMode]);
-    const float Distance = FMath::Clamp(BaseDistances[PresentationMode] + Separation * 0.9f,
-        22000.0f, 100000.0f);
+    const float Distance = FMath::Clamp(BaseDistances[PresentationMode] + Separation * 0.6f,
+        8000.0f, 60000.0f);
     const FVector Direction = Directions[PresentationMode].GetSafeNormal();
     const FVector DesiredLocation = Focus + Direction * Distance;
     const FRotator DesiredRotation = UKismetMathLibrary::FindLookAtRotation(
         DesiredLocation, Focus);
 
+    if (!bHasFramedTrack)
+    {
+        SetActorLocation(DesiredLocation);
+        SetActorRotation(DesiredRotation);
+        bHasFramedTrack = true;
+        return;
+    }
+
     SetActorLocation(FMath::VInterpTo(
-        GetActorLocation(), DesiredLocation, DeltaSeconds, 3.5f));
+        GetActorLocation(), DesiredLocation, DeltaSeconds, 6.0f));
     SetActorRotation(FMath::RInterpTo(
-        GetActorRotation(), DesiredRotation, DeltaSeconds, 3.5f));
+        GetActorRotation(), DesiredRotation, DeltaSeconds, 6.0f));
 }
