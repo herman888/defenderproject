@@ -1,0 +1,85 @@
+#if WITH_DEV_AUTOMATION_TESTS
+
+#include "AegisTacticalTrackActor.h"
+#include "Misc/AutomationTest.h"
+#include "TacticalAssetRegistry.h"
+#include "TacticalTelemetryComponent.h"
+#include "TacticalTypes.h"
+#include "Interfaces/IPv4/IPv4Address.h"
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnuCoordinateConversionTest,
+    "Aegis.TacticalViewer.Protocol.CoordinateConversion",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FEnuCoordinateConversionTest::RunTest(const FString& Parameters)
+{
+    TestEqual(TEXT("ENU metres map into Unreal centimetres with X=N and Y=E"),
+        AAegisTacticalTrackActor::EnuToUnrealWorld(FVector(2.0, 5.0, 3.0)),
+        FVector(500.0, 200.0, 300.0));
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnuOrientationConversionTest,
+    "Aegis.TacticalViewer.Protocol.OrientationConversion",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FEnuOrientationConversionTest::RunTest(const FString& Parameters)
+{
+    const FRotator IdentityOrientation = AAegisTacticalTrackActor::EnuOrientationToUnreal(
+        FQuat::Identity, 42.0);
+    TestTrue(TEXT("Identity ENU attitude points East, which maps to Unreal +Y"),
+        FMath::IsNearlyEqual(IdentityOrientation.Yaw, 90.0f));
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAssetFallbackTest,
+    "Aegis.TacticalViewer.Visuals.AssetFallback",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FAssetFallbackTest::RunTest(const FString& Parameters)
+{
+    const FTacticalVisualDefinition Interceptor = FTacticalAssetRegistry::Resolve(
+        TEXT("unknown-id"), TEXT("interceptor"), TEXT("unknown"));
+    const FTacticalVisualDefinition Intruder = FTacticalAssetRegistry::Resolve(
+        TEXT("unknown-id"), TEXT("intruder"), TEXT("unknown"));
+    TestTrue(TEXT("Interceptor has an intentional fallback mesh"), !Interceptor.MeshPath.IsNull());
+    TestTrue(TEXT("Intruder has an intentional fallback mesh"), !Intruder.MeshPath.IsNull());
+    TestNotEqual(TEXT("Role colors remain distinguishable"), Interceptor.BaseColor, Intruder.BaseColor);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHealthStateTest,
+    "Aegis.TacticalViewer.Protocol.StaleAndLossHealth",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FHealthStateTest::RunTest(const FString& Parameters)
+{
+    FTacticalTelemetryHealth Health;
+    TestTrue(TEXT("A feed with no packets is stale"), Health.IsStale(10.0f));
+    Health.LastReceiveWorldSeconds = 10.0f;
+    TestFalse(TEXT("Fresh telemetry is live"), Health.IsStale(10.5f));
+    TestTrue(TEXT("Age beyond threshold is stale"), Health.IsStale(10.8f));
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPacketValidationTest,
+    "Aegis.TacticalViewer.Protocol.StrictPacketValidation",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FPacketValidationTest::RunTest(const FString& Parameters)
+{
+    const FString ValidPacket = TEXT("{\"schema\":\"aegis.tactical.v1\",\"bridge_schema\":\"aegis.unreal-bridge.v1\",\"status\":\"RUNNING\",\"site\":\"LOCAL\",\"sequence\":1,\"mission_time_s\":2.5,\"tracks\":{\"intruder\":{\"id\":\"intruder-1\",\"role\":\"intruder\",\"asset_id\":\"shahed_136\",\"type\":\"fixed_wing\",\"position_enu_m\":[1,2,3],\"velocity_enu_mps\":[0,0,0],\"orientation_xyzw\":[0,0,0,1],\"heading_deg\":90},\"interceptor\":null}}");
+    UTacticalTelemetryComponent* Receiver = NewObject<UTacticalTelemetryComponent>();
+    TestTrue(TEXT("A complete local display packet is accepted"),
+        Receiver->ProcessPacketForAutomation(ValidPacket));
+    TestFalse(TEXT("Malformed JSON is rejected"),
+        Receiver->ProcessPacketForAutomation(TEXT("{broken")));
+    TestFalse(TEXT("Fractional sequence numbers are rejected"),
+        Receiver->ProcessPacketForAutomation(ValidPacket.Replace(TEXT("\"sequence\":1"), TEXT("\"sequence\":1.5"))));
+    TestFalse(TEXT("Out-of-order packets are rejected"),
+        Receiver->ProcessPacketForAutomation(ValidPacket));
+    TestEqual(TEXT("The accepted null interceptor packet updates the sequence"),
+        Receiver->GetHealth().LastSequence, static_cast<int64>(1));
+    TestTrue(TEXT("Rejected packets are visible to the HUD health state"),
+        Receiver->GetHealth().RejectedPackets >= 3);
+    TestEqual(TEXT("Receiver is deliberately loopback-only"),
+        FIPv4Address::InternalLoopback.ToString(), FString(TEXT("127.0.0.1")));
+    return true;
+}
+
+#endif

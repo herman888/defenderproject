@@ -32,8 +32,15 @@ from integration.tactical_stream import (  # noqa: E402
     UdpEndpoint,
     validate_tactical_packet,
 )
+from swarm.telemetry import SCHEMA as SWARM_SCHEMA, validate_swarm_packet  # noqa: E402
 
 BRIDGE_SCHEMA = "aegis.unreal-bridge.v1"
+
+_SWARM_PRESENTATION_ORIGIN = {
+    "latitude": 0.0,
+    "longitude": 0.0,
+    "altitude_m": 0.0,
+}
 
 # WGS84 ellipsoid constants.
 _WGS84_A = 6378137.0
@@ -149,6 +156,57 @@ def enrich_packet(packet: dict) -> dict:
     return enriched
 
 
+def swarm_to_tactical_packet(packet: dict) -> dict:
+    """Adapt an authoritative swarm snapshot into the viewer's two-track feed.
+
+    This is presentation-only: it selects the leading active threat and its
+    assigned (or first available) interceptor. The full swarm remains
+    authoritative in its native telemetry and command-center view.
+    """
+    validate_swarm_packet(packet)
+    threats = [track for track in packet["threats"] if track["status"] == "ACTIVE"]
+    if not threats:
+        threats = list(packet["threats"])
+    if not threats:
+        raise ValueError("swarm packet has no displayable threat")
+    intruder_source = threats[0]
+    interceptors = [track for track in packet["interceptors"] if track["state"] != "EXPENDED"]
+    interceptor_source = next(
+        (track for track in interceptors
+         if track.get("assigned_threat_id") == intruder_source["id"]),
+        interceptors[0] if interceptors else None,
+    )
+
+    def make_track(source: dict, *, role: str, asset_id: str, track_type: str) -> dict:
+        return {
+            "id": source["id"], "role": role, "asset_id": asset_id,
+            "type": track_type,
+            "position_enu_m": source["position_enu_m"],
+            "velocity_enu_mps": source["velocity_enu_mps"],
+            "orientation_xyzw": [0.0, 0.0, 0.0, 1.0],
+        }
+
+    return {
+        "schema": "aegis.tactical.v1",
+        "sequence": packet["sequence"],
+        "mission_time_s": packet["mission_time_s"],
+        "timestamp_clock": "simulation-relative",
+        "status": "RUNNING",
+        "site": "LOCAL_SWARM_SIMULATION",
+        "guidance": "SWARM_COORDINATOR_DISPLAY_ADAPTER",
+        "coordinate_frame": packet["coordinate_frame"],
+        "georeference": {"origin": dict(_SWARM_PRESENTATION_ORIGIN), "status": "placeholder"},
+        "terrain": {"source": "local-swarm-simulation", "collision_authoritative": True},
+        "tracks": {
+            "intruder": make_track(intruder_source, role="intruder", asset_id="shahed_136",
+                                   track_type=intruder_source["type"]),
+            "interceptor": None if interceptor_source is None else make_track(
+                interceptor_source, role="interceptor", asset_id="interceptor_quad",
+                track_type="quadcopter"),
+        },
+    }
+
+
 def encode_bridge_packet(enriched: dict) -> bytes:
     payload = json.dumps(
         enriched,
@@ -186,6 +244,8 @@ class UnrealTelemetryBridge:
         self.unreal = unreal
         self.stats = BridgeStats()
         self._tracker = TacticalSequenceTracker()
+        self._swarm_last_sequence: int | None = None
+        self._swarm_last_mission_time: float | None = None
         self._rx: socket.socket | None = None
         self._tx: socket.socket | None = None
 
@@ -205,7 +265,44 @@ class UnrealTelemetryBridge:
         self.stats.received += 1
         try:
             packet = json.loads(data.decode("utf-8"))
-            dropped = self._tracker.accept(packet)
+            if packet.get("schema") == SWARM_SCHEMA:
+                validate_swarm_packet(packet)
+                sequence = packet["sequence"]
+                mission_time = float(packet["mission_time_s"])
+                # A new swarm mission owns a new sequence epoch. It is safe to
+                # reset only when its simulation-relative clock also restarts;
+                # ordinary duplicates and out-of-order UDP remain rejected.
+                if (self._swarm_last_sequence is not None
+                        and sequence <= self._swarm_last_sequence
+                        and self._swarm_last_mission_time is not None
+                        and mission_time < self._swarm_last_mission_time
+                        and mission_time <= 1.0):
+                    self._swarm_last_sequence = None
+                    self._swarm_last_mission_time = None
+                if self._swarm_last_sequence is not None and sequence <= self._swarm_last_sequence:
+                    raise ValueError("stale swarm sequence")
+                if self._swarm_last_mission_time is not None and mission_time < self._swarm_last_mission_time:
+                    raise ValueError("swarm mission time moved backwards")
+                dropped = 0 if self._swarm_last_sequence is None else max(
+                    0, sequence - self._swarm_last_sequence - 1)
+                self._swarm_last_sequence = sequence
+                self._swarm_last_mission_time = mission_time
+                packet = swarm_to_tactical_packet(packet)
+            else:
+                # A regular simulator mission begins a fresh sequence epoch.
+                # Reset only when its simulation-relative clock also restarts;
+                # ordinary duplicates and out-of-order UDP remain rejected.
+                sequence = packet.get("sequence")
+                mission_time = packet.get("mission_time_s")
+                if (self._tracker.last_sequence is not None
+                        and isinstance(sequence, int)
+                        and sequence <= self._tracker.last_sequence
+                        and isinstance(mission_time, (int, float))
+                        and self._tracker.last_mission_time_s is not None
+                        and mission_time < self._tracker.last_mission_time_s
+                        and mission_time <= 1.0):
+                    self._tracker = TacticalSequenceTracker()
+                dropped = self._tracker.accept(packet)
         except (ValueError, UnicodeDecodeError):
             self.stats.rejected += 1
             return None

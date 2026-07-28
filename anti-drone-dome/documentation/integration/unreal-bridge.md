@@ -53,6 +53,12 @@ Then launch the simulator pointing its telemetry at the bridge's listen port:
 python main.py --telemetry-udp 127.0.0.1:8787
 ```
 
+The canonical UE 5.8 presentation project is
+`unreal/AegisTacticalViewer/AegisTacticalViewer.uproject`. It binds only to
+`127.0.0.1:8788`, validates the bridge schema before displaying a track, and
+has no socket or code path back to Python. The saved local visual map is
+`/Game/Maps`; it is intentionally not a real-world georeference.
+
 `--echo` prints a per-packet geodetic summary; `--stats-interval N` reports
 received/forwarded/dropped/rejected counts every `N` forwarded packets.
 

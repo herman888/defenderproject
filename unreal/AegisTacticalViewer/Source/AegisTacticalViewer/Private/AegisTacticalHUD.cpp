@@ -1,0 +1,54 @@
+#include "AegisTacticalHUD.h"
+
+#include "AegisTacticalTelemetryManager.h"
+#include "AegisTacticalCameraActor.h"
+#include "Engine/Engine.h"
+#include "Kismet/GameplayStatics.h"
+#include "TacticalTelemetryComponent.h"
+
+void AAegisTacticalHUD::DrawHUD()
+{
+    Super::DrawHUD();
+
+    UFont* Font = GEngine != nullptr ? GEngine->GetSmallFont() : nullptr;
+    const FLinearColor HeaderColor(0.70f, 0.88f, 1.0f, 1.0f);
+    DrawText(TEXT("AEGIS TACTICAL VIEWER"), HeaderColor, 28.0f, 24.0f, Font, 1.35f);
+    DrawText(TEXT("DISPLAY ONLY  |  LOCAL UDP :8788  |  NO COMMAND PATH"),
+        FLinearColor(0.68f, 0.72f, 0.76f, 1.0f), 28.0f, 50.0f, Font, 0.85f);
+    const AAegisTacticalCameraActor* Camera = Cast<AAegisTacticalCameraActor>(
+        GetOwningPlayerController() != nullptr ? GetOwningPlayerController()->GetViewTarget() : nullptr);
+    DrawText(FString::Printf(TEXT("VIEW: %s  |  [C] CYCLE CAMERA"),
+        Camera != nullptr ? *Camera->GetPresentationModeLabel() : TEXT("INITIALIZING")),
+        FLinearColor(0.68f, 0.72f, 0.76f, 1.0f), 28.0f, 68.0f, Font, 0.78f);
+
+    const AAegisTacticalTelemetryManager* Manager = Cast<AAegisTacticalTelemetryManager>(
+        UGameplayStatics::GetActorOfClass(GetWorld(), AAegisTacticalTelemetryManager::StaticClass()));
+    const UTacticalTelemetryComponent* Telemetry = Manager != nullptr ? Manager->Telemetry : nullptr;
+    if (Telemetry == nullptr)
+    {
+        DrawText(TEXT("LINK: INITIALIZING"), FLinearColor::Yellow, 28.0f, 98.0f, Font, 1.1f);
+        return;
+    }
+
+    const FTacticalTelemetryHealth& Health = Telemetry->GetHealth();
+    const float WorldSeconds = GetWorld() != nullptr ? GetWorld()->GetTimeSeconds() : 0.0f;
+    const bool bStale = Health.IsStale(WorldSeconds);
+    const FLinearColor LinkColor = Health.ReceivedPackets == 0
+        ? FLinearColor::Yellow
+        : (bStale ? FLinearColor(1.0f, 0.55f, 0.10f, 1.0f) : FLinearColor(0.20f, 0.95f, 0.48f, 1.0f));
+    const FString Link = Health.ReceivedPackets == 0
+        ? TEXT("LINK: WAITING FOR LOCAL TELEMETRY")
+        : FString::Printf(TEXT("LINK: %s  |  AGE: %.2fs  |  LOSS: %lld  |  REJECTED: %lld"),
+            bStale ? TEXT("STALE") : TEXT("LIVE"), Health.PacketAgeSeconds(WorldSeconds),
+            Health.DroppedPackets, Health.RejectedPackets);
+    DrawText(Link, LinkColor, 28.0f, 98.0f, Font, 1.05f);
+
+    DrawText(FString::Printf(TEXT("MISSION TIME: %.1fs  |  SEQUENCE: %lld  |  STATUS: %s"),
+        Health.LastMissionTimeSeconds, Health.LastSequence, *Health.Status),
+        FLinearColor(0.82f, 0.86f, 0.90f, 1.0f), 28.0f, 124.0f, Font, 0.92f);
+    if (!Health.Site.IsEmpty())
+    {
+        DrawText(FString::Printf(TEXT("SITE: %s"), *Health.Site),
+            FLinearColor(0.70f, 0.74f, 0.78f, 1.0f), 28.0f, 146.0f, Font, 0.88f);
+    }
+}

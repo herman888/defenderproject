@@ -192,6 +192,15 @@ def test_process_datagram_rejects_stale_sequence():
     assert bridge.stats.rejected == 1
 
 
+def test_process_datagram_accepts_explicit_new_mission_epoch():
+    bridge = _bridge()
+    bridge.process_datagram(encode_tactical_packet(_valid_packet(5, 5.0)))
+    restarted = bridge.process_datagram(encode_tactical_packet(_valid_packet(0, 0.0)))
+    assert restarted is not None
+    assert restarted["sequence"] == 0
+    assert bridge.stats.rejected == 0
+
+
 def test_process_datagram_counts_upstream_gaps():
     bridge = _bridge()
     bridge.process_datagram(encode_tactical_packet(_valid_packet(0, 0.0)))

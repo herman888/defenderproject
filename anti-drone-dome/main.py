@@ -65,6 +65,7 @@ RENDER_BACKEND = "auto"
 INTEGRATED_C2 = True
 TELEMETRY_UDP = None
 TELEMETRY_RECORD = None
+DEMO_REPEAT = False
 HARDWARE_PROFILE = None
 MISSION_RECORD_DIR = os.path.join("missions", "runs")
 _SITL_ADDR  = "127.0.0.1"
@@ -470,6 +471,10 @@ def _run_one_mission(
         )
         if TELEMETRY_UDP else None
     )
+    if tactical_publisher is not None:
+        print(f"[telemetry] publishing tactical display packets to {TELEMETRY_UDP}")
+    else:
+        print("[telemetry] tactical display packets disabled")
 
     if INTEGRATED_C2:
         print(
@@ -1598,6 +1603,7 @@ def _mission_loop(state_q, ctrl_q, dash_proc, shared_state=None, state_lock=None
             if isinstance(current_intruder, str) and current_intruder.startswith("swarm:"):
                 _run_swarm_mission(
                     current_intruder.split(":", 1)[1],
+                    telemetry_udp=TELEMETRY_UDP,
                     state_q=state_q, ctrl_q=ctrl_q,
                 )
                 current_intruder = None
@@ -1658,6 +1664,12 @@ def _mission_loop(state_q, ctrl_q, dash_proc, shared_state=None, state_lock=None
                 time.sleep(4.0)
                 with state_lock:
                     shared_state.pop("debrief", None)
+
+            if DEMO_REPEAT:
+                # Continuous local presentation mode. The completed mission is
+                # still recorded; the next run starts after a short readable pause.
+                time.sleep(1.5)
+                continue
 
             current_intruder, current_pattern, chosen_speed, chosen_pad = \
                 _wait_for_mission(state_q, ctrl_q, dash_proc)
@@ -1984,7 +1996,7 @@ def _run_swarm_mission(scenario_id, *, telemetry_udp=None,
 def main():
     global USE_VISPY, USE_SITL, ML_MODEL, ML_ABSOLUTE_ACTIONS
     global USE_CAMERA_PERCEPTION, CAMERA_MODEL, ML_DEVICE, RENDER_BACKEND
-    global INTEGRATED_C2, TELEMETRY_UDP, TELEMETRY_RECORD
+    global INTEGRATED_C2, TELEMETRY_UDP, TELEMETRY_RECORD, DEMO_REPEAT
     global _SITL_ADDR, _SITL_PORT
     global HARDWARE_PROFILE, MISSION_RECORD_DIR
     mp.freeze_support()
@@ -2032,6 +2044,8 @@ def main():
                         help="Use separate 3-D and dashboard windows")
     parser.add_argument("--auto-start", action="store_true",
                         help="Immediately launch the default critical-site mission")
+    parser.add_argument("--demo-repeat", action="store_true",
+                        help="Repeat the auto-start tactical mission for a continuous local viewer demo")
     parser.add_argument(
         "--capture-ui-dir",
         help="Save live dashboard screenshots and state at T+3, T+8, and T+13",
@@ -2075,6 +2089,8 @@ def main():
             parser.error(str(exc))
     if args.telemetry_record and not args.telemetry_udp:
         parser.error("--telemetry-record requires --telemetry-udp")
+    if args.demo_repeat and not args.auto_start:
+        parser.error("--demo-repeat requires --auto-start")
     if args.swarm:
         raise SystemExit(_run_swarm_mission(args.swarm, telemetry_udp=args.telemetry_udp))
     if args.sitl and args.ml_model:
@@ -2113,6 +2129,7 @@ def main():
             )
     TELEMETRY_UDP = args.telemetry_udp
     TELEMETRY_RECORD = args.telemetry_record
+    DEMO_REPEAT = args.demo_repeat
     MISSION_RECORD_DIR = args.mission_record_dir
     USE_CAMERA_PERCEPTION = (
         INTEGRATED_C2 or args.camera_perception or bool(args.camera_model)

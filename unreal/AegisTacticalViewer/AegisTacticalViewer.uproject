@@ -1,0 +1,13 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.8",
+  "Category": "Simulation",
+  "Description": "Unreal presentation client for Defender Project tactical telemetry.",
+  "Modules": [
+    {
+      "Name": "AegisTacticalViewer",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
+}
