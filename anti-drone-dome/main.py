@@ -462,7 +462,10 @@ def _run_one_mission(
     world = PhysicsWorld(
         gui=pybullet_gui,
         site_config=site_config,
-        render_backend=RENDER_BACKEND,
+        # The external Unreal display does not request PyBullet camera
+        # captures.  Avoid acquiring a hidden OpenGL renderer in the Python
+        # process; that contention made the advertised mission rate misleading.
+        render_backend=("tiny" if EXTERNAL_VIEWER_ONLY else RENDER_BACKEND),
         # The packaged Unreal client renders the site. Keep the elevation
         # collision mesh authoritative, but skip duplicate OSM static bodies.
         include_site_features=not EXTERNAL_VIEWER_ONLY,
@@ -517,6 +520,12 @@ def _run_one_mission(
         print(
             "\n  ▶▶  Integrated command center active — physics and 3-D site view "
             "are fused into the dashboard.\n",
+            flush=True,
+        )
+    elif EXTERNAL_VIEWER_ONLY:
+        print(
+            "\n  ▶▶  External Unreal tactical viewer active — use Space, R, "
+            "C, or 1/2/4/8 there for display-only simulation controls.\n",
             flush=True,
         )
     else:
@@ -615,7 +624,13 @@ def _run_one_mission(
     cam_zoom_ui = CameraZoomDebugUi(world.client) if pybullet_gui else None
 
     waypoints = get_waypoints_for_path(pattern["path"])
-    nav     = WaypointNavigator(waypoints=waypoints)
+    # A fixed-wing airframe cannot credibly stop at a 1.5 m waypoint.  Route
+    # it through a 75 m navigation corridor so it maintains cruise through
+    # turns; multirotors retain precise waypoint capture.
+    nav     = WaypointNavigator(
+        waypoints=waypoints,
+        proximity_threshold=75.0 if intruder._fixed_wing else 1.5,
+    )
     radar   = RadarNode(
         station_pos      = (0.0, 0.0, 10.0),   # dome centre — matches 3-D GLB model
         protected_center = _DOME_CENTER,
@@ -760,6 +775,8 @@ def _run_one_mission(
 
     if INTEGRATED_C2:
         print("SIMULATION STARTED — use the command-center controls to manage the mission\n")
+    elif EXTERNAL_VIEWER_ONLY:
+        print("SIMULATION STARTED — Unreal is the display client; press H there for controls\n")
     else:
         print("SIMULATION STARTED — press H in the PyBullet window for keyboard help\n")
 

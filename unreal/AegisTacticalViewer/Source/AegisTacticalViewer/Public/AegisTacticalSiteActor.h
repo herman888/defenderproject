@@ -16,6 +16,8 @@ class AEGISTACTICALVIEWER_API AAegisTacticalSiteActor : public AActor
 public:
     AAegisTacticalSiteActor();
 
+    virtual void Tick(float DeltaSeconds) override;
+
 private:
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UStaticMeshComponent> SitePad;
@@ -25,6 +27,9 @@ private:
 
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UStaticMeshComponent> SensorDome;
+
+    UPROPERTY(VisibleAnywhere)
+    TObjectPtr<UStaticMeshComponent> RadarAntenna;
 
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UStaticMeshComponent> PerimeterMarker;

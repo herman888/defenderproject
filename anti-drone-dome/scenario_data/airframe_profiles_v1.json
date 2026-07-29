@@ -18,6 +18,8 @@
       },
       "propulsion": {
         "max_speed_mps": 51.0,
+        "cruise_speed_mps": 51.0,
+        "cruise_response_time_s": 3.5,
         "max_horizontal_force_n": 1600.0,
         "vertical_force_min_n": -900.0,
         "vertical_force_max_n": 2300.0,

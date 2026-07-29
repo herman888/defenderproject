@@ -153,11 +153,16 @@ class Drone:
         self._rotor_joints = self._find_rotor_joints()
         try:
             if profile:
+                # Profile-driven vehicle drag is applied explicitly by this
+                # controller. Disable Bullet's implicit per-tick damping so
+                # the displayed speed matches the configured envelope.
                 pybullet.changeDynamics(
                     self._body,
                     -1,
                     mass=float(rigid_body["mass_kg"]),
                     localInertiaDiagonal=list(rigid_body["inertia_kg_m2"]),
+                    linearDamping=0.0,
+                    angularDamping=0.0,
                     physicsClientId=self._client,
                 )
             mass = float(
@@ -542,6 +547,21 @@ class LoiteringMunition:
         self._max_spd    = profile_propulsion.get(
             "max_speed_mps", cfg.get("max_speed", 51.0)
         )
+        flight_envelope = profile.get("flight_envelope", {}) if profile else {}
+        # Fixed-wing profiles need an explicit commanded cruise speed.  A
+        # maximum-speed cap alone lets a position controller slow the aircraft
+        # almost to a hover near each waypoint, which is not a credible model
+        # for this vehicle class.
+        self._fixed_wing = bool(flight_envelope.get("fixed_wing", False))
+        self._cruise_speed = float(profile_propulsion.get(
+            "cruise_speed_mps", self._max_spd if self._fixed_wing else 0.0
+        ))
+        self._cruise_response_time_s = float(profile_propulsion.get(
+            "cruise_response_time_s", 3.5
+        ))
+        self._max_lateral_accel_mps2 = 9.81 * float(
+            flight_envelope.get("max_lateral_accel_g", float("inf"))
+        )
         self._kp         = kp
         self._kd         = kd
         self._mass       = (
@@ -607,11 +627,17 @@ class LoiteringMunition:
             except Exception:
                 continue
         if profile:
+            # Bullet's default linear damping is applied every 240 Hz tick and
+            # silently caps this 200 kg profile near 14 m/s despite a 1,600 N
+            # command. Aerodynamic drag is modelled explicitly in
+            # _compute_forces, so disable the engine's extra hidden damping.
             pybullet.changeDynamics(
                 self._body,
                 -1,
                 mass=self._mass,
                 localInertiaDiagonal=list(profile["rigid_body"]["inertia_kg_m2"]),
+                linearDamping=0.0,
+                angularDamping=0.0,
                 physicsClientId=self._client,
             )
 
@@ -735,22 +761,39 @@ class LoiteringMunition:
     def _compute_forces(self, pos, vel):
         err = [self._target[i] - pos[i] for i in range(3)]
         vx, vy, vz = vel[0], vel[1], vel[2]
-        # PD with velocity damping (same structure as interceptor VTOL)
-        fx = self._kp * err[0] - self._kd * vx
-        fy = self._kp * err[1] - self._kd * vy
-        fz = self._kp * err[2] - self._kd * vz + 9.81 * self._mass
-        self._prev_error = err[:]
-
+        # Fixed-wing profiles track a course and a cruise-speed command.
+        # Quadrotors retain the legacy position controller below.  The desired
+        # velocity is deliberately rate-limited by the airframe force and g
+        # limits further down, so this is still a physics-driven turn rather
+        # than a teleport or direct position update.
+        horizontal_error = np.asarray(err[:2], dtype=float)
+        horizontal_distance = float(np.linalg.norm(horizontal_error))
+        if self._fixed_wing and horizontal_distance > 1e-3:
+            desired_direction = horizontal_error / horizontal_distance
+            desired_velocity = desired_direction * self._cruise_speed
+            current_velocity = np.asarray([vx, vy], dtype=float)
+            desired_accel = (
+                desired_velocity - current_velocity
+            ) / max(self._cruise_response_time_s, _TIMESTEP)
+            accel_magnitude = float(np.linalg.norm(desired_accel))
+            max_accel = min(
+                self._max_h / max(self._mass, 1e-6),
+                self._max_lateral_accel_mps2,
+            )
+            if accel_magnitude > max_accel:
+                desired_accel *= max_accel / accel_magnitude
+            fx, fy = (self._mass * desired_accel).tolist()
+        else:
+            # PD with velocity damping (same structure as interceptor VTOL).
+            fx = self._kp * err[0] - self._kd * vx
+            fy = self._kp * err[1] - self._kd * vy
         speed = math.sqrt(sum(v*v for v in vel))
 
-        # Aerodynamic drag
-        if speed > 0.5:
-            drag = 0.5 * _RHO * self._cd * self._a_drag * speed * speed
-            fx  -= drag * vel[0] / speed
-            fy  -= drag * vel[1] / speed
-            fz  -= drag * vel[2] / speed
-
-        # Wing lift (zero for pure-thrust quadrotors where cl=0).
+        # Compute lift before vertical control so the controller balances the
+        # wing at cruise.  The old controller added gravity compensation *and*
+        # lift, which made the representative fixed-wing profile climb rather
+        # than hold its commanded route altitude.
+        wing_lift = 0.0
         if self._cl > 0.01:
             v_fwd = math.sqrt(vel[0]**2 + vel[1]**2)
             effective_cl = self._cl
@@ -770,9 +813,23 @@ class LoiteringMunition:
                     )
                 if self._stall_speed > 0.0 and v_fwd < self._stall_speed:
                     effective_cl *= (v_fwd / self._stall_speed) ** 2
-            fz += (
+            wing_lift = (
                 0.5 * _RHO * effective_cl * self._a_wing * v_fwd * v_fwd
             )
+
+        fz = self._kp * err[2] - self._kd * vz + 9.81 * self._mass - wing_lift
+        self._prev_error = err[:]
+
+        # Aerodynamic drag
+        if speed > 0.5:
+            drag = 0.5 * _RHO * self._cd * self._a_drag * speed * speed
+            fx  -= drag * vel[0] / speed
+            fy  -= drag * vel[1] / speed
+            fz  -= drag * vel[2] / speed
+
+        # Wing lift (zero for pure-thrust quadrotors where cl=0).  Vertical
+        # control above already subtracts this value to hold route altitude.
+        fz += wing_lift
 
         # Force caps
         h_mag = math.sqrt(fx*fx + fy*fy)

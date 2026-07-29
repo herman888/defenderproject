@@ -86,33 +86,36 @@ void AAegisTacticalCameraActor::Tick(float DeltaSeconds)
     const FVector GroundFocus(TrackFocus.X, TrackFocus.Y, 0.0f);
     const FVector Focus = PresentationMode == 1
         ? FMath::Lerp(GroundFocus, TrackFocus, 0.48f) : TrackFocus;
+    // The earlier 220 m default read as a terrain flyover and made aircraft
+    // silhouettes too small. Start with a close tactical-replay frame, then
+    // expand only enough to keep both tracks visible during an engagement.
     FVector Direction(-0.70f, -0.70f, 0.34f);
-    float BaseDistance = 22000.0f;
+    float BaseDistance = 7000.0f;
     if (PresentationMode == 1)
     {
         Direction = FVector(-0.22f, -0.22f, 0.95f);
-        BaseDistance = 45000.0f;
+        BaseDistance = 32000.0f;
         Camera->SetFieldOfView(66.0f);
     }
     else if (PresentationMode == 2)
     {
         const FVector ChaseVelocity = (bHasInterceptor ? InterceptorVelocity : IntruderVelocity).GetSafeNormal();
         Direction = (ChaseVelocity.IsNearlyZero() ? FVector(-1.0f, -1.0f, 0.35f) : -ChaseVelocity + FVector(0.0f, 0.0f, 0.28f)).GetSafeNormal();
-        BaseDistance = 14500.0f;
+        BaseDistance = 7000.0f;
         Camera->SetFieldOfView(62.0f);
     }
     else if (PresentationMode == 3)
     {
         const float Angle = PresentationSeconds * 0.16f;
         Direction = FVector(FMath::Cos(Angle), FMath::Sin(Angle), 0.46f).GetSafeNormal();
-        BaseDistance = 28000.0f;
+        BaseDistance = 16000.0f;
         Camera->SetFieldOfView(65.0f);
     }
     else
     {
-        Camera->SetFieldOfView(60.0f);
+        Camera->SetFieldOfView(54.0f);
     }
-    const float Distance = FMath::Clamp(BaseDistance + Separation * 0.45f, 12000.0f, 85000.0f);
+    const float Distance = FMath::Clamp(BaseDistance + Separation * 0.35f, 5500.0f, 50000.0f);
     const FVector DesiredLocation = Focus + Direction * Distance;
     const FRotator DesiredRotation = UKismetMathLibrary::FindLookAtRotation(
         DesiredLocation, Focus);
