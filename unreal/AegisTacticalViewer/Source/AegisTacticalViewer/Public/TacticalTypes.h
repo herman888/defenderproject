@@ -25,6 +25,10 @@ struct FTacticalTelemetryHealth
     int64 LastSequence = -1;
     double LastMissionTimeSeconds = -1.0;
     float LastReceiveWorldSeconds = -BIG_NUMBER;
+    double RequestedSimulationRate = 1.0;
+    double AchievedRealtimeFactor = 0.0;
+    double InterceptorSpeedCapMps = 0.0;
+    FString InterceptorProfileEvidence = TEXT("UNKNOWN");
     FString Status = TEXT("WAITING");
     FString Site = TEXT("LOCAL");
 

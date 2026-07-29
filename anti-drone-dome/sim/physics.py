@@ -20,9 +20,19 @@ _GRID_MAJOR = 200   # major grid every 200 m (matches dome boundary)
 
 
 class PhysicsWorld:
-    def __init__(self, gui=True, site_config=None, render_backend="auto"):
+    def __init__(
+        self,
+        gui=True,
+        site_config=None,
+        render_backend="auto",
+        include_site_features=True,
+    ):
         self._gui = gui
         self._site_config = site_config
+        # Unreal renders the presentation world itself. In its external-viewer
+        # mode, Python still owns terrain collision but need not build a
+        # duplicate static OSM collision scene.
+        self._include_site_features = bool(include_site_features)
         map_config = (site_config or {}).get("map", {})
         self._elevation_grid = load_elevation_grid(
             map_config.get("elevation_cache")
@@ -93,7 +103,8 @@ class PhysicsWorld:
             physicsClientId=self.client,
         )
 
-        self._draw_real_map()
+        if self._include_site_features:
+            self._draw_real_map()
         self._draw_protected_assets()
         if self._gui:
             self._draw_grid()

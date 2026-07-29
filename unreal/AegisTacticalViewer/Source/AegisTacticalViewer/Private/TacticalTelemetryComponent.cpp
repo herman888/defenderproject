@@ -206,6 +206,7 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
     double Sequence = -1.0;
     double MissionTime = -1.0;
     const TSharedPtr<FJsonObject>* Tracks = nullptr;
+    const TSharedPtr<FJsonObject>* Simulation = nullptr;
     if (!ReadRequiredString(Root, TEXT("schema"), Schema)
         || Schema != TEXT("aegis.tactical.v1")
         || !ReadRequiredString(Root, TEXT("bridge_schema"), BridgeSchema)
@@ -222,6 +223,25 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
         ++Health.RejectedPackets;
         RejectedPacketCount = static_cast<int32>(Health.RejectedPackets);
         return false;
+    }
+
+    double RequestedRate = 1.0;
+    double AchievedRealtimeFactor = 0.0;
+    double InterceptorSpeedCap = 0.0;
+    FString InterceptorProfileEvidence = TEXT("UNKNOWN");
+    if (Root->TryGetObjectField(TEXT("simulation"), Simulation)
+        && Simulation != nullptr && Simulation->IsValid())
+    {
+        if (!ReadFiniteNumber(*Simulation, TEXT("requested_rate"), RequestedRate)
+            || !ReadFiniteNumber(*Simulation, TEXT("achieved_realtime_factor"), AchievedRealtimeFactor)
+            || !ReadFiniteNumber(*Simulation, TEXT("interceptor_speed_cap_mps"), InterceptorSpeedCap)
+            || !ReadRequiredString(*Simulation, TEXT("interceptor_profile_evidence"), InterceptorProfileEvidence)
+            || RequestedRate <= 0.0 || AchievedRealtimeFactor < 0.0 || InterceptorSpeedCap <= 0.0)
+        {
+            ++Health.RejectedPackets;
+            RejectedPacketCount = static_cast<int32>(Health.RejectedPackets);
+            return false;
+        }
     }
 
     const int64 PacketSequence = FMath::RoundToInt64(Sequence);
@@ -295,6 +315,10 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
     Health.LastReceiveWorldSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
     Health.Status = Status;
     Health.Site = Site;
+    Health.RequestedSimulationRate = RequestedRate;
+    Health.AchievedRealtimeFactor = AchievedRealtimeFactor;
+    Health.InterceptorSpeedCapMps = InterceptorSpeedCap;
+    Health.InterceptorProfileEvidence = InterceptorProfileEvidence;
     ++Health.ForwardedPackets;
 
     UpdateTrack(Intruder);

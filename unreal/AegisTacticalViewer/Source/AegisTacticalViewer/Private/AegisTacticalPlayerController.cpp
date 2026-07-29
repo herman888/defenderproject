@@ -1,13 +1,40 @@
 #include "AegisTacticalPlayerController.h"
 
 #include "AegisTacticalCameraActor.h"
+#include "Common/UdpSocketBuilder.h"
 #include "InputCoreTypes.h"
+#include "Interfaces/IPv4/IPv4Address.h"
+#include "SocketSubsystem.h"
+#include "Sockets.h"
 
 void AAegisTacticalPlayerController::SetupInputComponent()
 {
     Super::SetupInputComponent();
     InputComponent->BindKey(EKeys::C, IE_Pressed, this,
         &AAegisTacticalPlayerController::CycleCameraPresentation);
+    InputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this,
+        &AAegisTacticalPlayerController::ToggleSimulationPause);
+    InputComponent->BindKey(EKeys::R, IE_Pressed, this,
+        &AAegisTacticalPlayerController::RestartSimulation);
+    InputComponent->BindKey(EKeys::One, IE_Pressed, this,
+        &AAegisTacticalPlayerController::SetSimulationRate1x);
+    InputComponent->BindKey(EKeys::Two, IE_Pressed, this,
+        &AAegisTacticalPlayerController::SetSimulationRate2x);
+    InputComponent->BindKey(EKeys::Four, IE_Pressed, this,
+        &AAegisTacticalPlayerController::SetSimulationRate4x);
+    InputComponent->BindKey(EKeys::Eight, IE_Pressed, this,
+        &AAegisTacticalPlayerController::SetSimulationRate8x);
+}
+
+void AAegisTacticalPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (ControlSocket != nullptr)
+    {
+        ControlSocket->Close();
+        ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(ControlSocket);
+        ControlSocket = nullptr;
+    }
+    Super::EndPlay(EndPlayReason);
 }
 
 void AAegisTacticalPlayerController::CycleCameraPresentation()
@@ -15,5 +42,55 @@ void AAegisTacticalPlayerController::CycleCameraPresentation()
     if (AAegisTacticalCameraActor* Camera = Cast<AAegisTacticalCameraActor>(GetViewTarget()))
     {
         Camera->CyclePresentationMode();
+    }
+}
+
+void AAegisTacticalPlayerController::ToggleSimulationPause()
+{
+    SendLocalSimulationCommand(TEXT("{\"schema\":\"aegis.local-sim-control.v1\",\"action\":\"pause_toggle\"}"),
+        TEXT("LOCAL SIM: PAUSE/RESUME REQUESTED"));
+}
+
+void AAegisTacticalPlayerController::RestartSimulation()
+{
+    SendLocalSimulationCommand(TEXT("{\"schema\":\"aegis.local-sim-control.v1\",\"action\":\"restart\"}"),
+        TEXT("LOCAL SIM: RESTART REQUESTED"));
+}
+
+void AAegisTacticalPlayerController::SetSimulationRate1x() { SetSimulationRate(1.0); }
+void AAegisTacticalPlayerController::SetSimulationRate2x() { SetSimulationRate(2.0); }
+void AAegisTacticalPlayerController::SetSimulationRate4x() { SetSimulationRate(4.0); }
+void AAegisTacticalPlayerController::SetSimulationRate8x() { SetSimulationRate(8.0); }
+
+void AAegisTacticalPlayerController::SetSimulationRate(const double Rate)
+{
+    SendLocalSimulationCommand(FString::Printf(
+        TEXT("{\"schema\":\"aegis.local-sim-control.v1\",\"action\":\"set_speed\",\"speed\":%.1f}"), Rate),
+        FString::Printf(TEXT("LOCAL SIM: %.0fx REQUESTED"), Rate));
+}
+
+void AAegisTacticalPlayerController::SendLocalSimulationCommand(
+    const FString& Json, const FString& Label)
+{
+    if (ControlSocket == nullptr)
+    {
+        ControlSocket = FUdpSocketBuilder(TEXT("AegisLocalSimulationControls"))
+            .AsNonBlocking()
+            .AsReusable();
+    }
+    bool bValidAddress = false;
+    TSharedRef<FInternetAddr> Endpoint = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+    Endpoint->SetIp(TEXT("127.0.0.1"), bValidAddress);
+    Endpoint->SetPort(8789);
+    int32 BytesSent = 0;
+    FTCHARToUTF8 Payload(*Json);
+    if (ControlSocket != nullptr && bValidAddress
+        && ControlSocket->SendTo(reinterpret_cast<const uint8*>(Payload.Get()), Payload.Length(), BytesSent, *Endpoint))
+    {
+        LastLocalCommand = Label;
+    }
+    else
+    {
+        LastLocalCommand = TEXT("LOCAL SIM CONTROL OFFLINE — START THE DEMO LAUNCHER");
     }
 }

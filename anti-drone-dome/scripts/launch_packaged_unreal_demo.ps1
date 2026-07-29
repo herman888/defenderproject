@@ -33,7 +33,8 @@ Start-Process -FilePath $python -ArgumentList @(
     -RedirectStandardError (Join-Path $logRoot 'unreal-bridge-live.error.log')
 
 Start-Process -FilePath $python -ArgumentList @(
-    'main.py', '--auto-start', '--demo-repeat', '--telemetry-udp', '127.0.0.1:8787',
+    'main.py', '--auto-start', '--auto-start-speed', '4', '--demo-repeat',
+    '--external-viewer-only', '--sim-control-udp', '127.0.0.1:8789', '--telemetry-udp', '127.0.0.1:8787',
     '--telemetry-record', 'missions\renderer\unreal-demo.jsonl'
 ) -WorkingDirectory $demoRoot -WindowStyle Hidden `
     -RedirectStandardOutput (Join-Path $logRoot 'simulator-live.log') `

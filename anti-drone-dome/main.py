@@ -65,13 +65,28 @@ RENDER_BACKEND = "auto"
 INTEGRATED_C2 = True
 TELEMETRY_UDP = None
 TELEMETRY_RECORD = None
+SIM_CONTROL_UDP = None
 DEMO_REPEAT = False
+EXTERNAL_VIEWER_ONLY = False
 HARDWARE_PROFILE = None
 MISSION_RECORD_DIR = os.path.join("missions", "runs")
 _SITL_ADDR  = "127.0.0.1"
 _SITL_PORT  = 14560
 # Setpoint send interval in physics steps (240 Hz ÷ 20 Hz = every 12 steps)
 _SITL_SEND_INTERVAL = 12
+
+
+class _ExternalViewerOnlyDashboard:
+    """Keeps the mission loop alive when Unreal is the sole local UI."""
+
+    def is_alive(self) -> bool:
+        return True
+
+    def join(self, timeout=None) -> None:
+        del timeout
+
+    def terminate(self) -> None:
+        return None
 
 from sim.physics         import PhysicsWorld
 from sim.camera_debug_ui import CameraZoomDebugUi
@@ -91,8 +106,10 @@ from scenarios      import (INTRUDER_TYPES, ATTACK_PATTERNS, PAD_OFFSETS,
                             get_waypoints_for_path)
 from viz.acmi_writer import ACMIWriter
 from integration.tactical_stream import TacticalUdpPublisher, UdpEndpoint
+from integration.local_sim_control import LocalSimulationControlReceiver
 from integration.mission_record import MissionRecorder
 from hardware.profile import load_hardware_profile
+from sim.airframe_profiles import get_airframe_profile
 
 # ── Global constants ──────────────────────────────────────────────────
 _TIMESTEP     = 1.0 / 240.0
@@ -434,11 +451,21 @@ def _run_one_mission(
 
     # ── PyBullet world ────────────────────────────────────────────────
     site_config = get_site_config()
-    pybullet_gui = not USE_VISPY and not INTEGRATED_C2
+    # The packaged Unreal viewer is the only presentation layer in external
+    # mode.  Do not leave an invisible PyBullet OpenGL window rendering in the
+    # background: it makes the nominal simulation rate misleadingly slow.
+    pybullet_gui = (
+        not USE_VISPY
+        and not INTEGRATED_C2
+        and not EXTERNAL_VIEWER_ONLY
+    )
     world = PhysicsWorld(
         gui=pybullet_gui,
         site_config=site_config,
         render_backend=RENDER_BACKEND,
+        # The packaged Unreal client renders the site. Keep the elevation
+        # collision mesh authoritative, but skip duplicate OSM static bodies.
+        include_site_features=not EXTERNAL_VIEWER_ONLY,
     )
     if pybullet_gui:
         world.draw_dome(_DOME_CENTER, _DOME_RADIUS, color=[0.0, 0.6, 0.1])
@@ -475,6 +502,16 @@ def _run_one_mission(
         print(f"[telemetry] publishing tactical display packets to {TELEMETRY_UDP}")
     else:
         print("[telemetry] tactical display packets disabled")
+
+    local_control = None
+    if SIM_CONTROL_UDP:
+        try:
+            endpoint = UdpEndpoint.parse(SIM_CONTROL_UDP)
+            local_control = LocalSimulationControlReceiver(endpoint.host, endpoint.port)
+            local_control.bind()
+            print(f"[sim-control] loopback-only viewer controls listening on {SIM_CONTROL_UDP}")
+        except (OSError, ValueError) as exc:
+            print(f"[sim-control] disabled: {exc}")
 
     if INTEGRATED_C2:
         print(
@@ -557,6 +594,7 @@ def _run_one_mission(
         global_scaling=1.8,
         airframe_profile_id="interceptor.reference-v1",
     )
+    interceptor_profile = get_airframe_profile("interceptor.reference-v1")
 
     for _ in range(50):
         world.step()
@@ -714,6 +752,12 @@ def _run_one_mission(
     _dash_push_count   = 0
     _dash_push_window  = time.perf_counter()
 
+    if EXTERNAL_VIEWER_ONLY:
+        # There is no Qt dashboard process consuming this queue in packaged
+        # viewer mode. Avoid the duplicate 60 Hz state serialization path;
+        # the external tactical JSONL stream remains the replay record.
+        _last_dash_push = float("inf")
+
     if INTEGRATED_C2:
         print("SIMULATION STARTED — use the command-center controls to manage the mission\n")
     else:
@@ -723,6 +767,17 @@ def _run_one_mission(
     # Physics loop
     # ================================================================
     while True:
+
+        if local_control is not None:
+            for command in local_control.drain():
+                if command["action"] == "pause_toggle":
+                    paused = not paused
+                    pending_events.append("Simulation paused" if paused else "Simulation resumed")
+                elif command["action"] == "restart":
+                    mission_result = "RESTART"
+                elif command["action"] == "set_speed":
+                    sim_speed = command["speed"]
+                    pending_events.append(f"Presentation speed {sim_speed:.0f}x")
 
         # ── Dashboard control drain ──────────────────────────────────
         while True:
@@ -842,7 +897,9 @@ def _run_one_mission(
             break
 
         # ── Determine physics sub-steps this iteration ────────────────
-        inner_steps  = max(1, min(round(sim_speed), 5))  # cap substeps — reduces CPU at 8×
+        # Rates are integer simulation-time multipliers. Do not cap 8x at
+        # five steps: the old UI label could overstate the actual rate.
+        inner_steps  = max(1, int(sim_speed))
         slow_sleep   = max(0.0, _TIMESTEP * (1.0 / sim_speed - 1.0)) if sim_speed < 1 else 0.0
 
         # Wind update every ~2 sim seconds
@@ -858,8 +915,13 @@ def _run_one_mission(
         guidance_track = radar.get_last_track()
 
         # ── Inner physics sub-steps ───────────────────────────────────
-        # Radar scan and guidance are re-computed every physics step so that
-        # detection hit-count and APN force stay accurate at all sim speeds.
+        # Physics continues at 240 Hz. Sensor fusion is sampled at the radar's
+        # configured dwell cadence (60 Hz in the supplied scenario), which is
+        # both more realistic than a fresh sensor frame per physics tick and
+        # keeps the presentation demo responsive.
+        sensor_update_steps = max(
+            1, int(environment.get("radar_dwell_steps", 1))
+        )
         for _sub in range(inner_steps):
             nav.update(intruder.get_position())
             intruder.set_target(*nav.get_current_target())
@@ -907,22 +969,23 @@ def _run_one_mission(
                     "source": "camera",
                     "injected_failure": True,
                 }
-            fused_track = fusion.update(
-                radar_return,
-                camera_return,
-                radar.track_confidence(),
-                step * _TIMESTEP,
-            )
-            guidance_track = fused_track
-            if guidance_track is None and not dash_ctrl.get("radar_failure"):
-                guidance_track = radar.get_last_track()
-            if (
-                fused_track
-                and fused_track.get("source") == "RADAR+EO"
-                and not fusion_confirmed
-            ):
-                fusion_confirmed = True
-                pending_events.append("Radar/EO fusion confirmed")
+            if step % sensor_update_steps == 0:
+                fused_track = fusion.update(
+                    radar_return,
+                    camera_return,
+                    radar.track_confidence(),
+                    step * _TIMESTEP,
+                )
+                guidance_track = fused_track
+                if guidance_track is None and not dash_ctrl.get("radar_failure"):
+                    guidance_track = radar.get_last_track()
+                if (
+                    fused_track
+                    and fused_track.get("source") == "RADAR+EO"
+                    and not fusion_confirmed
+                ):
+                    fusion_confirmed = True
+                    pending_events.append("Radar/EO fusion confirmed")
 
             # Build interceptor setpoint:
             #   engaged       → guidance setpoint (vel+accel mid-course, accel terminal)
@@ -1323,6 +1386,18 @@ def _run_one_mission(
                                 if fused_track else "SEARCHING"
                             ),
                         },
+                        "simulation": {
+                            "requested_rate": float(sim_speed),
+                            "achieved_realtime_factor": float(sim_time / max(
+                                time.time() - sim_start, 1e-6
+                            )),
+                            "interceptor_speed_cap_mps": float(
+                                interceptor_profile["propulsion"]["max_speed_mps"]
+                            ),
+                            "interceptor_profile_evidence": interceptor_profile[
+                                "evidence"
+                            ]["status"],
+                        },
                     })
                 except OSError as exc:
                     print(f"[telemetry] UDP stream disabled after send error: {exc}")
@@ -1436,6 +1511,8 @@ def _run_one_mission(
     acmi.close()
     if tactical_publisher is not None:
         tactical_publisher.close()
+    if local_control is not None:
+        local_control.close()
     if sitl_bridge is not None:
         sitl_bridge.close()
 
@@ -1996,7 +2073,8 @@ def _run_swarm_mission(scenario_id, *, telemetry_udp=None,
 def main():
     global USE_VISPY, USE_SITL, ML_MODEL, ML_ABSOLUTE_ACTIONS
     global USE_CAMERA_PERCEPTION, CAMERA_MODEL, ML_DEVICE, RENDER_BACKEND
-    global INTEGRATED_C2, TELEMETRY_UDP, TELEMETRY_RECORD, DEMO_REPEAT
+    global INTEGRATED_C2, TELEMETRY_UDP, TELEMETRY_RECORD, SIM_CONTROL_UDP, DEMO_REPEAT
+    global EXTERNAL_VIEWER_ONLY
     global _SITL_ADDR, _SITL_PORT
     global HARDWARE_PROFILE, MISSION_RECORD_DIR
     mp.freeze_support()
@@ -2044,8 +2122,20 @@ def main():
                         help="Use separate 3-D and dashboard windows")
     parser.add_argument("--auto-start", action="store_true",
                         help="Immediately launch the default critical-site mission")
+    parser.add_argument(
+        "--auto-start-speed", type=float, choices=(1.0, 2.0, 4.0, 8.0), default=1.0,
+        help="Requested simulation-time rate for --auto-start (default: 1x)",
+    )
     parser.add_argument("--demo-repeat", action="store_true",
                         help="Repeat the auto-start tactical mission for a continuous local viewer demo")
+    parser.add_argument(
+        "--external-viewer-only", action="store_true",
+        help="Use an external display client only; do not start the Qt command center",
+    )
+    parser.add_argument(
+        "--sim-control-udp", metavar="HOST:PORT",
+        help="Loopback-only local simulation controls for an external viewer",
+    )
     parser.add_argument(
         "--capture-ui-dir",
         help="Save live dashboard screenshots and state at T+3, T+8, and T+13",
@@ -2091,6 +2181,13 @@ def main():
         parser.error("--telemetry-record requires --telemetry-udp")
     if args.demo_repeat and not args.auto_start:
         parser.error("--demo-repeat requires --auto-start")
+    if args.sim_control_udp:
+        try:
+            endpoint = UdpEndpoint.parse(args.sim_control_udp)
+        except (ValueError, TypeError) as exc:
+            parser.error(str(exc))
+        if endpoint.host not in {"127.0.0.1", "localhost"}:
+            parser.error("--sim-control-udp must use 127.0.0.1 or localhost")
     if args.swarm:
         raise SystemExit(_run_swarm_mission(args.swarm, telemetry_udp=args.telemetry_udp))
     if args.sitl and args.ml_model:
@@ -2108,7 +2205,8 @@ def main():
         parser.error(
             "--sitl requires a SITL profile using the MAVLink protocol"
         )
-    INTEGRATED_C2 = not args.legacy_windows
+    EXTERNAL_VIEWER_ONLY = bool(args.external_viewer_only)
+    INTEGRATED_C2 = not args.legacy_windows and not EXTERNAL_VIEWER_ONLY
     USE_VISPY  = not args.no_vispy and args.legacy_windows
     USE_SITL   = args.sitl
     _SITL_ADDR = args.sitl_addr
@@ -2129,6 +2227,7 @@ def main():
             )
     TELEMETRY_UDP = args.telemetry_udp
     TELEMETRY_RECORD = args.telemetry_record
+    SIM_CONTROL_UDP = args.sim_control_udp
     DEMO_REPEAT = args.demo_repeat
     MISSION_RECORD_DIR = args.mission_record_dir
     USE_CAMERA_PERCEPTION = (
@@ -2138,19 +2237,22 @@ def main():
     state_q = mp.Queue(maxsize=2)
     ctrl_q  = mp.Queue(maxsize=20)
 
-    dash_proc = mp.Process(
-        target=_dashboard_worker,
-        args=(state_q, ctrl_q, _DOME_RADIUS, args.capture_ui_dir),
-        daemon=True,
-        name="dashboard",
-    )
-    dash_proc.start()
+    if args.external_viewer_only:
+        dash_proc = _ExternalViewerOnlyDashboard()
+    else:
+        dash_proc = mp.Process(
+            target=_dashboard_worker,
+            args=(state_q, ctrl_q, _DOME_RADIUS, args.capture_ui_dir),
+            daemon=True,
+            name="dashboard",
+        )
+        dash_proc.start()
     if args.auto_start:
         ctrl_q.put({
             "selected_mission": "shahed136",
             "selected_pattern": "direct",
             "selected_pad": "mid",
-            "initial_speed": 1.0,
+            "initial_speed": args.auto_start_speed,
             "paused": False,
             "stopped": False,
         })

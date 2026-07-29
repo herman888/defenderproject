@@ -2,6 +2,7 @@
 
 #include "AegisTacticalTelemetryManager.h"
 #include "AegisTacticalCameraActor.h"
+#include "AegisTacticalPlayerController.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Kismet/GameplayStatics.h"
@@ -73,7 +74,7 @@ void AAegisTacticalHUD::DrawHUD()
     const bool bHasIntruder = Telemetry->GetLatestSnapshot(TEXT("intruder"), Intruder);
     const bool bHasInterceptor = Telemetry->GetLatestSnapshot(TEXT("interceptor"), Interceptor);
     const float PanelX = Canvas != nullptr ? Canvas->SizeX - 376.0f : 1500.0f;
-    DrawRect(FLinearColor(0.005f, 0.018f, 0.035f, 0.78f), PanelX, 14.0f, 360.0f, 204.0f);
+    DrawRect(FLinearColor(0.005f, 0.018f, 0.035f, 0.78f), PanelX, 14.0f, 360.0f, 244.0f);
     DrawRect(StatusColor(Health.Status), PanelX, 14.0f, 360.0f, 2.0f);
     DrawText(TEXT("LIVE TACTICAL DATA"), HeaderColor, PanelX + 16.0f, 24.0f, Font, 1.05f);
     DrawText(FString::Printf(TEXT("STATE: %s"), *Health.Status), StatusColor(Health.Status),
@@ -106,4 +107,20 @@ void AAegisTacticalHUD::DrawHUD()
     }
     DrawText(TEXT("SOURCE: VALIDATED PYTHON TELEMETRY"), FLinearColor(0.38f, 0.76f, 0.74f, 0.85f),
         PanelX + 16.0f, 190.0f, Font, 0.70f);
+    DrawText(FString::Printf(TEXT("SIM RATE  %.0fx REQUESTED  |  %.2fx ACHIEVED"),
+        Health.RequestedSimulationRate, Health.AchievedRealtimeFactor),
+        FLinearColor(0.56f, 0.82f, 0.95f, 1.0f), PanelX + 16.0f, 210.0f, Font, 0.76f);
+    DrawText(FString::Printf(TEXT("INTERCEPTOR CAP  %.0f m/s  |  %s"),
+        Health.InterceptorSpeedCapMps, *Health.InterceptorProfileEvidence.ToUpper()),
+        FLinearColor(0.66f, 0.71f, 0.76f, 1.0f), PanelX + 16.0f, 228.0f, Font, 0.70f);
+
+    const float ControlY = Canvas != nullptr ? Canvas->SizeY - 50.0f : 1000.0f;
+    DrawRect(FLinearColor(0.005f, 0.018f, 0.035f, 0.84f), 16.0f, ControlY, 800.0f, 34.0f);
+    DrawText(TEXT("LOCAL SIM CONTROLS  [SPACE] PAUSE  [R] RESTART  [1] 1x  [2] 2x  [4] 4x  [8] 8x  [C] CAMERA"),
+        FLinearColor(0.70f, 0.88f, 1.0f, 1.0f), 30.0f, ControlY + 9.0f, Font, 0.72f);
+    if (const AAegisTacticalPlayerController* Controller = Cast<AAegisTacticalPlayerController>(GetOwningPlayerController()))
+    {
+        DrawText(Controller->GetLastLocalCommand(), FLinearColor(0.38f, 0.90f, 0.64f, 1.0f),
+            830.0f, ControlY + 9.0f, Font, 0.72f);
+    }
 }
