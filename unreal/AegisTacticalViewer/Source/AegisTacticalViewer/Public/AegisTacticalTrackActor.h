@@ -38,7 +38,7 @@ public:
     bool bIsStale = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
-    float StaleAfterSeconds = 0.75f;
+    float StaleAfterSeconds = 5.0f;
 
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")

@@ -28,7 +28,11 @@ struct FTacticalTelemetryHealth
     FString Status = TEXT("WAITING");
     FString Site = TEXT("LOCAL");
 
-    bool IsStale(float WorldSeconds, float TimeoutSeconds = 0.75f) const
+    // The local Python simulator intentionally favours deterministic physics
+    // over a fixed display cadence on modest GPUs. Five seconds still surfaces
+    // a genuinely disconnected loopback feed without falsely alarming during
+    // an otherwise healthy, slower simulation frame.
+    bool IsStale(float WorldSeconds, float TimeoutSeconds = 5.0f) const
     {
         return LastReceiveWorldSeconds < 0.0f
             || WorldSeconds - LastReceiveWorldSeconds > TimeoutSeconds;

@@ -85,10 +85,14 @@ void AAegisTacticalCameraActor::Tick(float DeltaSeconds)
         FVector(-0.60, -0.60, 0.62),
         FVector(-0.82, -0.82, 0.42),
     };
-    const float BaseDistances[] = {12000.0f, 22000.0f, 42000.0f};
+    // Keep every camera presentation close enough for the track symbols,
+    // labels, and trails to remain legible on a 1080p display. Separation is
+    // real authoritative geometry, but should not push the display into a
+    // near-orbital view during a long-range engagement.
+    const float BaseDistances[] = {9000.0f, 15000.0f, 24000.0f};
     const FVector Focus = FMath::Lerp(GroundFocus, TrackFocus, FocusFraction[PresentationMode]);
-    const float Distance = FMath::Clamp(BaseDistances[PresentationMode] + Separation * 0.6f,
-        8000.0f, 60000.0f);
+    const float Distance = FMath::Clamp(BaseDistances[PresentationMode] + Separation * 0.25f,
+        8000.0f, 50000.0f);
     const FVector Direction = Directions[PresentationMode].GetSafeNormal();
     const FVector DesiredLocation = Focus + Direction * Distance;
     const FRotator DesiredRotation = UKismetMathLibrary::FindLookAtRotation(

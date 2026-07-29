@@ -54,7 +54,7 @@ bool FHealthStateTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("A feed with no packets is stale"), Health.IsStale(10.0f));
     Health.LastReceiveWorldSeconds = 10.0f;
     TestFalse(TEXT("Fresh telemetry is live"), Health.IsStale(10.5f));
-    TestTrue(TEXT("Age beyond threshold is stale"), Health.IsStale(10.8f));
+    TestTrue(TEXT("Age beyond threshold is stale"), Health.IsStale(15.1f));
     return true;
 }
 
