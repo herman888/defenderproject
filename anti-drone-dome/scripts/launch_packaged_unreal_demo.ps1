@@ -3,7 +3,7 @@
 $demoRoot = Split-Path -Parent $PSScriptRoot
 $workspaceRoot = Split-Path -Parent $demoRoot
 $python = Join-Path $workspaceRoot 'gym-pybullet-drones\.venv\Scripts\python.exe'
-$viewer = Join-Path $workspaceRoot 'unreal\builds\AegisTacticalViewer-Win64\Windows\AegisTacticalViewer.exe'
+$viewer = Join-Path $workspaceRoot 'unreal\builds\AegisTacticalViewer-Win64-next\Windows\AegisTacticalViewer.exe'
 $logRoot = Join-Path $workspaceRoot 'unreal\AegisTacticalViewer\Saved\Logs'
 
 function Stop-AegisDemoProcessTree([int]$ProcessId) {

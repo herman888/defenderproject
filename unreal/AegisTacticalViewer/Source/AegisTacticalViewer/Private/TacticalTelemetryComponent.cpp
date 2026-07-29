@@ -315,19 +315,20 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
 
 void UTacticalTelemetryComponent::UpdateTrack(const FTacticalTrackSnapshot& Snapshot)
 {
+    LatestSnapshotsByRole.Add(Snapshot.Role.ToLower(), Snapshot);
     if (AAegisTacticalTrackActor* Actor = GetOrCreateTrack(Snapshot))
     {
         Actor->ApplySnapshot(Snapshot);
     }
     if (TacticalCamera != nullptr)
     {
-        TacticalCamera->SetTrackWorldPosition(
-            Snapshot.Role, AAegisTacticalTrackActor::EnuToUnrealWorld(Snapshot.PositionEnuMetres));
+        TacticalCamera->SetTrackSnapshot(Snapshot);
     }
 }
 
 void UTacticalTelemetryComponent::MarkRoleAbsent(const FString& Role)
 {
+    LatestSnapshotsByRole.Remove(Role.ToLower());
     for (const TPair<FString, TObjectPtr<AAegisTacticalTrackActor>>& Pair : TrackActors)
     {
         if (Pair.Value != nullptr && Pair.Value->TrackRole.Equals(Role, ESearchCase::IgnoreCase))
@@ -335,6 +336,17 @@ void UTacticalTelemetryComponent::MarkRoleAbsent(const FString& Role)
             Pair.Value->MarkAbsent();
         }
     }
+}
+
+bool UTacticalTelemetryComponent::GetLatestSnapshot(
+    const FString& Role, FTacticalTrackSnapshot& OutSnapshot) const
+{
+    if (const FTacticalTrackSnapshot* Snapshot = LatestSnapshotsByRole.Find(Role.ToLower()))
+    {
+        OutSnapshot = *Snapshot;
+        return true;
+    }
+    return false;
 }
 
 AAegisTacticalTrackActor* UTacticalTelemetryComponent::GetOrCreateTrack(

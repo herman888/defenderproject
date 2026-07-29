@@ -4,6 +4,7 @@
 #include "Components/SceneComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "TacticalTypes.h"
 
 AAegisTacticalCameraActor::AAegisTacticalCameraActor()
 {
@@ -15,17 +16,22 @@ AAegisTacticalCameraActor::AAegisTacticalCameraActor()
     Camera->SetFieldOfView(58.0f);
 }
 
-void AAegisTacticalCameraActor::SetTrackWorldPosition(
-    const FString& TrackRole, const FVector& WorldPosition)
+void AAegisTacticalCameraActor::SetTrackSnapshot(const FTacticalTrackSnapshot& Snapshot)
 {
-    if (TrackRole == TEXT("intruder"))
+    const FVector WorldPosition(Snapshot.PositionEnuMetres.Y, Snapshot.PositionEnuMetres.X,
+        Snapshot.PositionEnuMetres.Z);
+    const FVector WorldVelocity(Snapshot.VelocityEnuMetresPerSecond.Y,
+        Snapshot.VelocityEnuMetresPerSecond.X, Snapshot.VelocityEnuMetresPerSecond.Z);
+    if (Snapshot.Role.Equals(TEXT("intruder"), ESearchCase::IgnoreCase))
     {
-        IntruderPosition = WorldPosition;
+        IntruderPosition = WorldPosition * 100.0f;
+        IntruderVelocity = WorldVelocity;
         bHasIntruder = true;
     }
-    else if (TrackRole == TEXT("interceptor"))
+    else if (Snapshot.Role.Equals(TEXT("interceptor"), ESearchCase::IgnoreCase))
     {
-        InterceptorPosition = WorldPosition;
+        InterceptorPosition = WorldPosition * 100.0f;
+        InterceptorVelocity = WorldVelocity;
         bHasInterceptor = true;
     }
 }
@@ -44,18 +50,19 @@ void AAegisTacticalCameraActor::ClearTrack(const FString& TrackRole)
 
 void AAegisTacticalCameraActor::CyclePresentationMode()
 {
-    PresentationMode = (PresentationMode + 1) % 3;
+    PresentationMode = (PresentationMode + 1) % 4;
 }
 
 FString AAegisTacticalCameraActor::GetPresentationModeLabel() const
 {
-    static const TCHAR* Labels[] = {TEXT("CHASE"), TEXT("TACTICAL"), TEXT("TERRAIN")};
+    static const TCHAR* Labels[] = {TEXT("ENGAGEMENT"), TEXT("COMMAND"), TEXT("CHASE"), TEXT("ORBIT")};
     return Labels[PresentationMode];
 }
 
 void AAegisTacticalCameraActor::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    PresentationSeconds += DeltaSeconds;
 
     if (!bClaimedPlayerView)
     {
@@ -76,24 +83,36 @@ void AAegisTacticalCameraActor::Tick(float DeltaSeconds)
     const float Separation = bHasInterceptor
         ? FVector::Distance(IntruderPosition, InterceptorPosition)
         : 0.0f;
-    // Aim partway down to the local ground plane so the local terrain remains
-    // readable while the actor positions themselves remain authoritative.
     const FVector GroundFocus(TrackFocus.X, TrackFocus.Y, 0.0f);
-    const float FocusFraction[] = {0.85f, 0.72f, 0.58f};
-    const FVector Directions[] = {
-        FVector(-0.78, -0.78, 0.34),
-        FVector(-0.60, -0.60, 0.62),
-        FVector(-0.82, -0.82, 0.42),
-    };
-    // Keep every camera presentation close enough for the track symbols,
-    // labels, and trails to remain legible on a 1080p display. Separation is
-    // real authoritative geometry, but should not push the display into a
-    // near-orbital view during a long-range engagement.
-    const float BaseDistances[] = {9000.0f, 15000.0f, 24000.0f};
-    const FVector Focus = FMath::Lerp(GroundFocus, TrackFocus, FocusFraction[PresentationMode]);
-    const float Distance = FMath::Clamp(BaseDistances[PresentationMode] + Separation * 0.25f,
-        8000.0f, 50000.0f);
-    const FVector Direction = Directions[PresentationMode].GetSafeNormal();
+    const FVector Focus = PresentationMode == 1
+        ? FMath::Lerp(GroundFocus, TrackFocus, 0.48f) : TrackFocus;
+    FVector Direction(-0.70f, -0.70f, 0.34f);
+    float BaseDistance = 22000.0f;
+    if (PresentationMode == 1)
+    {
+        Direction = FVector(-0.22f, -0.22f, 0.95f);
+        BaseDistance = 45000.0f;
+        Camera->SetFieldOfView(66.0f);
+    }
+    else if (PresentationMode == 2)
+    {
+        const FVector ChaseVelocity = (bHasInterceptor ? InterceptorVelocity : IntruderVelocity).GetSafeNormal();
+        Direction = (ChaseVelocity.IsNearlyZero() ? FVector(-1.0f, -1.0f, 0.35f) : -ChaseVelocity + FVector(0.0f, 0.0f, 0.28f)).GetSafeNormal();
+        BaseDistance = 14500.0f;
+        Camera->SetFieldOfView(62.0f);
+    }
+    else if (PresentationMode == 3)
+    {
+        const float Angle = PresentationSeconds * 0.16f;
+        Direction = FVector(FMath::Cos(Angle), FMath::Sin(Angle), 0.46f).GetSafeNormal();
+        BaseDistance = 28000.0f;
+        Camera->SetFieldOfView(65.0f);
+    }
+    else
+    {
+        Camera->SetFieldOfView(60.0f);
+    }
+    const float Distance = FMath::Clamp(BaseDistance + Separation * 0.45f, 12000.0f, 85000.0f);
     const FVector DesiredLocation = Focus + Direction * Distance;
     const FRotator DesiredRotation = UKismetMathLibrary::FindLookAtRotation(
         DesiredLocation, Focus);

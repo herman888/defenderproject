@@ -5,6 +5,7 @@
 #include "AegisTacticalCameraActor.generated.h"
 
 class UCameraComponent;
+struct FTacticalTrackSnapshot;
 class USceneComponent;
 
 /** Display-only camera that frames the latest authoritative tactical tracks. */
@@ -18,7 +19,7 @@ public:
 
     virtual void Tick(float DeltaSeconds) override;
 
-    void SetTrackWorldPosition(const FString& TrackRole, const FVector& WorldPosition);
+    void SetTrackSnapshot(const FTacticalTrackSnapshot& Snapshot);
 
     /** Stops framing a track once the authoritative feed reports it absent. */
     void ClearTrack(const FString& TrackRole);
@@ -36,9 +37,12 @@ private:
 
     FVector IntruderPosition = FVector::ZeroVector;
     FVector InterceptorPosition = FVector::ZeroVector;
+    FVector IntruderVelocity = FVector::ForwardVector;
+    FVector InterceptorVelocity = FVector::ForwardVector;
     bool bHasIntruder = false;
     bool bHasInterceptor = false;
     bool bClaimedPlayerView = false;
     bool bHasFramedTrack = false;
-    int32 PresentationMode = 1;
+    int32 PresentationMode = 0;
+    float PresentationSeconds = 0.0f;
 };

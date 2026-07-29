@@ -38,6 +38,9 @@ public:
 
     const FTacticalTelemetryHealth& GetHealth() const { return Health; }
 
+    /** Latest validated source state for HUD presentation. This is never used for control. */
+    bool GetLatestSnapshot(const FString& Role, FTacticalTrackSnapshot& OutSnapshot) const;
+
 #if WITH_DEV_AUTOMATION_TESTS
     /** Test seam for the exact production packet parser; it never opens a socket. */
     bool ProcessPacketForAutomation(const FString& Json) { return HandlePacket(Json); }
@@ -55,6 +58,7 @@ private:
 
     FSocket* Socket = nullptr;
     TMap<FString, TObjectPtr<AAegisTacticalTrackActor>> TrackActors;
+    TMap<FString, FTacticalTrackSnapshot> LatestSnapshotsByRole;
     TObjectPtr<AAegisTacticalCameraActor> TacticalCamera;
     FTacticalTelemetryHealth Health;
 };
