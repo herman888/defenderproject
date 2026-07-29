@@ -2,6 +2,7 @@
 
 #include "AegisTacticalHUD.h"
 #include "AegisTacticalPlayerController.h"
+#include "AegisTacticalSiteActor.h"
 #include "AegisTacticalTelemetryManager.h"
 #include "Engine/World.h"
 
@@ -20,4 +21,9 @@ void AAegisTacticalViewerGameMode::BeginPlay()
         TelemetryManagerClass = AAegisTacticalTelemetryManager::StaticClass();
     }
     GetWorld()->SpawnActor<AAegisTacticalTelemetryManager>(TelemetryManagerClass);
+    if (SiteActorClass == nullptr)
+    {
+        SiteActorClass = AAegisTacticalSiteActor::StaticClass();
+    }
+    GetWorld()->SpawnActor<AAegisTacticalSiteActor>(SiteActorClass);
 }

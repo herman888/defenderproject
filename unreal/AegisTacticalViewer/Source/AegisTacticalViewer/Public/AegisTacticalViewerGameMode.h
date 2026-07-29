@@ -5,6 +5,7 @@
 #include "AegisTacticalViewerGameMode.generated.h"
 
 class AAegisTacticalTelemetryManager;
+class AAegisTacticalSiteActor;
 
 UCLASS()
 class AEGISTACTICALVIEWER_API AAegisTacticalViewerGameMode : public AGameModeBase
@@ -18,4 +19,7 @@ public:
 
     UPROPERTY(EditDefaultsOnly, Category = "Telemetry")
     TSubclassOf<AAegisTacticalTelemetryManager> TelemetryManagerClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Presentation")
+    TSubclassOf<AAegisTacticalSiteActor> SiteActorClass;
 };

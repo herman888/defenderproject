@@ -23,11 +23,23 @@ evidence. This project only renders the validated UDP telemetry emitted by
 4. Press `C` while the viewer has focus to cycle between **Chase**,
    **Tactical**, and **Terrain** camera framing.
 
-The viewer creates basic-shape spheres for the intruder and interceptor. To
-replace them, create Blueprint subclasses of
-`AegisTacticalTrackActor`, give each a mesh/material, and assign those classes
-to the telemetry component in a Blueprint subclass of
-`AegisTacticalTelemetryManager`.
+Until curated assets are licensed into the project, the viewer creates a
+non-authoritative fixed-wing silhouette for the intruder, a compact quadcopter
+silhouette for the interceptor, and a generic protected training-site marker.
+They are deliberately visual fallbacks rather than claims about real aircraft
+or a real location. To replace them with Fab/Quixel content, update the
+matching entries in `TacticalAssetRegistry.cpp` with imported mesh paths. The
+telemetry, physics, and display-only safety boundary do not change.
+
+For the final art pass, add only free/verified-license Fab or Quixel content:
+
+1. A stylized or generic fixed-wing UAV mesh and a quadcopter mesh.
+2. A tiled sand/rock ground material plus a small rock and scrub set.
+3. Optional generic training-range props such as a radar mast, service road,
+   and non-identifying utility buildings.
+
+Keep textures at 2K and use scalable materials; this project is tuned for a
+GTX 1650 with 4 GB VRAM.
 
 ## One-click repeating demo
 

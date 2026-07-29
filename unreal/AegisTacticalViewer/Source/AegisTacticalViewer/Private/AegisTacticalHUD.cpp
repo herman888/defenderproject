@@ -11,9 +11,11 @@ void AAegisTacticalHUD::DrawHUD()
     Super::DrawHUD();
 
     UFont* Font = GEngine != nullptr ? GEngine->GetSmallFont() : nullptr;
+    DrawRect(FLinearColor(0.005f, 0.018f, 0.035f, 0.72f), 16.0f, 14.0f, 460.0f, 168.0f);
+    DrawRect(FLinearColor(0.10f, 0.74f, 0.68f, 0.92f), 16.0f, 14.0f, 460.0f, 2.0f);
     const FLinearColor HeaderColor(0.70f, 0.88f, 1.0f, 1.0f);
     DrawText(TEXT("AEGIS TACTICAL VIEWER"), HeaderColor, 28.0f, 24.0f, Font, 1.35f);
-    DrawText(TEXT("DISPLAY ONLY  |  LOCAL UDP :8788  |  NO COMMAND PATH"),
+    DrawText(TEXT("DISPLAY CLIENT  |  LOCAL UDP :8788  |  NO COMMAND PATH"),
         FLinearColor(0.68f, 0.72f, 0.76f, 1.0f), 28.0f, 50.0f, Font, 0.85f);
     const AAegisTacticalCameraActor* Camera = Cast<AAegisTacticalCameraActor>(
         GetOwningPlayerController() != nullptr ? GetOwningPlayerController()->GetViewTarget() : nullptr);
@@ -51,4 +53,6 @@ void AAegisTacticalHUD::DrawHUD()
         DrawText(FString::Printf(TEXT("SITE: %s"), *Health.Site),
             FLinearColor(0.70f, 0.74f, 0.78f, 1.0f), 28.0f, 146.0f, Font, 0.88f);
     }
+    DrawText(TEXT("SIMULATED TRAINING ENVIRONMENT"), FLinearColor(0.38f, 0.76f, 0.74f, 0.85f),
+        28.0f, 164.0f, Font, 0.76f);
 }

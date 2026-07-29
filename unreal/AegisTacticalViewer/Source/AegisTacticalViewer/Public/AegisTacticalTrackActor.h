@@ -50,6 +50,19 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
     TObjectPtr<UInstancedStaticMeshComponent> Trail;
 
+    /** Small non-authoritative silhouette pieces used until a Fab mesh is assigned. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
+    TObjectPtr<UStaticMeshComponent> MainWing;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
+    TObjectPtr<UStaticMeshComponent> TailWing;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
+    TObjectPtr<UStaticMeshComponent> VerticalFin;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
+    TArray<TObjectPtr<UStaticMeshComponent>> RotorArms;
+
 private:
     void ApplyVisualDefinition(const FTacticalTrackSnapshot& Snapshot);
     void SetDisplayColor(const FLinearColor& Color);
@@ -61,6 +74,7 @@ private:
     TObjectPtr<UMaterialInterface> ShapeMaterial;
     TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
     FLinearColor BaseColor = FLinearColor::White;
+    FString AppliedVisualKey;
     float LastSnapshotTime = -BIG_NUMBER;
     bool bAbsent = false;
     bool bLastLinkStale = false;
