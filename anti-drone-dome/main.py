@@ -709,6 +709,7 @@ def _run_one_mission(
     closest_approach     = float("inf")
     pending_events       = []
     mission_result       = None
+    intercept_pending    = False
     _last_dome_status    = "CLEAR"
     fusion_confirmed     = False
     radar_acquired       = False
@@ -1197,9 +1198,10 @@ def _run_one_mission(
                     except Exception:
                         pass
                 flash_shown = True
-            mission_result = "INTERCEPTED"
-            time.sleep(1.5)   # linger so user sees the flash
-            break
+            # Keep running only until the next 10 Hz tactical publish slot.
+            # Otherwise Unreal and the JSONL stop on the preceding BREACH
+            # frame and never receive the confirmed terminal state.
+            intercept_pending = True
 
         horiz = math.sqrt(i_pos[0]**2 + i_pos[1]**2)
         if horiz < 2.0 and nav.is_complete():
@@ -1627,6 +1629,14 @@ def _run_one_mission(
                       f"(target {_DASH_PUSH_HZ:.0f}, sim_speed {sim_speed:.2g}x)")
                 _dash_push_count  = 0
                 _dash_push_window = _now
+
+        if (
+            intercept_pending
+            and (tactical_publisher is None or step % 24 == 0)
+        ):
+            mission_result = "INTERCEPTED"
+            time.sleep(1.5)   # linger so user sees the confirmed final frame
+            break
 
     # ── Cleanup ───────────────────────────────────────────────────────
     _clear_trail(i_trail_ids,   world.client)
