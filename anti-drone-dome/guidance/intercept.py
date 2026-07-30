@@ -48,7 +48,7 @@ import numpy as np
 from config import MAX_ACCEL
 from guidance.setpoint import GuidanceSetpoint, enu_to_ned, los_yaw_ned
 
-_V_INT             = 65.0    # m/s — nominal intercept speed (below 70 m/s hard cap)
+_V_INT             = 68.0    # m/s — nominal intercept speed (below 70 m/s hard cap)
 _K_LON             = 4.0     # nominal longitudinal gain
 _N_PRIME_DEFAULT   = 4.0     # nominal APN navigation gain
 _R_TAPER           = 25.0    # m — nominal APN/terminal blend start
@@ -89,6 +89,8 @@ class PurePursuitGuidance:
             "track_confidence": 0.0,
             "target_maneuver_mps2": 0.0,
             "terminal_blend": 0.0,
+            "lead_time_s": 0.0,
+            "lead_angle_deg": 0.0,
         }
 
     # ------------------------------------------------------------------
@@ -179,6 +181,83 @@ class PurePursuitGuidance:
             return float(np.clip(float(value), 0.0, 1.0))
         except (TypeError, ValueError):
             return 0.0
+
+    @staticmethod
+    def _constant_velocity_intercept_time(
+        relative_position: np.ndarray,
+        target_velocity: np.ndarray,
+        interceptor_speed: float,
+    ) -> float | None:
+        """Return the earliest positive constant-speed intercept solution."""
+        speed = max(float(interceptor_speed), 1e-6)
+        a = float(np.dot(target_velocity, target_velocity) - speed**2)
+        b = 2.0 * float(np.dot(relative_position, target_velocity))
+        c = float(np.dot(relative_position, relative_position))
+        roots = []
+        if abs(a) < 1e-9:
+            if abs(b) > 1e-9:
+                roots.append(-c / b)
+        else:
+            discriminant = b * b - 4.0 * a * c
+            if discriminant >= 0.0:
+                root = math.sqrt(discriminant)
+                roots.extend((
+                    (-b - root) / (2.0 * a),
+                    (-b + root) / (2.0 * a),
+                ))
+        positive = [value for value in roots if value > 0.0]
+        return min(positive) if positive else None
+
+    def _lead_solution(
+        self,
+        interceptor_position: np.ndarray,
+        target_position: np.ndarray,
+        target_velocity: np.ndarray,
+        target_acceleration: np.ndarray,
+        command_speed: float,
+        track_confidence: float,
+    ) -> tuple[np.ndarray, float]:
+        """Compute a bounded acceleration-aware future aim point.
+
+        The constant-velocity quadratic supplies a stable initial solution.
+        Two fixed-point refinements then account for a short, confidence-scaled
+        target maneuver horizon without extrapolating noisy acceleration across
+        an entire long-range engagement.
+        """
+        relative_position = target_position - interceptor_position
+        intercept_time = self._constant_velocity_intercept_time(
+            relative_position,
+            target_velocity,
+            command_speed,
+        )
+        if intercept_time is None:
+            intercept_time = (
+                np.linalg.norm(relative_position)
+                / max(command_speed, 1.0)
+            )
+        intercept_time = float(np.clip(intercept_time, 0.0, 20.0))
+
+        acceleration = np.asarray(target_acceleration, dtype=float)
+        acceleration_magnitude = float(np.linalg.norm(acceleration))
+        if acceleration_magnitude > 20.0:
+            acceleration *= 20.0 / acceleration_magnitude
+        acceleration *= float(np.clip(track_confidence, 0.0, 1.0))
+
+        lead_point = target_position.copy()
+        for _ in range(2):
+            maneuver_horizon = min(intercept_time, 1.5)
+            lead_point = (
+                target_position
+                + target_velocity * intercept_time
+                + 0.5 * acceleration * maneuver_horizon**2
+            )
+            intercept_time = float(np.clip(
+                np.linalg.norm(lead_point - interceptor_position)
+                / max(command_speed, 1.0),
+                0.0,
+                20.0,
+            ))
+        return lead_point, intercept_time
 
     def _adaptive_parameters(
         self,
@@ -316,6 +395,26 @@ class PurePursuitGuidance:
             track_confidence=track_confidence,
             energy_fraction=energy_fraction,
         )
+        lead_point, lead_time = self._lead_solution(
+            i_pos,
+            t_pos,
+            t_vel,
+            a_est,
+            command_speed,
+            track_confidence,
+        )
+        lead_vector = lead_point - i_pos
+        lead_range = float(np.linalg.norm(lead_vector))
+        lead_hat = (
+            lead_vector / lead_range
+            if lead_range > 1e-6
+            else r_hat
+        )
+        lead_angle = math.degrees(math.acos(float(np.clip(
+            np.dot(r_hat, lead_hat),
+            -1.0,
+            1.0,
+        ))))
 
         a_pn = navigation_gain * closing_for_pn * lambda_dot_vec
         a_aug = (
@@ -324,9 +423,9 @@ class PurePursuitGuidance:
             * track_confidence
             * a_t_perp
         )
-        v_parallel = float(np.dot(i_vel, r_hat))
+        v_parallel = float(np.dot(i_vel, lead_hat))
         a_longitudinal = (
-            longitudinal_gain * (command_speed - v_parallel) * r_hat
+            longitudinal_gain * (command_speed - v_parallel) * lead_hat
         )
         a_apn = a_pn + a_aug + a_longitudinal
         terminal_accel = float(np.clip(
@@ -362,6 +461,8 @@ class PurePursuitGuidance:
             "track_confidence": track_confidence,
             "target_maneuver_mps2": target_maneuver,
             "terminal_blend": blend,
+            "lead_time_s": lead_time,
+            "lead_angle_deg": lead_angle,
         }
 
         if blend >= 1.0:
@@ -372,52 +473,97 @@ class PurePursuitGuidance:
 
         return GuidanceSetpoint(
             frame="LOCAL_NED",
-            velocity=enu_to_ned(tuple(r_hat * command_speed)),
+            velocity=enu_to_ned(tuple(lead_hat * command_speed)),
             accel=enu_to_ned(tuple(a_cmd_enu)),
-            yaw=los_yaw_ned(tuple(i_pos), tuple(t_pos)),
+            yaw=los_yaw_ned(tuple(i_pos), tuple(lead_point)),
         )
 
     def lead_angle_deg(self, interceptor_state: dict, target_track: dict) -> float:
         if not target_track.get("detected"):
             return 0.0
-        i_pos = np.array(interceptor_state["position"], dtype=float)
-        i_vel = np.array(interceptor_state["velocity"],  dtype=float)
-        t_pos = np.array(target_track["position_estimate"], dtype=float)
+        i_pos = np.asarray(interceptor_state["position"], dtype=float)
+        t_pos = np.asarray(target_track["position_estimate"], dtype=float)
+        t_vel = np.asarray(
+            target_track.get("velocity", (0.0, 0.0, 0.0)),
+            dtype=float,
+        )
+        t_acc = np.asarray(
+            target_track.get("acceleration", (0.0, 0.0, 0.0)),
+            dtype=float,
+        )
         r_vec = t_pos - i_pos
-        rng   = float(np.linalg.norm(r_vec))
-        i_spd = float(np.linalg.norm(i_vel))
-        if rng < 0.01 or i_spd < 0.01:
+        rng = float(np.linalg.norm(r_vec))
+        if rng < 0.01:
             return 0.0
-        cos_a = float(np.clip(np.dot(r_vec / rng, i_vel / i_spd), -1.0, 1.0))
+        command_speed = float(self.last_diagnostics.get(
+            "command_speed_mps",
+            self._design_speed_mps,
+        ))
+        if command_speed <= 1.0:
+            command_speed = self._design_speed_mps
+        lead_point, _ = self._lead_solution(
+            i_pos,
+            t_pos,
+            t_vel,
+            t_acc,
+            command_speed,
+            self._confidence(target_track),
+        )
+        lead_vector = lead_point - i_pos
+        lead_range = float(np.linalg.norm(lead_vector))
+        if lead_range < 0.01:
+            return 0.0
+        cos_a = float(np.clip(
+            np.dot(r_vec / rng, lead_vector / lead_range),
+            -1.0,
+            1.0,
+        ))
         return math.degrees(math.acos(cos_a))
 
     def time_to_intercept(self, interceptor_state: dict, target_track: dict) -> float:
         if not target_track.get("detected"):
             return float("inf")
         i_pos = np.array(interceptor_state["position"], dtype=float)
-        i_vel = np.array(interceptor_state["velocity"],  dtype=float)
-        t_pos = np.array(target_track["position_estimate"],        dtype=float)
-        t_vel = np.array(target_track.get("velocity", [0, 0, 0]), dtype=float)
-        r_vec = t_pos - i_pos
-        rng   = float(np.linalg.norm(r_vec))
-        if rng < 0.1:
-            return 0.0
-        r_hat = r_vec / rng
-        v_c   = float(-np.dot(r_hat, t_vel - i_vel))
-        return rng / v_c if v_c > 0.1 else float("inf")
+        t_pos = np.asarray(target_track["position_estimate"], dtype=float)
+        t_vel = np.asarray(
+            target_track.get("velocity", (0.0, 0.0, 0.0)),
+            dtype=float,
+        )
+        t_acc = np.asarray(
+            target_track.get("acceleration", (0.0, 0.0, 0.0)),
+            dtype=float,
+        )
+        command_speed = float(self.last_diagnostics.get(
+            "command_speed_mps",
+            self._design_speed_mps,
+        ))
+        if command_speed <= 1.0:
+            command_speed = self._design_speed_mps
+        _, intercept_time = self._lead_solution(
+            i_pos,
+            t_pos,
+            t_vel,
+            t_acc,
+            command_speed,
+            self._confidence(target_track),
+        )
+        return intercept_time
 
     def predicted_intercept_point(
         self,
         interceptor_state: dict,
         target_track: dict,
     ) -> tuple[float, float, float] | None:
-        """Constant-velocity lead point at the current bounded command speed."""
+        """Acceleration-aware lead point at the current bounded command speed."""
         if not target_track.get("detected"):
             return None
         i_pos = np.asarray(interceptor_state["position"], dtype=float)
         t_pos = np.asarray(target_track["position_estimate"], dtype=float)
         t_vel = np.asarray(target_track.get("velocity", [0, 0, 0]), dtype=float)
-        relative_position = t_pos - i_pos
+        t_acc = np.asarray(
+            target_track.get("acceleration", [0, 0, 0]),
+            dtype=float,
+        )
 
         diagnostic_speed = float(self.last_diagnostics.get(
             "command_speed_mps",
@@ -430,23 +576,15 @@ class PurePursuitGuidance:
             1.0,
             self._design_speed_mps,
         ))
-        a = float(np.dot(t_vel, t_vel) - intercept_speed ** 2)
-        b = 2.0 * float(np.dot(relative_position, t_vel))
-        c = float(np.dot(relative_position, relative_position))
-        times = []
-        if abs(a) < 1e-9:
-            if abs(b) > 1e-9:
-                times.append(-c / b)
-        else:
-            discriminant = b * b - 4.0 * a * c
-            if discriminant >= 0.0:
-                root = math.sqrt(discriminant)
-                times.extend(((-b - root) / (2.0 * a), (-b + root) / (2.0 * a)))
-        positive_times = [value for value in times if value > 0.0]
-        if not positive_times:
-            return None
-        intercept_time = min(positive_times)
-        return tuple(t_pos + t_vel * intercept_time)
+        lead_point, _ = self._lead_solution(
+            i_pos,
+            t_pos,
+            t_vel,
+            t_acc,
+            intercept_speed,
+            self._confidence(target_track),
+        )
+        return tuple(lead_point)
 
 
 # ──────────────────────────────────────────────────────────────────────────

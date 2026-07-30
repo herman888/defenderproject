@@ -64,6 +64,8 @@ class RenderedCameraSensor:
 
     def observe(self, target_body_id, cue_position, timestamp):
         result = self._observe_now(target_body_id, cue_position, timestamp)
+        result = dict(result)
+        result["measurement_time_s"] = float(timestamp)
         if result.get("detected"):
             position = np.asarray(result["position_estimate"], dtype=float)
             velocity = np.asarray(result["velocity"], dtype=float)
@@ -72,9 +74,9 @@ class RenderedCameraSensor:
                 relative * self.lens_distortion_fraction
                 + velocity * self.rolling_shutter_readout_s * 0.5
             )
-            result = dict(result)
             result["position_estimate"] = tuple(position)
             result["latency_frames"] = self.latency_frames
+            result["position_variance_m2"] = self.position_noise_std_m**2
             result["effects"] = {
                 "exposure_gain": self.exposure_gain,
                 "image_noise_std": self.image_noise_std,

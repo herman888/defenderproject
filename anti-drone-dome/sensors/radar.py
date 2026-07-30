@@ -1,5 +1,5 @@
 """
-Pulse-Doppler ground radar with 6-state Kalman tracker.
+Pulse-Doppler ground radar with a constant-acceleration Kalman tracker.
 
 BEFORE: Omniscient sensor at dome centre; velocity = raw finite-difference of
         noisy position (noise_std 0.3 m -> velocity spikes of 100s m/s).
@@ -7,9 +7,9 @@ BEFORE: Omniscient sensor at dome centre; velocity = raw finite-difference of
 AFTER:  Physical station on south dome perimeter (0, -10, 3) — 3 m mast.
         Coverage: 360 deg azimuth, 0-60 deg elevation (anti-drone cone).
         Clutter fence: rejects returns with radial velocity < 0.5 m/s.
-        6-state Kalman filter ([x,y,z,vx,vy,vz]) stabilises position and
-        velocity. LP-filtered velocity derivative gives smooth acceleration
-        estimate for APN guidance. Position noise 0.15 m (vs old 0.30 m).
+        9-state Kalman filter ([position, velocity, acceleration]) stabilises
+        the complete motion estimate used by APN guidance. Delayed tracks are
+        timestamped and projected to the current sensor time before reuse.
 """
 
 import math
@@ -18,16 +18,19 @@ from collections import deque
 import numpy as np
 
 _DT        = 1.0 / 240.0   # physics timestep
-_PROC_NOISE = 5.0           # expected target accel magnitude (m/s^2), tunes Q
-_ACC_ALPHA  = 0.08          # LP weight for accel estimate (lower = smoother)
+_PROC_NOISE = 5.0           # continuous white-jerk spectral density, tunes Q
+_ACC_ALPHA  = 0.08          # retained API setting for scenario compatibility
 
 
 class KalmanTracker:
     """
-    6-state constant-velocity Kalman filter.
-    State      : [x, y, z, vx, vy, vz]
+    9-state constant-acceleration Kalman filter.
+    State      : [x, y, z, vx, vy, vz, ax, ay, az]
     Measurement: [x, y, z]  (noisy radar position return)
-    Acceleration: LP-filtered derivative of Kalman velocity output.
+
+    Process noise follows the discrete white-jerk model. This preserves the
+    cross-covariance between position, velocity, and acceleration that a
+    diagonal approximation loses, and allows a genuine predict-only coast.
     """
 
     def __init__(
@@ -39,48 +42,67 @@ class KalmanTracker:
         acceleration_alpha: float = _ACC_ALPHA,
     ):
         self.dt = dt
-        self.x  = np.array([*pos0, 0.0, 0.0, 0.0], dtype=float)
-        self.P  = np.diag([meas_std**2]*3 + [10.0]*3)
+        self.x = np.array(
+            [*pos0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            dtype=float,
+        )
+        self.P = np.diag(
+            [meas_std**2] * 3
+            + [100.0] * 3
+            + [64.0] * 3
+        )
 
-        self.F      = np.eye(6)
-        self.F[0,3] = self.F[1,4] = self.F[2,5] = dt
+        self.F = np.eye(9)
+        self.F[0:3, 3:6] = np.eye(3) * dt
+        self.F[0:3, 6:9] = np.eye(3) * (0.5 * dt**2)
+        self.F[3:6, 6:9] = np.eye(3) * dt
 
-        self.H      = np.zeros((3, 6))
-        self.H[0,0] = self.H[1,1] = self.H[2,2] = 1.0
+        self.H = np.zeros((3, 9))
+        self.H[:, 0:3] = np.eye(3)
 
-        q      = float(process_noise)
-        self.Q = np.diag([0.5*q*dt**2]*3 + [q*dt]*3)
+        q = float(process_noise)
+        self.Q = np.zeros((9, 9))
+        white_jerk = q * np.asarray([
+            [dt**5 / 20.0, dt**4 / 8.0, dt**3 / 6.0],
+            [dt**4 / 8.0, dt**3 / 3.0, dt**2 / 2.0],
+            [dt**3 / 6.0, dt**2 / 2.0, dt],
+        ])
+        for axis in range(3):
+            indices = [axis, axis + 3, axis + 6]
+            self.Q[np.ix_(indices, indices)] = white_jerk
         self.R = np.eye(3) * (meas_std**2)
+        self._acceleration_alpha = float(acceleration_alpha)
 
-        self._prev_vel = np.zeros(3)
-        self._acc      = np.zeros(3)
-        self._acc_alpha = float(acceleration_alpha)
-
-    def step(self, meas: np.ndarray):
-        # Predict
+    def step(self, meas: np.ndarray | None):
+        """Advance one filter interval, optionally applying a measurement."""
         self.x = self.F @ self.x
         self.P = self.F @ self.P @ self.F.T + self.Q
-        # Update
+        if meas is None:
+            return
+
+        meas = np.asarray(meas, dtype=float)
         y = meas - self.H @ self.x
         S = self.H @ self.P @ self.H.T + self.R
         K = self.P @ self.H.T @ np.linalg.inv(S)
         self.x += K @ y
-        self.P  = (np.eye(6) - K @ self.H) @ self.P
-        # LP-filtered acceleration
-        vel           = self.x[3:6]
-        raw_acc       = (vel - self._prev_vel) / self.dt
-        self._acc = (
-            self._acc_alpha * raw_acc
-            + (1.0 - self._acc_alpha) * self._acc
+        # Joseph form remains symmetric and positive semi-definite under
+        # long runs and very low measurement noise.
+        residual_projection = np.eye(9) - K @ self.H
+        self.P = (
+            residual_projection @ self.P @ residual_projection.T
+            + K @ self.R @ K.T
         )
-        self._prev_vel = vel.copy()
+        self.P = 0.5 * (self.P + self.P.T)
 
     @property
     def pos(self) -> tuple: return tuple(self.x[:3])
     @property
     def vel(self) -> tuple: return tuple(self.x[3:6])
     @property
-    def acc(self) -> tuple: return tuple(self._acc)
+    def acc(self) -> tuple: return tuple(self.x[6:9])
+    @property
+    def position_variance_m2(self) -> float:
+        return float(np.trace(self.P[:3, :3]) / 3.0)
 
 
 class RadarNode:
@@ -173,10 +195,36 @@ class RadarNode:
         return abs(float(np.dot(vel, u))) >= self._min_vel
 
     def get_last_track(self) -> dict | None:
-        """Return only a track that has passed through the configured latency."""
+        """Return a delivered track projected to the current radar clock."""
         if self._last_delivered_track is None:
             return None
         track = dict(self._last_delivered_track)
+        measurement_time = float(track.get(
+            "measurement_time_s",
+            self._scan_calls * _DT,
+        ))
+        current_time = self._scan_calls * _DT
+        age = max(0.0, current_time - measurement_time)
+        position = np.asarray(track["position_estimate"], dtype=float)
+        velocity = np.asarray(
+            track.get("velocity", (0.0, 0.0, 0.0)),
+            dtype=float,
+        )
+        acceleration = np.asarray(
+            track.get("acceleration", (0.0, 0.0, 0.0)),
+            dtype=float,
+        )
+        position = position + velocity * age + 0.5 * acceleration * age**2
+        velocity = velocity + acceleration * age
+        track["position_estimate"] = tuple(position)
+        track["velocity"] = tuple(velocity)
+        track["track_age_s"] = age
+        track["projected_to_time_s"] = current_time
+        if "position_variance_m2" in track:
+            track["position_variance_m2"] = float(
+                track["position_variance_m2"]
+                + self._process_noise * age**2
+            )
         track["coasted"] = True
         return track
 
@@ -193,6 +241,10 @@ class RadarNode:
             self.max_range / max(float(range_m), 1.0)
         )
         return rcs_term + range_term
+
+    def _measurement_time_s(self) -> float:
+        """Simulation epoch of the state sampled by the current scan call."""
+        return max(0.0, (self._scan_calls - 1) * _DT)
 
     # ------------------------------------------------------------------
     def scan(self, true_pos: tuple, target_rcs: float = 0.05) -> dict:
@@ -223,6 +275,8 @@ class RadarNode:
                 "velocity": (0.0, 0.0, 0.0),
                 "acceleration": (0.0, 0.0, 0.0),
                 "confidence": 0.05,
+                "measurement_time_s": self._measurement_time_s(),
+                "position_variance_m2": max(self._noise_std**2, 25.0),
             }
         self._latency_queue.append(result)
         if len(self._latency_queue) <= self._latency_steps:
@@ -269,7 +323,7 @@ class RadarNode:
                     print("RADAR: Track lost")
                 # Return coasted prediction while beam is blocked
                 if self._tracker:
-                    self._tracker.step(np.array(self._tracker.pos))  # coast
+                    self._tracker.step(None)
                 return {"detected": False, "seq": self._seq}
 
             self._miss_count = 0
@@ -292,11 +346,15 @@ class RadarNode:
                 "position_estimate" : self._tracker.pos,
                 "velocity"          : self._tracker.vel,
                 "acceleration"      : self._tracker.acc,
+                "measurement_time_s": self._measurement_time_s(),
+                "position_variance_m2": self._tracker.position_variance_m2,
             }
 
         # ── SEARCHING mode — probabilistic acquisition ───────────────────
         if not in_beam:
             self._hits = max(0, self._hits - 2)
+            if self._tracker:
+                self._tracker.step(None)
             return {"detected": False, "seq": self._seq}
 
         # Range-normalised detection curve (Swerling-I, scaled by target RCS)
@@ -315,9 +373,13 @@ class RadarNode:
 
         if self._rng.random() > p_det:
             self._hits = max(0, self._hits - 1)
+            if self._tracker:
+                self._tracker.step(None)
             return {"detected": False, "seq": self._seq}
 
         if not self._doppler_ok(t):
+            if self._tracker:
+                self._tracker.step(None)
             return {"detected": False, "seq": self._seq, "clutter_rejected": True}
 
         meas = t + self._rng.normal(0.0, self._noise_std, 3)
@@ -361,6 +423,8 @@ class RadarNode:
             "position_estimate" : self._tracker.pos,
             "velocity"          : self._tracker.vel,
             "acceleration"      : self._tracker.acc,
+            "measurement_time_s": self._measurement_time_s(),
+            "position_variance_m2": self._tracker.position_variance_m2,
         }
 
     def get_track_history(self) -> list:

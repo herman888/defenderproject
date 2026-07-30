@@ -1421,6 +1421,20 @@ def _run_one_mission(
                                 fused_track.get("source")
                                 if fused_track else "SEARCHING"
                             ),
+                            "fusion_innovation_m": (
+                                float(fused_track.get("innovation_m", 0.0))
+                                if fused_track else 0.0
+                            ),
+                            "fusion_rejected_sources": (
+                                list(fused_track.get("rejected_sources", []))
+                                if fused_track else []
+                            ),
+                            "radar_track_age_s": float(
+                                (
+                                    guidance_track
+                                    if guidance_track else {}
+                                ).get("track_age_s", 0.0)
+                            ),
                             "radar_failure": bool(dash_ctrl.get("radar_failure")),
                             "eo_failure": bool(dash_ctrl.get("camera_failure")),
                             "actuator_failure": bool(dash_ctrl.get("actuator_failure")),
@@ -1481,6 +1495,30 @@ def _run_one_mission(
                                     live_policy.guidance.last_diagnostics
                                     if live_policy else guidance.last_diagnostics
                                 ).get("track_confidence", 0.0)
+                            ),
+                            "target_maneuver_mps2": float(
+                                (
+                                    live_policy.guidance.last_diagnostics
+                                    if live_policy else guidance.last_diagnostics
+                                ).get("target_maneuver_mps2", 0.0)
+                            ),
+                            "lead_time_s": float(
+                                (
+                                    live_policy.guidance.last_diagnostics
+                                    if live_policy else guidance.last_diagnostics
+                                ).get("lead_time_s", 0.0)
+                            ),
+                            "lead_angle_deg": float(
+                                (
+                                    live_policy.guidance.last_diagnostics
+                                    if live_policy else guidance.last_diagnostics
+                                ).get("lead_angle_deg", 0.0)
+                            ),
+                            "terminal_blend": float(
+                                (
+                                    live_policy.guidance.last_diagnostics
+                                    if live_policy else guidance.last_diagnostics
+                                ).get("terminal_blend", 0.0)
                             ),
                             "ai_residual_authority": float(
                                 live_policy.last_diagnostics.get(
