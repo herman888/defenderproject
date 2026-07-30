@@ -5,6 +5,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -109,6 +110,25 @@ AAegisTacticalSiteActor::AAegisTacticalSiteActor()
     SensorDome->SetRelativeScale3D(FVector(1.35f, 1.35f, 0.7f));
     RadarAntenna->SetRelativeLocation(FVector(0.0f, 0.0f, 1110.0f));
     RadarAntenna->SetRelativeScale3D(FVector(4.0f, 0.18f, 0.12f));
+
+    // Prefer the attributed RTS radar tower when it has been imported. The
+    // lightweight procedural antenna remains separate so it can rotate without
+    // adding skeletal-animation cost to the display client.
+    const FSoftObjectPath AuthoredTowerPath(
+        TEXT("/Game/Aegis/Imported/RadarTower/rts_radar_tower__1_/"
+             "StaticMeshes/radar_tower_build_0.radar_tower_build_0"));
+    if (UStaticMesh* AuthoredTower = Cast<UStaticMesh>(AuthoredTowerPath.TryLoad()))
+    {
+        SensorTower->SetStaticMesh(AuthoredTower);
+        SensorTower->EmptyOverrideMaterials();
+        const FBoxSphereBounds Bounds = AuthoredTower->GetBounds();
+        const float FullHeight = FMath::Max(Bounds.BoxExtent.Z * 2.0f, 1.0f);
+        const float TowerScale = 1000.0f / FullHeight;
+        SensorTower->SetRelativeScale3D(FVector(TowerScale));
+        SensorTower->SetRelativeLocation(FVector(
+            0.0f, 0.0f, -(Bounds.Origin.Z - Bounds.BoxExtent.Z) * TowerScale));
+        SensorDome->SetHiddenInGame(true);
+    }
 
     // A lightweight generic compound gives scale and spatial context before
     // licensed art assets are assigned. These are instanced primitives, so the

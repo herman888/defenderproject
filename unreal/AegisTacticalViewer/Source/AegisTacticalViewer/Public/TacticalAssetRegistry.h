@@ -8,6 +8,8 @@ struct FTacticalVisualDefinition
     FSoftObjectPath MeshPath;
     FVector Scale = FVector::OneVector;
     FLinearColor BaseColor = FLinearColor::White;
+    /** Optional second mesh for authored models that contain separate shells. */
+    FSoftObjectPath DetailMeshPath;
 };
 
 /**

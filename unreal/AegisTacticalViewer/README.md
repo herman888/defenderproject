@@ -23,13 +23,14 @@ evidence. This project only renders the validated UDP telemetry emitted by
 4. Press `C` while the viewer has focus to cycle through **Engagement**,
    **Command**, **Chase**, **Top Down**, **Orbit**, and **Sensor / EO** views.
 
-Until curated assets are licensed into the project, the viewer creates a
-non-authoritative fixed-wing silhouette for the intruder, a compact quadcopter
-silhouette for the interceptor, and a generic protected training-site marker.
-They are deliberately visual fallbacks rather than claims about real aircraft
-or a real location. To replace them with Fab/Quixel content, use the matching
-names in [`ASSET_SLOTS.md`](ASSET_SLOTS.md). The telemetry, physics, and
-display-only safety boundary do not change.
+The attributed Shahed-136 and radar-tower models in
+`anti-drone-dome/assets` are imported under `/Game/Aegis/Imported`; attribution
+and CC BY 4.0 source links are recorded in
+`anti-drone-dome/assets/ATTRIBUTION.md`. The viewer still keeps deterministic
+engine-shape fallbacks, and the interceptor remains a generated quadcopter
+silhouette until a suitable attributed model is added. These are presentation
+assets rather than claims about a real aircraft or location. The telemetry,
+physics, and display-only safety boundary do not change.
 
 For the final art pass, add only free/verified-license Fab or Quixel content:
 
@@ -52,7 +53,7 @@ Press Play once in Unreal. Press `C` to cycle camera framing. Use
 ## Packaged viewer
 
 The tested Windows build is at
-`unreal/builds/AegisTacticalViewer-Win64-next/Windows/`.
+`unreal/builds/AegisTacticalViewer-Win64-curated/Windows/`.
 Run `anti-drone-dome/scripts/launch_packaged_unreal_demo.ps1` for the same
 continuous demo without opening the Unreal editor or pressing Play.
 

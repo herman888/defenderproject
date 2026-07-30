@@ -44,6 +44,10 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
     TObjectPtr<UStaticMeshComponent> Visual;
 
+    /** Optional second shell used by multi-mesh authored aircraft. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
+    TObjectPtr<UStaticMeshComponent> AuthoredDetailVisual;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
     TObjectPtr<UTextRenderComponent> Label;
 
@@ -92,4 +96,5 @@ private:
     bool bHasSnapshot = false;
     bool bLastLinkStale = false;
     bool bUsesRotors = false;
+    bool bUsesAuthoredMesh = false;
 };

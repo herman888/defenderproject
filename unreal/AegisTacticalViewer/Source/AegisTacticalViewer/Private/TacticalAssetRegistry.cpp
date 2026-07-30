@@ -34,10 +34,21 @@ FTacticalVisualDefinition FTacticalAssetRegistry::Resolve(
     }
     if (Key.Contains(TEXT("shahed")))
     {
-        return {TEXT("SHAHED-136"), AuthoredOrFallback(
-                TEXT("/Game/Aegis/Vehicles/SM_Shahed136.SM_Shahed136"), CubePath),
-            FVector(7.0, 18.0, 1.2),
-            FLinearColor(1.0f, 0.12f, 0.06f)};
+        const FSoftObjectPath AuthoredPrimary = AuthoredOrFallback(
+            TEXT("/Game/Aegis/Imported/Shahed136/"
+                 "80_followers_iranian_shahed-136_drone/StaticMeshes/"
+                 "Object_6.Object_6"),
+            CubePath);
+        const bool bHasAuthoredPrimary = !AuthoredPrimary.GetAssetPathString().StartsWith(
+            TEXT("/Engine/BasicShapes"));
+        return {TEXT("SHAHED-136"), AuthoredPrimary,
+            bHasAuthoredPrimary ? FVector::OneVector : FVector(7.0, 18.0, 1.2),
+            FLinearColor(1.0f, 0.12f, 0.06f),
+            bHasAuthoredPrimary ? FSoftObjectPath(
+                TEXT("/Game/Aegis/Imported/Shahed136/"
+                     "80_followers_iranian_shahed-136_drone/StaticMeshes/"
+                     "Object_8.Object_8"))
+                : FSoftObjectPath()};
     }
     if (Key.Contains(TEXT("fpv")))
     {

@@ -20,6 +20,13 @@ AAegisTacticalTrackActor::AAegisTacticalTrackActor()
     Visual->SetCastShadow(true);
     SetActorHiddenInGame(true);
 
+    AuthoredDetailVisual = CreateDefaultSubobject<UStaticMeshComponent>(
+        TEXT("AuthoredDetailVisual"));
+    AuthoredDetailVisual->SetupAttachment(Visual);
+    AuthoredDetailVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    AuthoredDetailVisual->SetCastShadow(true);
+    AuthoredDetailVisual->SetHiddenInGame(true);
+
     Label = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Label"));
     Label->SetupAttachment(Visual);
     Label->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
@@ -135,20 +142,36 @@ void AAegisTacticalTrackActor::ApplyVisualDefinition(
     {
         Blade->SetHiddenInGame(true);
     }
-    EngineGlow->SetHiddenInGame(false);
+    AuthoredDetailVisual->SetHiddenInGame(true);
+    AuthoredDetailVisual->SetStaticMesh(nullptr);
+    EngineGlow->SetHiddenInGame(true);
     MainWing->SetHiddenInGame(true);
     TailWing->SetHiddenInGame(true);
     VerticalFin->SetHiddenInGame(true);
     SetActorScale3D(FVector::OneVector);
     bUsesRotors = false;
+    bUsesAuthoredMesh = false;
 
     if (!bUsesEngineFallback)
     {
         if (UStaticMesh* Mesh = Cast<UStaticMesh>(Definition.MeshPath.TryLoad()))
         {
             Visual->SetStaticMesh(Mesh);
+            Visual->EmptyOverrideMaterials();
             Visual->SetRelativeRotation(FRotator::ZeroRotator);
             Visual->SetRelativeScale3D(Definition.Scale);
+            bUsesAuthoredMesh = true;
+            if (Definition.DetailMeshPath.IsValid())
+            {
+                if (UStaticMesh* DetailMesh = Cast<UStaticMesh>(
+                    Definition.DetailMeshPath.TryLoad()))
+                {
+                    AuthoredDetailVisual->SetStaticMesh(DetailMesh);
+                    AuthoredDetailVisual->EmptyOverrideMaterials();
+                    AuthoredDetailVisual->SetRelativeTransform(FTransform::Identity);
+                    AuthoredDetailVisual->SetHiddenInGame(false);
+                }
+            }
         }
     }
     else if (bIsInterceptor)
@@ -156,6 +179,7 @@ void AAegisTacticalTrackActor::ApplyVisualDefinition(
         // A compact quad silhouette: central fuselage plus four crossed arms.
         Visual->SetRelativeRotation(FRotator::ZeroRotator);
         Visual->SetRelativeScale3D(FVector(1.35f, 1.35f, 0.65f));
+        EngineGlow->SetHiddenInGame(false);
         for (int32 Index = 0; Index < RotorArms.Num(); ++Index)
         {
             UStaticMeshComponent* Arm = RotorArms[Index];
@@ -184,6 +208,7 @@ void AAegisTacticalTrackActor::ApplyVisualDefinition(
         }
         Visual->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
         Visual->SetRelativeScale3D(FVector(1.05f, 1.05f, 3.4f));
+        EngineGlow->SetHiddenInGame(false);
         MainWing->SetHiddenInGame(false);
         MainWing->SetRelativeLocation(FVector(-55.0f, 0.0f, 0.0f));
         MainWing->SetRelativeScale3D(FVector(0.45f, 5.4f, 0.13f));
@@ -206,7 +231,10 @@ void AAegisTacticalTrackActor::SetDisplayColor(const FLinearColor& Color)
     if (ShapeMaterial != nullptr && DynamicMaterial == nullptr)
     {
         DynamicMaterial = UMaterialInstanceDynamic::Create(ShapeMaterial, this);
-        Visual->SetMaterial(0, DynamicMaterial);
+        if (!bUsesAuthoredMesh)
+        {
+            Visual->SetMaterial(0, DynamicMaterial);
+        }
         Trail->SetMaterial(0, DynamicMaterial);
         MainWing->SetMaterial(0, DynamicMaterial);
         TailWing->SetMaterial(0, DynamicMaterial);

@@ -39,9 +39,15 @@ bool FAssetFallbackTest::RunTest(const FString& Parameters)
         TEXT("unknown-id"), TEXT("interceptor"), TEXT("unknown"));
     const FTacticalVisualDefinition Intruder = FTacticalAssetRegistry::Resolve(
         TEXT("unknown-id"), TEXT("intruder"), TEXT("unknown"));
+    const FTacticalVisualDefinition Shahed = FTacticalAssetRegistry::Resolve(
+        TEXT("intruder/shahed136"), TEXT("intruder"), TEXT("shahed136"));
     TestTrue(TEXT("Interceptor has an intentional fallback mesh"), !Interceptor.MeshPath.IsNull());
     TestTrue(TEXT("Intruder has an intentional fallback mesh"), !Intruder.MeshPath.IsNull());
     TestNotEqual(TEXT("Role colors remain distinguishable"), Interceptor.BaseColor, Intruder.BaseColor);
+    TestFalse(TEXT("The attributed Shahed mesh replaces the engine fallback"),
+        Shahed.MeshPath.GetAssetPathString().StartsWith(TEXT("/Engine/BasicShapes")));
+    TestTrue(TEXT("Both authored Shahed shells are registered"),
+        Shahed.DetailMeshPath.IsValid());
     return true;
 }
 
