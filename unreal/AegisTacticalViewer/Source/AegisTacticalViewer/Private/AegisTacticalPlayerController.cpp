@@ -24,6 +24,16 @@ void AAegisTacticalPlayerController::SetupInputComponent()
         &AAegisTacticalPlayerController::SetSimulationRate4x);
     InputComponent->BindKey(EKeys::Eight, IE_Pressed, this,
         &AAegisTacticalPlayerController::SetSimulationRate8x);
+    InputComponent->BindKey(EKeys::F5, IE_Pressed, this,
+        &AAegisTacticalPlayerController::ToggleRadarFailure);
+    InputComponent->BindKey(EKeys::F6, IE_Pressed, this,
+        &AAegisTacticalPlayerController::ToggleEoFailure);
+    InputComponent->BindKey(EKeys::F7, IE_Pressed, this,
+        &AAegisTacticalPlayerController::ToggleActuatorFailure);
+    InputComponent->BindKey(EKeys::X, IE_Pressed, this,
+        &AAegisTacticalPlayerController::ClearFailures);
+    InputComponent->BindKey(EKeys::N, IE_Pressed, this,
+        &AAegisTacticalPlayerController::NextScenarioPreset);
 }
 
 void AAegisTacticalPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -62,11 +72,48 @@ void AAegisTacticalPlayerController::SetSimulationRate2x() { SetSimulationRate(2
 void AAegisTacticalPlayerController::SetSimulationRate4x() { SetSimulationRate(4.0); }
 void AAegisTacticalPlayerController::SetSimulationRate8x() { SetSimulationRate(8.0); }
 
+void AAegisTacticalPlayerController::ToggleRadarFailure()
+{
+    ToggleFailure(TEXT("radar"), TEXT("RADAR FAILURE TOGGLED"));
+}
+
+void AAegisTacticalPlayerController::ToggleEoFailure()
+{
+    ToggleFailure(TEXT("eo"), TEXT("EO FAILURE TOGGLED"));
+}
+
+void AAegisTacticalPlayerController::ToggleActuatorFailure()
+{
+    ToggleFailure(TEXT("actuator"), TEXT("ACTUATOR FAILURE TOGGLED"));
+}
+
+void AAegisTacticalPlayerController::ClearFailures()
+{
+    SendLocalSimulationCommand(
+        TEXT("{\"schema\":\"aegis.local-sim-control.v1\",\"action\":\"clear_failures\"}"),
+        TEXT("LOCAL SIM: ALL FAILURES CLEARED"));
+}
+
+void AAegisTacticalPlayerController::NextScenarioPreset()
+{
+    SendLocalSimulationCommand(
+        TEXT("{\"schema\":\"aegis.local-sim-control.v1\",\"action\":\"next_preset\"}"),
+        TEXT("LOCAL SIM: LOADING NEXT SCENARIO PRESET"));
+}
+
 void AAegisTacticalPlayerController::SetSimulationRate(const double Rate)
 {
     SendLocalSimulationCommand(FString::Printf(
         TEXT("{\"schema\":\"aegis.local-sim-control.v1\",\"action\":\"set_speed\",\"speed\":%.1f}"), Rate),
         FString::Printf(TEXT("LOCAL SIM: %.0fx REQUESTED"), Rate));
+}
+
+void AAegisTacticalPlayerController::ToggleFailure(
+    const FString& Failure, const FString& Label)
+{
+    SendLocalSimulationCommand(FString::Printf(
+        TEXT("{\"schema\":\"aegis.local-sim-control.v1\",\"action\":\"toggle_failure\",\"failure\":\"%s\"}"),
+        *Failure), FString::Printf(TEXT("LOCAL SIM: %s"), *Label));
 }
 
 void AAegisTacticalPlayerController::SendLocalSimulationCommand(

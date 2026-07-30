@@ -1,5 +1,8 @@
 """Stable-Baselines3 policy adapter for the live simulator."""
 
+import numpy as np
+
+from config import MAX_ACCEL
 from guidance.setpoint import GuidanceSetpoint, enu_to_ned
 from guidance.intercept import PurePursuitGuidance
 from guidance.setpoint import ned_to_enu
@@ -23,6 +26,12 @@ class LivePolicy:
             )
         self.residual_apn = residual_apn
         self.guidance = PurePursuitGuidance()
+        self.last_diagnostics = {
+            "mode": "MODEL_READY",
+            "residual_authority": 0.0,
+            "residual_mps2": 0.0,
+            "bounded": True,
+        }
 
     def compute_setpoint(
         self, interceptor_state, target_track, track_confidence, wind, elapsed_fraction
@@ -42,22 +51,57 @@ class LivePolicy:
             else encode_observation(*encoder_args)
         )
         action, _ = self.model.predict(observation, deterministic=True)
-        action_scale = (90.0, 90.0, 60.0)
+        action = np.asarray(action, dtype=float).reshape(-1)
+        if action.size < 3 or not np.all(np.isfinite(action[:3])):
+            action = np.zeros(3, dtype=float)
+            model_valid = False
+        else:
+            action = np.clip(action[:3], -1.0, 1.0)
+            model_valid = True
+        action_scale = np.asarray((90.0, 90.0, 60.0), dtype=float)
+        base_setpoint = None
         if self.residual_apn:
             base_setpoint = self.guidance.compute_guidance(
                 interceptor_state, target_track
             )
-            base_accel = (
+            base_accel = np.asarray(
                 ned_to_enu(base_setpoint.accel)
                 if base_setpoint.accel is not None
-                else (0.0, 0.0, 0.0)
+                else (0.0, 0.0, 0.0),
+                dtype=float,
             )
-            accel_enu = tuple(
-                float(base_accel[index]) + 0.25 * float(action[index]) * action_scale[index]
-                for index in range(3)
-            )
+            confidence = float(np.clip(track_confidence, 0.0, 1.0))
+            # The learned policy is a bounded residual, never the sole flight
+            # authority. Poor track quality automatically reduces its effect.
+            residual_authority = 0.05 + 0.20 * confidence
+            residual = residual_authority * action * action_scale
+            accel_enu = base_accel + residual
         else:
-            accel_enu = tuple(
-                float(action[index]) * action_scale[index] for index in range(3)
-            )
-        return GuidanceSetpoint(frame="LOCAL_NED", accel=enu_to_ned(accel_enu))
+            residual_authority = 1.0
+            residual = action * action_scale
+            accel_enu = residual.copy()
+
+        accel_magnitude = float(np.linalg.norm(accel_enu))
+        was_bounded = accel_magnitude > MAX_ACCEL
+        if was_bounded:
+            accel_enu *= MAX_ACCEL / accel_magnitude
+        self.last_diagnostics = {
+            "mode": (
+                "BOUNDED_RESIDUAL_AI"
+                if self.residual_apn
+                else "BOUNDED_AI"
+            ),
+            "model_valid": model_valid,
+            "residual_authority": residual_authority,
+            "residual_mps2": float(np.linalg.norm(residual)),
+            "bounded": was_bounded,
+        }
+        return GuidanceSetpoint(
+            frame="LOCAL_NED",
+            velocity=(
+                base_setpoint.velocity
+                if base_setpoint is not None else None
+            ),
+            accel=enu_to_ned(tuple(float(value) for value in accel_enu)),
+            yaw=base_setpoint.yaw if base_setpoint is not None else None,
+        )

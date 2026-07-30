@@ -48,12 +48,12 @@ import numpy as np
 from config import MAX_ACCEL
 from guidance.setpoint import GuidanceSetpoint, enu_to_ned, los_yaw_ned
 
-_V_INT             = 65.0    # m/s — design intercept speed (below 70 m/s hard cap)
-_K_LON             = 4.0     # longitudinal gain — drives v_parallel toward _V_INT
-_N_PRIME_DEFAULT   = 4.0     # APN navigation gain (textbook range: 3–5)
-_R_TAPER           = 25.0    # m — APN starts blending out at this range
-_R_TERM            = 15.0    # m — pure LOS thrust below this range
-_TERM_THRUST_ACCEL = 130.0   # m/s² along LOS in pure terminal phase
+_V_INT             = 65.0    # m/s — nominal intercept speed (below 70 m/s hard cap)
+_K_LON             = 4.0     # nominal longitudinal gain
+_N_PRIME_DEFAULT   = 4.0     # nominal APN navigation gain
+_R_TAPER           = 25.0    # m — nominal APN/terminal blend start
+_R_TERM            = 15.0    # m — nominal pure-terminal distance
+_TERM_THRUST_ACCEL = 130.0   # m/s² nominal terminal acceleration
 
 
 def _cap_accel(a_enu: np.ndarray) -> np.ndarray:
@@ -71,12 +71,29 @@ class PurePursuitGuidance:
     guidance/__init__.py; the underlying law is now APN.
     """
 
-    def __init__(self, N_prime: float = _N_PRIME_DEFAULT):
+    def __init__(
+        self,
+        N_prime: float = _N_PRIME_DEFAULT,
+        design_speed_mps: float = _V_INT,
+        adaptive: bool = True,
+    ):
         self._N_prime = float(N_prime)
+        self._design_speed_mps = float(design_speed_mps)
+        self._adaptive = bool(adaptive)
+        self.last_diagnostics = {
+            "mode": "WAITING",
+            "navigation_gain": self._N_prime,
+            "command_speed_mps": 0.0,
+            "closing_speed_mps": 0.0,
+            "los_rate_dps": 0.0,
+            "track_confidence": 0.0,
+            "target_maneuver_mps2": 0.0,
+            "terminal_blend": 0.0,
+        }
 
     # ------------------------------------------------------------------
-    def compute_guidance(self, interceptor_state: dict,
-                         target_track: dict) -> GuidanceSetpoint:
+    def _compute_guidance_fixed(self, interceptor_state: dict,
+                                target_track: dict) -> GuidanceSetpoint:
         if not target_track.get("detected"):
             return GuidanceSetpoint()
 
@@ -152,6 +169,214 @@ class PurePursuitGuidance:
         )
 
     # ------------------------------------------------------------------
+    @staticmethod
+    def _confidence(target_track: dict) -> float:
+        value = target_track.get(
+            "confidence",
+            target_track.get("track_confidence", 1.0),
+        )
+        try:
+            return float(np.clip(float(value), 0.0, 1.0))
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _adaptive_parameters(
+        self,
+        *,
+        rng: float,
+        closing_speed: float,
+        los_rate_rad_s: float,
+        target_speed: float,
+        target_maneuver: float,
+        track_confidence: float,
+        energy_fraction: float,
+    ) -> tuple[float, float, float, float, float]:
+        """Select bounded guidance parameters from the live engagement state."""
+        if not self._adaptive:
+            return (
+                self._N_prime,
+                self._design_speed_mps,
+                _K_LON,
+                _R_TERM,
+                _R_TAPER,
+            )
+
+        maneuver_ratio = float(np.clip(target_maneuver / 14.0, 0.0, 1.0))
+        crossing_ratio = float(np.clip(
+            los_rate_rad_s * rng / max(closing_speed, 8.0),
+            0.0,
+            1.0,
+        ))
+        closing_deficit = float(np.clip(
+            (18.0 - closing_speed) / 18.0,
+            0.0,
+            1.0,
+        ))
+        navigation_gain = float(np.clip(
+            self._N_prime
+            + 1.15 * maneuver_ratio
+            + 0.85 * crossing_ratio
+            + 0.35 * closing_deficit,
+            3.0,
+            6.2,
+        ))
+
+        closure_margin = float(np.clip(10.0 + rng / 18.0, 14.0, 31.0))
+        command_speed = float(np.clip(
+            target_speed + closure_margin,
+            42.0,
+            self._design_speed_mps,
+        ))
+        if closing_speed <= 0.0:
+            command_speed = self._design_speed_mps
+        if track_confidence < 0.45 and rng > 80.0:
+            command_speed *= 0.88 + 0.12 * track_confidence / 0.45
+        if energy_fraction < 0.25:
+            command_speed *= 0.82 + 0.72 * energy_fraction
+        command_speed = float(np.clip(
+            command_speed,
+            min(36.0, self._design_speed_mps),
+            self._design_speed_mps,
+        ))
+
+        longitudinal_gain = float(np.clip(
+            2.8 + rng / 180.0 + 0.9 * closing_deficit,
+            2.8,
+            5.4,
+        ))
+        terminal_range = float(np.clip(
+            10.0 + max(closing_speed, 0.0) * 0.08,
+            12.0,
+            _R_TERM,
+        ))
+        taper_range = float(np.clip(
+            terminal_range + 8.0 + max(closing_speed, 0.0) * 0.04,
+            terminal_range + 8.0,
+            _R_TAPER + 4.0,
+        ))
+        return (
+            navigation_gain,
+            command_speed,
+            longitudinal_gain,
+            terminal_range,
+            taper_range,
+        )
+
+    def compute_guidance(
+        self,
+        interceptor_state: dict,
+        target_track: dict,
+    ) -> GuidanceSetpoint:
+        """Adaptive APN with confidence gating and dynamic terminal behavior."""
+        if not target_track.get("detected"):
+            self.last_diagnostics["mode"] = "WAITING"
+            return GuidanceSetpoint()
+
+        i_pos = np.asarray(interceptor_state["position"], dtype=float)
+        i_vel = np.asarray(interceptor_state["velocity"], dtype=float)
+        t_pos = np.asarray(target_track["position_estimate"], dtype=float)
+        t_vel = np.asarray(target_track.get("velocity", [0, 0, 0]), dtype=float)
+        a_est = np.asarray(
+            target_track.get("acceleration", [0, 0, 0]),
+            dtype=float,
+        )
+
+        r_vec = t_pos - i_pos
+        rng = float(np.linalg.norm(r_vec))
+        if rng < 0.3:
+            self.last_diagnostics["mode"] = "CONTACT"
+            return GuidanceSetpoint()
+        r_hat = r_vec / rng
+        v_rel = t_vel - i_vel
+        signed_closing = float(-np.dot(r_hat, v_rel))
+        closing_for_pn = max(signed_closing, 0.0)
+        omega_los = np.cross(r_vec, v_rel) / (rng * rng)
+        lambda_dot_vec = np.cross(omega_los, r_hat)
+        los_rate = float(np.linalg.norm(omega_los))
+        a_t_perp = a_est - float(np.dot(a_est, r_hat)) * r_hat
+        target_maneuver = float(np.linalg.norm(a_t_perp))
+        track_confidence = self._confidence(target_track)
+        energy_fraction = float(np.clip(
+            interceptor_state.get("energy_remaining_fraction", 1.0),
+            0.0,
+            1.0,
+        ))
+        (
+            navigation_gain,
+            command_speed,
+            longitudinal_gain,
+            terminal_range,
+            taper_range,
+        ) = self._adaptive_parameters(
+            rng=rng,
+            closing_speed=signed_closing,
+            los_rate_rad_s=los_rate,
+            target_speed=float(np.linalg.norm(t_vel)),
+            target_maneuver=target_maneuver,
+            track_confidence=track_confidence,
+            energy_fraction=energy_fraction,
+        )
+
+        a_pn = navigation_gain * closing_for_pn * lambda_dot_vec
+        a_aug = (
+            navigation_gain
+            / 2.0
+            * track_confidence
+            * a_t_perp
+        )
+        v_parallel = float(np.dot(i_vel, r_hat))
+        a_longitudinal = (
+            longitudinal_gain * (command_speed - v_parallel) * r_hat
+        )
+        a_apn = a_pn + a_aug + a_longitudinal
+        terminal_accel = float(np.clip(
+            82.0 + max(signed_closing, 0.0) * 1.35,
+            90.0,
+            min(_TERM_THRUST_ACCEL, MAX_ACCEL),
+        ))
+        a_terminal = r_hat * terminal_accel
+
+        if rng >= taper_range:
+            blend = 0.0
+        elif rng <= terminal_range:
+            blend = 1.0
+        else:
+            linear = (taper_range - rng) / (taper_range - terminal_range)
+            blend = linear * linear * (3.0 - 2.0 * linear)
+        a_cmd_enu = _cap_accel(
+            (1.0 - blend) * a_apn + blend * a_terminal
+        )
+
+        self.last_diagnostics = {
+            "mode": (
+                "TERMINAL"
+                if blend >= 1.0
+                else "BLEND"
+                if blend > 0.0
+                else "ADAPTIVE_APN"
+            ),
+            "navigation_gain": navigation_gain,
+            "command_speed_mps": command_speed,
+            "closing_speed_mps": signed_closing,
+            "los_rate_dps": math.degrees(los_rate),
+            "track_confidence": track_confidence,
+            "target_maneuver_mps2": target_maneuver,
+            "terminal_blend": blend,
+        }
+
+        if blend >= 1.0:
+            return GuidanceSetpoint(
+                frame="LOCAL_NED",
+                accel=enu_to_ned(tuple(a_cmd_enu)),
+            )
+
+        return GuidanceSetpoint(
+            frame="LOCAL_NED",
+            velocity=enu_to_ned(tuple(r_hat * command_speed)),
+            accel=enu_to_ned(tuple(a_cmd_enu)),
+            yaw=los_yaw_ned(tuple(i_pos), tuple(t_pos)),
+        )
+
     def lead_angle_deg(self, interceptor_state: dict, target_track: dict) -> float:
         if not target_track.get("detected"):
             return 0.0
@@ -186,7 +411,7 @@ class PurePursuitGuidance:
         interceptor_state: dict,
         target_track: dict,
     ) -> tuple[float, float, float] | None:
-        """Constant-velocity lead point at the interceptor design speed."""
+        """Constant-velocity lead point at the current bounded command speed."""
         if not target_track.get("detected"):
             return None
         i_pos = np.asarray(interceptor_state["position"], dtype=float)
@@ -194,7 +419,18 @@ class PurePursuitGuidance:
         t_vel = np.asarray(target_track.get("velocity", [0, 0, 0]), dtype=float)
         relative_position = t_pos - i_pos
 
-        a = float(np.dot(t_vel, t_vel) - _V_INT ** 2)
+        diagnostic_speed = float(self.last_diagnostics.get(
+            "command_speed_mps",
+            self._design_speed_mps,
+        ))
+        if diagnostic_speed <= 1.0:
+            diagnostic_speed = self._design_speed_mps
+        intercept_speed = float(np.clip(
+            diagnostic_speed,
+            1.0,
+            self._design_speed_mps,
+        ))
+        a = float(np.dot(t_vel, t_vel) - intercept_speed ** 2)
         b = 2.0 * float(np.dot(relative_position, t_vel))
         c = float(np.dot(relative_position, relative_position))
         times = []

@@ -12,4 +12,16 @@ class AEGISTACTICALVIEWER_API AAegisTacticalHUD : public AHUD
 
 public:
     virtual void DrawHUD() override;
+
+private:
+    void UpdateHistory(
+        const struct FTacticalTelemetryHealth& Health,
+        const struct FTacticalTrackSnapshot* Intruder,
+        const struct FTacticalTrackSnapshot* Interceptor);
+
+    TArray<float> IntruderSpeedHistory;
+    TArray<float> InterceptorSpeedHistory;
+    TArray<float> AltitudeHistory;
+    TArray<float> RangeHistory;
+    double LastHistoryMissionTime = -1.0;
 };

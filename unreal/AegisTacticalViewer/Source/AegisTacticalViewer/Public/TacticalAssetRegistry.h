@@ -12,8 +12,8 @@ struct FTacticalVisualDefinition
 
 /**
  * Registry for authored Fab/Quixel replacements with deterministic engine
- * fallbacks. Imported assets can be configured by replacing the matching
- * object paths in this class without changing telemetry semantics.
+ * fallbacks. Imported assets placed under /Game/Aegis/Vehicles with the
+ * documented names are picked up automatically without telemetry changes.
  */
 class AEGISTACTICALVIEWER_API FTacticalAssetRegistry
 {

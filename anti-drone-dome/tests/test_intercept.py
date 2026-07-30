@@ -5,7 +5,7 @@ Stage A contract (see guidance/intercept.py and guidance/setpoint.py):
   - Mid-course (rng > _R_TAPER)  → velocity + accel feed-forward + yaw, NED
   - Terminal   (rng <= _R_TERM)  → accel only, free yaw
   - |accel| <= MAX_ACCEL in every phase
-  - |velocity| ~ _V_INT (65 m/s) mid-course
+  - adaptive mid-course speed remains inside the bounded command envelope
   - frame == "LOCAL_NED" always
 """
 
@@ -52,9 +52,15 @@ def run_tests():
                     sp_mid.yaw is not None))
     if sp_mid.velocity is not None:
         v_mag = _vmag(sp_mid.velocity)
-        results.append((f"Mid-course |v| ≈ V_INT ({_V_INT:.0f})",
-                        abs(v_mag - _V_INT) < 1.0,
+        results.append((f"Mid-course |v| adaptively bounded <= {_V_INT:.0f}",
+                        35.0 <= v_mag <= _V_INT,
                         f"|v|={v_mag:.2f} m/s"))
+        results.append(("Adaptive guidance publishes diagnostics",
+                        guidance.last_diagnostics["mode"] == "ADAPTIVE_APN"
+                        and 3.0 <= guidance.last_diagnostics["navigation_gain"] <= 6.2
+                        and abs(
+                            guidance.last_diagnostics["command_speed_mps"] - v_mag
+                        ) < 1e-6))
     if sp_mid.accel is not None:
         a_mag = _vmag(sp_mid.accel)
         results.append(("Mid-course |a| <= MAX_ACCEL",

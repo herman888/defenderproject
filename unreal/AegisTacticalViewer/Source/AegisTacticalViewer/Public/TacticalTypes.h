@@ -28,9 +28,31 @@ struct FTacticalTelemetryHealth
     double RequestedSimulationRate = 1.0;
     double AchievedRealtimeFactor = 0.0;
     double InterceptorSpeedCapMps = 0.0;
+    double GuidanceNavigationGain = 0.0;
+    double GuidanceCommandSpeedMps = 0.0;
+    double GuidanceClosingSpeedMps = 0.0;
+    double GuidanceLosRateDps = 0.0;
+    double GuidanceTrackConfidence = 0.0;
+    double AiResidualAuthority = 0.0;
     FString InterceptorProfileEvidence = TEXT("UNKNOWN");
+    FString GuidanceMode = TEXT("WAITING");
     FString Status = TEXT("WAITING");
     FString Site = TEXT("LOCAL");
+    FString FusionSource = TEXT("SEARCHING");
+    FString EnvironmentName = TEXT("CLEAR");
+    FString ScenarioIntruder = TEXT("UNKNOWN");
+    FString ScenarioPattern = TEXT("UNKNOWN");
+    FString ScenarioPad = TEXT("MID");
+    FVector WindEnuMetresPerSecond = FVector::ZeroVector;
+    FVector PredictedInterceptEnuMetres = FVector::ZeroVector;
+    double VisibilityMetres = 0.0;
+    bool bRadarLocked = false;
+    bool bEoLocked = false;
+    bool bRadarFailure = false;
+    bool bEoFailure = false;
+    bool bActuatorFailure = false;
+    bool bRecording = false;
+    bool bHasPredictedIntercept = false;
 
     // The local Python simulator intentionally favours deterministic physics
     // over a fixed display cadence on modest GPUs. Five seconds still surfaces

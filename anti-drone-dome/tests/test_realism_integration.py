@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import socket
 import sys
@@ -37,8 +38,13 @@ from integration.tactical_stream import (
 from main import _coalesce_dashboard_messages
 from dome.killzone import DomeKillZone
 from guidance.intercept import PurePursuitGuidance
+from guidance.setpoint import GuidanceSetpoint
 from viz.dashboard import SimControl, _altitude_time_window
 from scripts.benchmark_controllers import paired_comparison, summarize
+from scripts.validate_unreal_motion_recording import (
+    motion_is_valid,
+    summarize_motion,
+)
 
 
 def test_scenario_site_and_environment_are_externalized():
@@ -101,6 +107,82 @@ def test_interceptor_profile_enforces_independent_force_limits():
         assert np.linalg.norm(limited[:2]) == pytest.approx(260.0)
         assert limited[2] == pytest.approx(260.0)
         assert interceptor._limit_force([0.0, 0.0, -1000.0])[2] == -80.0
+    finally:
+        pybullet.disconnect(client)
+
+
+def test_adaptive_guidance_responds_to_target_state_and_stays_bounded():
+    guidance = PurePursuitGuidance()
+    interceptor = {
+        "position": (0.0, 0.0, 10.0),
+        "velocity": (8.0, 0.0, 0.0),
+        "energy_remaining_fraction": 0.9,
+    }
+    calm_track = {
+        "detected": True,
+        "position_estimate": (260.0, 20.0, 40.0),
+        "velocity": (-8.0, 0.0, 0.0),
+        "acceleration": (0.0, 0.0, 0.0),
+        "confidence": 0.95,
+    }
+    calm_setpoint = guidance.compute_guidance(interceptor, calm_track)
+    calm_diagnostics = dict(guidance.last_diagnostics)
+    maneuver_track = {
+        **calm_track,
+        "velocity": (-38.0, 24.0, 2.0),
+        "acceleration": (0.0, 13.0, 2.0),
+    }
+    maneuver_setpoint = guidance.compute_guidance(interceptor, maneuver_track)
+    maneuver_diagnostics = dict(guidance.last_diagnostics)
+
+    assert calm_setpoint.velocity is not None
+    assert maneuver_setpoint.velocity is not None
+    assert (
+        maneuver_diagnostics["navigation_gain"]
+        > calm_diagnostics["navigation_gain"]
+    )
+    assert (
+        maneuver_diagnostics["command_speed_mps"]
+        > calm_diagnostics["command_speed_mps"]
+    )
+    assert np.linalg.norm(maneuver_setpoint.accel) <= 17.0 * 9.81 + 0.1
+    assert all(
+        np.isfinite(value)
+        for value in maneuver_diagnostics.values()
+        if isinstance(value, (int, float))
+    )
+
+
+def test_interceptor_attitude_response_is_smooth_banked_and_yaw_aware():
+    client = pybullet.connect(pybullet.DIRECT)
+    try:
+        interceptor = Drone(
+            "interceptor",
+            (0.0, 0.0, 5.0),
+            client,
+            airframe_profile_id="interceptor.reference-v1",
+        )
+        quaternions = [
+            interceptor._smooth_flight_attitude(
+                (0.75, 0.18, 0.64),
+                (35.0, 5.0, 0.0),
+                yaw_ned=0.0,
+            )
+            for _ in range(40)
+        ]
+        assert all(np.linalg.norm(value) == pytest.approx(1.0) for value in quaternions)
+        step_angles = []
+        for first, second in zip(quaternions, quaternions[1:]):
+            dot = min(1.0, abs(float(np.dot(first, second))))
+            step_angles.append(2.0 * math.acos(dot))
+        assert max(step_angles) < math.radians(4.0)
+        matrix = np.asarray(
+            pybullet.getMatrixFromQuaternion(quaternions[-1])
+        ).reshape((3, 3))
+        body_up = matrix[:, 2]
+        tilt = math.degrees(math.acos(np.clip(body_up[2], -1.0, 1.0)))
+        assert 5.0 < tilt <= 48.0
+        assert matrix[1, 0] > 0.35
     finally:
         pybullet.disconnect(client)
 
@@ -595,6 +677,40 @@ def test_tactical_recording_preserves_existing_evidence(tmp_path):
         publisher.close()
     assert recording.read_text(encoding="utf-8") == "existing evidence\n"
     assert (tmp_path / "existing.001.jsonl").exists()
+
+
+def test_tactical_motion_validator_requires_both_tracks_to_move(tmp_path):
+    recording = tmp_path / "motion.jsonl"
+    packets = []
+    for sequence in range(4):
+        packets.append({
+            "status": "TRACKING",
+            "simulation": {"guidance_mode": "ADAPTIVE_APN"},
+            "tracks": {
+                "intruder": {
+                    "position_enu_m": [100.0 - sequence, 0.0, 20.0],
+                },
+                "interceptor": (
+                    None
+                    if sequence == 0
+                    else {"position_enu_m": [float(sequence), 0.0, 10.0]}
+                ),
+            },
+        })
+    recording.write_text(
+        "\n".join(json.dumps(packet) for packet in packets) + "\n",
+        encoding="utf-8",
+    )
+    summary = summarize_motion(recording)
+    assert summary["both_moving_intervals"] == 2
+    assert motion_is_valid(summary)
+
+    packets[-1]["tracks"]["interceptor"]["position_enu_m"] = [2.0, 0.0, 10.0]
+    recording.write_text(
+        "\n".join(json.dumps(packet) for packet in packets) + "\n",
+        encoding="utf-8",
+    )
+    assert not motion_is_valid(summarize_motion(recording))
 
 
 def test_tactical_sequence_tracking_and_exact_udp_replay(tmp_path):

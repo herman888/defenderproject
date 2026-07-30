@@ -120,6 +120,15 @@ def validate_airframe_profile(profile: dict) -> None:
     envelope = profile["flight_envelope"]
     for key in ("max_lateral_accel_g", "max_climb_rate_mps", "max_descent_rate_mps"):
         _positive(envelope.get(key), f"flight_envelope.{key}")
+    for key in (
+        "attitude_response_time_s",
+        "yaw_response_time_s",
+        "max_tilt_deg",
+    ):
+        if key in envelope:
+            _positive(envelope[key], f"flight_envelope.{key}")
+    if float(envelope.get("max_tilt_deg", 40.0)) >= 90.0:
+        raise ValueError("flight_envelope.max_tilt_deg must be below 90")
     _positive(
         envelope.get("min_airspeed_mps"),
         "flight_envelope.min_airspeed_mps",

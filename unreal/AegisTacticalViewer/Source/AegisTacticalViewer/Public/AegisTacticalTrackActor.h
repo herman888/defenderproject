@@ -61,21 +61,35 @@ protected:
     TObjectPtr<UStaticMeshComponent> VerticalFin;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
+    TObjectPtr<UStaticMeshComponent> EngineGlow;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
     TArray<TObjectPtr<UStaticMeshComponent>> RotorArms;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
+    TArray<TObjectPtr<UStaticMeshComponent>> RotorBlades;
 
 private:
     void ApplyVisualDefinition(const FTacticalTrackSnapshot& Snapshot);
     void SetDisplayColor(const FLinearColor& Color);
     void AddTrailPoint(const FVector& WorldLocation);
 
+    FVector InterpolationStartLocation = FVector::ZeroVector;
     FVector TargetLocation = FVector::ZeroVector;
-    FRotator TargetRotation = FRotator::ZeroRotator;
+    FQuat InterpolationStartRotation = FQuat::Identity;
+    FQuat TargetRotation = FQuat::Identity;
     TArray<FVector> TrailPoints;
     TObjectPtr<UMaterialInterface> ShapeMaterial;
     TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
     FLinearColor BaseColor = FLinearColor::White;
     FString AppliedVisualKey;
+    FString DisplayName;
     float LastSnapshotTime = -BIG_NUMBER;
+    float PreviousSnapshotTime = -BIG_NUMBER;
+    float InterpolationElapsed = 0.0f;
+    float InterpolationDuration = 0.05f;
     bool bAbsent = false;
+    bool bHasSnapshot = false;
     bool bLastLinkStale = false;
+    bool bUsesRotors = false;
 };

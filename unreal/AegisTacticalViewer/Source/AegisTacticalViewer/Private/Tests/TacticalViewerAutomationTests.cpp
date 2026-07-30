@@ -84,6 +84,40 @@ bool FPacketValidationTest::RunTest(const FString& Parameters)
         Receiver->ProcessPacketForAutomation(NewMissionPacket));
     TestEqual(TEXT("The accepted null interceptor packet updates the sequence"),
         Receiver->GetHealth().LastSequence, static_cast<int64>(1));
+    const FString EnrichedPacket = TEXT(
+        "{\"schema\":\"aegis.tactical.v1\",\"bridge_schema\":\"aegis.unreal-bridge.v1\","
+        "\"status\":\"TRACKING\",\"site\":\"LOCAL\",\"sequence\":2,\"mission_time_s\":0.7,"
+        "\"tracks\":{\"intruder\":{\"id\":\"intruder-1\",\"role\":\"intruder\","
+        "\"asset_id\":\"shahed_136\",\"type\":\"fixed_wing\","
+        "\"position_enu_m\":[1,2,3],\"velocity_enu_mps\":[0,0,0],"
+        "\"orientation_xyzw\":[0,0,0,1],\"heading_deg\":90},\"interceptor\":null},"
+        "\"predicted_intercept_enu_m\":[4,5,6],"
+        "\"sensors\":{\"radar_locked\":true,\"eo_locked\":false,"
+        "\"fusion_source\":\"RADAR\",\"radar_failure\":false,"
+        "\"eo_failure\":true,\"actuator_failure\":false},"
+        "\"environment\":{\"name\":\"clear\",\"visibility_m\":10000,"
+        "\"wind_enu_mps\":[1,2,0]},"
+        "\"scenario\":{\"intruder\":\"shahed136\",\"pattern\":\"direct\","
+        "\"pad\":\"mid\",\"recording\":true},"
+        "\"simulation\":{\"requested_rate\":2,\"achieved_realtime_factor\":1.5,"
+        "\"interceptor_speed_cap_mps\":70,"
+        "\"interceptor_profile_evidence\":\"design-placeholder\","
+        "\"guidance_mode\":\"ADAPTIVE_APN\",\"navigation_gain\":4.8,"
+        "\"command_speed_mps\":63,\"closing_speed_mps\":31,"
+        "\"los_rate_dps\":2.1,\"track_confidence\":0.92,"
+        "\"ai_residual_authority\":0.0}}");
+    TestTrue(TEXT("Optional tactical presentation data is validated and accepted"),
+        Receiver->ProcessPacketForAutomation(EnrichedPacket));
+    TestTrue(TEXT("Predicted intercept is exposed to the presentation layer"),
+        Receiver->GetHealth().bHasPredictedIntercept);
+    TestTrue(TEXT("Injected sensor state is visible in the HUD health model"),
+        Receiver->GetHealth().bEoFailure);
+    TestEqual(TEXT("Scenario preset is exposed to the HUD"),
+        Receiver->GetHealth().ScenarioPattern, FString(TEXT("direct")));
+    TestEqual(TEXT("Adaptive guidance mode is exposed to the HUD"),
+        Receiver->GetHealth().GuidanceMode, FString(TEXT("ADAPTIVE_APN")));
+    TestTrue(TEXT("Adaptive navigation gain is preserved"),
+        FMath::IsNearlyEqual(Receiver->GetHealth().GuidanceNavigationGain, 4.8));
     TestTrue(TEXT("Rejected packets are visible to the HUD health state"),
         Receiver->GetHealth().RejectedPackets >= 3);
     TestEqual(TEXT("Receiver is deliberately loopback-only"),

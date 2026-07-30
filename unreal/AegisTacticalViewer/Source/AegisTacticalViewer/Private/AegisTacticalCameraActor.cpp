@@ -50,12 +50,15 @@ void AAegisTacticalCameraActor::ClearTrack(const FString& TrackRole)
 
 void AAegisTacticalCameraActor::CyclePresentationMode()
 {
-    PresentationMode = (PresentationMode + 1) % 4;
+    PresentationMode = (PresentationMode + 1) % 6;
 }
 
 FString AAegisTacticalCameraActor::GetPresentationModeLabel() const
 {
-    static const TCHAR* Labels[] = {TEXT("ENGAGEMENT"), TEXT("COMMAND"), TEXT("CHASE"), TEXT("ORBIT")};
+    static const TCHAR* Labels[] = {
+        TEXT("ENGAGEMENT"), TEXT("COMMAND"), TEXT("CHASE"),
+        TEXT("TOP DOWN"), TEXT("ORBIT"), TEXT("SENSOR / EO")
+    };
     return Labels[PresentationMode];
 }
 
@@ -77,14 +80,20 @@ void AAegisTacticalCameraActor::Tick(float DeltaSeconds)
         return;
     }
 
-    const FVector TrackFocus = bHasInterceptor
+    FVector TrackFocus = bHasInterceptor
         ? (IntruderPosition + InterceptorPosition) * 0.5
         : IntruderPosition;
+    const FVector AverageVelocity = bHasInterceptor
+        ? (IntruderVelocity + InterceptorVelocity) * 0.5f
+        : IntruderVelocity;
+    // Look slightly ahead of the authoritative tracks. This changes framing,
+    // never vehicle state, and gives fast motion room to enter the shot.
+    TrackFocus += AverageVelocity * 100.0f * 0.28f;
     const float Separation = bHasInterceptor
         ? FVector::Distance(IntruderPosition, InterceptorPosition)
         : 0.0f;
     const FVector GroundFocus(TrackFocus.X, TrackFocus.Y, 0.0f);
-    const FVector Focus = PresentationMode == 1
+    FVector Focus = PresentationMode == 1
         ? FMath::Lerp(GroundFocus, TrackFocus, 0.48f) : TrackFocus;
     // The earlier 220 m default read as a terrain flyover and made aircraft
     // silhouettes too small. Start with a close tactical-replay frame, then
@@ -100,23 +109,57 @@ void AAegisTacticalCameraActor::Tick(float DeltaSeconds)
     else if (PresentationMode == 2)
     {
         const FVector ChaseVelocity = (bHasInterceptor ? InterceptorVelocity : IntruderVelocity).GetSafeNormal();
+        Focus = (
+            bHasInterceptor ? InterceptorPosition : IntruderPosition
+        ) + (bHasInterceptor ? InterceptorVelocity : IntruderVelocity) * 100.0f * 0.42f;
         Direction = (ChaseVelocity.IsNearlyZero() ? FVector(-1.0f, -1.0f, 0.35f) : -ChaseVelocity + FVector(0.0f, 0.0f, 0.28f)).GetSafeNormal();
         BaseDistance = 7000.0f;
         Camera->SetFieldOfView(62.0f);
     }
     else if (PresentationMode == 3)
     {
+        Direction = FVector::UpVector;
+        BaseDistance = 42000.0f;
+        Camera->SetFieldOfView(52.0f);
+    }
+    else if (PresentationMode == 4)
+    {
         const float Angle = PresentationSeconds * 0.16f;
         Direction = FVector(FMath::Cos(Angle), FMath::Sin(Angle), 0.46f).GetSafeNormal();
         BaseDistance = 16000.0f;
         Camera->SetFieldOfView(65.0f);
     }
+    else if (PresentationMode == 5)
+    {
+        // Simulated optical presentation from the radar compound. This is a
+        // camera view only; sensor detections still come from Python telemetry.
+        Focus = IntruderPosition;
+        Direction = FVector::ZeroVector;
+        BaseDistance = 0.0f;
+        Camera->SetFieldOfView(24.0f);
+    }
     else
     {
-        Camera->SetFieldOfView(54.0f);
+        Camera->SetFieldOfView(FMath::Clamp(
+            52.0f + Separation / 6000.0f, 52.0f, 64.0f));
     }
-    const float Distance = FMath::Clamp(BaseDistance + Separation * 0.35f, 5500.0f, 50000.0f);
-    const FVector DesiredLocation = Focus + Direction * Distance;
+    if (!bHasSmoothedFocus)
+    {
+        SmoothedFocus = Focus;
+        bHasSmoothedFocus = true;
+    }
+    else if (PresentationMode != 5)
+    {
+        SmoothedFocus = FMath::VInterpTo(
+            SmoothedFocus, Focus, DeltaSeconds, 8.0f);
+        Focus = SmoothedFocus;
+    }
+    const float Distance = PresentationMode == 5
+        ? 0.0f
+        : FMath::Clamp(BaseDistance + Separation * 0.35f, 5500.0f, 50000.0f);
+    const FVector DesiredLocation = PresentationMode == 5
+        ? FVector(-1500.0f, -1500.0f, 1200.0f)
+        : Focus + Direction * Distance;
     const FRotator DesiredRotation = UKismetMathLibrary::FindLookAtRotation(
         DesiredLocation, Focus);
 

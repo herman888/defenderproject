@@ -5,6 +5,8 @@
 #include "Components/TextRenderComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Math/RotationMatrix.h"
+#include "GameFramework/PlayerController.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "TacticalAssetRegistry.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -21,7 +23,7 @@ AAegisTacticalTrackActor::AAegisTacticalTrackActor()
     Label = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Label"));
     Label->SetupAttachment(Visual);
     Label->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
-    Label->SetWorldSize(105.0f);
+    Label->SetWorldSize(82.0f);
     Label->SetRelativeLocation(FVector(0.0, 0.0, 260.0));
     Label->SetRelativeScale3D(FVector(0.8f, 0.8f, 0.8f));
 
@@ -35,6 +37,9 @@ AAegisTacticalTrackActor::AAegisTacticalTrackActor()
     TailWing->SetupAttachment(Visual);
     VerticalFin = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("VerticalFin"));
     VerticalFin->SetupAttachment(Visual);
+    EngineGlow = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EngineGlow"));
+    EngineGlow->SetupAttachment(Visual);
+    EngineGlow->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     for (int32 Index = 0; Index < 4; ++Index)
     {
         UStaticMeshComponent* RotorArm = CreateDefaultSubobject<UStaticMeshComponent>(
@@ -42,6 +47,11 @@ AAegisTacticalTrackActor::AAegisTacticalTrackActor()
         RotorArm->SetupAttachment(Visual);
         RotorArm->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         RotorArms.Add(RotorArm);
+        UStaticMeshComponent* RotorBlade = CreateDefaultSubobject<UStaticMeshComponent>(
+            *FString::Printf(TEXT("RotorBlade%d"), Index));
+        RotorBlade->SetupAttachment(Visual);
+        RotorBlade->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        RotorBlades.Add(RotorBlade);
     }
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> Sphere(
@@ -50,6 +60,7 @@ AAegisTacticalTrackActor::AAegisTacticalTrackActor()
     {
         Visual->SetStaticMesh(Sphere.Object);
         Trail->SetStaticMesh(Sphere.Object);
+        EngineGlow->SetStaticMesh(Sphere.Object);
     }
     static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(
         TEXT("/Engine/BasicShapes/Cube.Cube"));
@@ -63,6 +74,10 @@ AAegisTacticalTrackActor::AAegisTacticalTrackActor()
         for (UStaticMeshComponent* RotorArm : RotorArms)
         {
             RotorArm->SetStaticMesh(Cube.Object);
+        }
+        for (UStaticMeshComponent* RotorBlade : RotorBlades)
+        {
+            RotorBlade->SetStaticMesh(Cube.Object);
         }
     }
     static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(
@@ -116,10 +131,16 @@ void AAegisTacticalTrackActor::ApplyVisualDefinition(
     {
         Detail->SetHiddenInGame(true);
     }
+    for (UStaticMeshComponent* Blade : RotorBlades)
+    {
+        Blade->SetHiddenInGame(true);
+    }
+    EngineGlow->SetHiddenInGame(false);
     MainWing->SetHiddenInGame(true);
     TailWing->SetHiddenInGame(true);
     VerticalFin->SetHiddenInGame(true);
     SetActorScale3D(FVector::OneVector);
+    bUsesRotors = false;
 
     if (!bUsesEngineFallback)
     {
@@ -142,7 +163,16 @@ void AAegisTacticalTrackActor::ApplyVisualDefinition(
             Arm->SetRelativeLocation(FVector::ZeroVector);
             Arm->SetRelativeRotation(FRotator(0.0f, Index % 2 == 0 ? 45.0f : -45.0f, 0.0f));
             Arm->SetRelativeScale3D(FVector(2.8f, 0.13f, 0.10f));
+            UStaticMeshComponent* Blade = RotorBlades[Index];
+            Blade->SetHiddenInGame(false);
+            const float X = Index < 2 ? 155.0f : -155.0f;
+            const float Y = Index % 2 == 0 ? 155.0f : -155.0f;
+            Blade->SetRelativeLocation(FVector(X, Y, 35.0f));
+            Blade->SetRelativeScale3D(FVector(1.05f, 0.07f, 0.035f));
         }
+        EngineGlow->SetRelativeLocation(FVector(-95.0f, 0.0f, -15.0f));
+        EngineGlow->SetRelativeScale3D(FVector(0.30f));
+        bUsesRotors = true;
     }
     else
     {
@@ -163,9 +193,11 @@ void AAegisTacticalTrackActor::ApplyVisualDefinition(
         VerticalFin->SetHiddenInGame(false);
         VerticalFin->SetRelativeLocation(FVector(-220.0f, 0.0f, 72.0f));
         VerticalFin->SetRelativeScale3D(FVector(0.35f, 0.12f, 0.8f));
+        EngineGlow->SetRelativeLocation(FVector(-250.0f, 0.0f, 0.0f));
+        EngineGlow->SetRelativeScale3D(FVector(0.22f, 0.38f, 0.38f));
     }
     BaseColor = Definition.BaseColor;
-    Label->SetText(FText::FromString(Definition.Label + TEXT("  ") + Snapshot.Id));
+    DisplayName = Definition.Label + TEXT("  ") + Snapshot.Id;
     SetDisplayColor(BaseColor);
 }
 
@@ -179,9 +211,14 @@ void AAegisTacticalTrackActor::SetDisplayColor(const FLinearColor& Color)
         MainWing->SetMaterial(0, DynamicMaterial);
         TailWing->SetMaterial(0, DynamicMaterial);
         VerticalFin->SetMaterial(0, DynamicMaterial);
+        EngineGlow->SetMaterial(0, DynamicMaterial);
         for (UStaticMeshComponent* Detail : RotorArms)
         {
             Detail->SetMaterial(0, DynamicMaterial);
+        }
+        for (UStaticMeshComponent* Blade : RotorBlades)
+        {
+            Blade->SetMaterial(0, DynamicMaterial);
         }
     }
     if (DynamicMaterial != nullptr)
@@ -193,19 +230,19 @@ void AAegisTacticalTrackActor::SetDisplayColor(const FLinearColor& Color)
 
 void AAegisTacticalTrackActor::AddTrailPoint(const FVector& WorldLocation)
 {
-    if (!TrailPoints.IsEmpty() && FVector::DistSquared(TrailPoints.Last(), WorldLocation) < 500.0f * 500.0f)
+    if (!TrailPoints.IsEmpty() && FVector::DistSquared(TrailPoints.Last(), WorldLocation) < 280.0f * 280.0f)
     {
         return;
     }
     TrailPoints.Add(WorldLocation);
-    if (TrailPoints.Num() > 20)
+    if (TrailPoints.Num() > 36)
     {
         TrailPoints.RemoveAt(0);
     }
     Trail->ClearInstances();
     for (int32 Index = 0; Index < TrailPoints.Num(); ++Index)
     {
-        const float Scale = 0.08f + 0.12f * (static_cast<float>(Index + 1) / TrailPoints.Num());
+        const float Scale = 0.035f + 0.085f * (static_cast<float>(Index + 1) / TrailPoints.Num());
         Trail->AddInstance(
             FTransform(FRotator::ZeroRotator, TrailPoints[Index], FVector(Scale)), true);
     }
@@ -215,10 +252,37 @@ void AAegisTacticalTrackActor::ApplySnapshot(const FTacticalTrackSnapshot& Snaps
 {
     TrackRole = Snapshot.Role;
     ApplyVisualDefinition(Snapshot);
-    TargetLocation = EnuToUnrealWorld(Snapshot.PositionEnuMetres);
-    TargetRotation = EnuOrientationToUnreal(
-        Snapshot.OrientationEnu, Snapshot.HeadingDegrees);
-    LastSnapshotTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    const FVector NewTargetLocation =
+        EnuToUnrealWorld(Snapshot.PositionEnuMetres);
+    const FQuat NewTargetRotation = EnuOrientationToUnreal(
+        Snapshot.OrientationEnu, Snapshot.HeadingDegrees).Quaternion();
+    const float WorldTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    if (!bHasSnapshot)
+    {
+        SetActorLocationAndRotation(NewTargetLocation, NewTargetRotation);
+        InterpolationStartLocation = NewTargetLocation;
+        InterpolationStartRotation = NewTargetRotation;
+        bHasSnapshot = true;
+    }
+    else
+    {
+        InterpolationStartLocation = GetActorLocation();
+        InterpolationStartRotation = GetActorQuat();
+        const float SnapshotInterval = PreviousSnapshotTime > -BIG_NUMBER / 2.0f
+            ? WorldTime - PreviousSnapshotTime : 0.05f;
+        InterpolationDuration = FMath::Clamp(
+            SnapshotInterval * 0.95f, 0.035f, 0.22f);
+    }
+    TargetLocation = NewTargetLocation;
+    TargetRotation = NewTargetRotation;
+    InterpolationElapsed = 0.0f;
+    Label->SetText(FText::FromString(FString::Printf(
+        TEXT("%s  |  %.0f m/s  |  %.0f m"),
+        *DisplayName,
+        Snapshot.VelocityEnuMetresPerSecond.Length(),
+        Snapshot.PositionEnuMetres.Z)));
+    LastSnapshotTime = WorldTime;
+    PreviousSnapshotTime = WorldTime;
     bIsStale = false;
     bAbsent = false;
     SetActorHiddenInGame(false);
@@ -231,6 +295,8 @@ void AAegisTacticalTrackActor::MarkAbsent()
     bIsStale = true;
     TrailPoints.Reset();
     Trail->ClearInstances();
+    bHasSnapshot = false;
+    PreviousSnapshotTime = -BIG_NUMBER;
     SetActorHiddenInGame(true);
 }
 
@@ -263,8 +329,34 @@ void AAegisTacticalTrackActor::Tick(float DeltaSeconds)
     }
     SetLinkStale(false);
 
-    SetActorLocation(FMath::VInterpTo(
-        GetActorLocation(), TargetLocation, DeltaSeconds, 12.0f));
-    SetActorRotation(FMath::RInterpTo(
-        GetActorRotation(), TargetRotation, DeltaSeconds, 12.0f));
+    InterpolationElapsed += DeltaSeconds;
+    const float LinearAlpha = FMath::Clamp(
+        InterpolationElapsed / FMath::Max(InterpolationDuration, KINDA_SMALL_NUMBER),
+        0.0f,
+        1.0f);
+    const float SmoothAlpha = LinearAlpha * LinearAlpha * (3.0f - 2.0f * LinearAlpha);
+    SetActorLocation(FMath::Lerp(
+        InterpolationStartLocation, TargetLocation, SmoothAlpha));
+    SetActorRotation(FQuat::Slerp(
+        InterpolationStartRotation, TargetRotation, SmoothAlpha).GetNormalized());
+
+    if (bUsesRotors)
+    {
+        for (int32 Index = 0; Index < RotorBlades.Num(); ++Index)
+        {
+            const float Direction = Index % 2 == 0 ? 1.0f : -1.0f;
+            RotorBlades[Index]->AddLocalRotation(
+                FRotator(0.0f, Direction * 1100.0f * DeltaSeconds, 0.0f));
+        }
+    }
+    if (APlayerController* PlayerController = GetWorld()->GetFirstPlayerController())
+    {
+        if (PlayerController->PlayerCameraManager != nullptr)
+        {
+            const FVector CameraLocation =
+                PlayerController->PlayerCameraManager->GetCameraLocation();
+            Label->SetWorldRotation(UKismetMathLibrary::FindLookAtRotation(
+                Label->GetComponentLocation(), CameraLocation));
+        }
+    }
 }

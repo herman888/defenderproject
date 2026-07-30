@@ -96,12 +96,23 @@ class Drone:
         else:
             propulsion = {}
             rigid_body = {}
+        flight_envelope = profile.get("flight_envelope", {}) if profile else {}
         self._id_str    = drone_id
         self._client    = physics_client
         self._target    = list(start_position)
         self._prev_error = [0.0, 0.0, 0.0]
         self._rotor_angle = 0.0
         self._smooth_up = np.array([0.0, 0.0, 1.0], dtype=float)
+        self._heading_enu_rad = 0.0
+        self._attitude_response_time_s = float(
+            flight_envelope.get("attitude_response_time_s", 0.16)
+        )
+        self._yaw_response_time_s = float(
+            flight_envelope.get("yaw_response_time_s", 0.24)
+        )
+        self._max_tilt_rad = math.radians(float(
+            flight_envelope.get("max_tilt_deg", 40.0)
+        ))
         self._commanded_force = np.zeros(3, dtype=float)
         self._actuator_tau_s = float(
             propulsion.get("actuator_time_constant_s", _TIMESTEP)
@@ -226,6 +237,100 @@ class Drone:
         s    = math.sin(half)
         return (axis[0]*s, axis[1]*s, axis[2]*s, math.cos(half))
 
+    @staticmethod
+    def _matrix_to_quaternion(matrix):
+        """Convert a right-handed 3x3 rotation matrix to xyzw quaternion."""
+        m = np.asarray(matrix, dtype=float)
+        trace = float(np.trace(m))
+        if trace > 0.0:
+            scale = math.sqrt(trace + 1.0) * 2.0
+            qw = 0.25 * scale
+            qx = (m[2, 1] - m[1, 2]) / scale
+            qy = (m[0, 2] - m[2, 0]) / scale
+            qz = (m[1, 0] - m[0, 1]) / scale
+        elif m[0, 0] > m[1, 1] and m[0, 0] > m[2, 2]:
+            scale = math.sqrt(1.0 + m[0, 0] - m[1, 1] - m[2, 2]) * 2.0
+            qw = (m[2, 1] - m[1, 2]) / scale
+            qx = 0.25 * scale
+            qy = (m[0, 1] + m[1, 0]) / scale
+            qz = (m[0, 2] + m[2, 0]) / scale
+        elif m[1, 1] > m[2, 2]:
+            scale = math.sqrt(1.0 + m[1, 1] - m[0, 0] - m[2, 2]) * 2.0
+            qw = (m[0, 2] - m[2, 0]) / scale
+            qx = (m[0, 1] + m[1, 0]) / scale
+            qy = 0.25 * scale
+            qz = (m[1, 2] + m[2, 1]) / scale
+        else:
+            scale = math.sqrt(1.0 + m[2, 2] - m[0, 0] - m[1, 1]) * 2.0
+            qw = (m[1, 0] - m[0, 1]) / scale
+            qx = (m[0, 2] + m[2, 0]) / scale
+            qy = (m[1, 2] + m[2, 1]) / scale
+            qz = 0.25 * scale
+        quaternion = np.asarray((qx, qy, qz, qw), dtype=float)
+        norm = float(np.linalg.norm(quaternion))
+        if norm < 1e-9 or not np.all(np.isfinite(quaternion)):
+            return (0.0, 0.0, 0.0, 1.0)
+        return tuple(quaternion / norm)
+
+    def _smooth_flight_attitude(self, desired_up, velocity, yaw_ned=None):
+        """Return a cadence-independent banked attitude with controlled yaw."""
+        desired_up = np.asarray(desired_up, dtype=float)
+        norm = float(np.linalg.norm(desired_up))
+        desired_up = (
+            desired_up / norm
+            if norm > 1e-8
+            else np.array([0.0, 0.0, 1.0], dtype=float)
+        )
+        min_vertical = math.cos(self._max_tilt_rad)
+        if desired_up[2] < min_vertical:
+            horizontal = float(np.linalg.norm(desired_up[:2]))
+            if horizontal > 1e-8:
+                desired_up = np.array([
+                    desired_up[0] / horizontal * math.sin(self._max_tilt_rad),
+                    desired_up[1] / horizontal * math.sin(self._max_tilt_rad),
+                    min_vertical,
+                ])
+
+        attitude_alpha = 1.0 - math.exp(
+            -_TIMESTEP / max(self._attitude_response_time_s, _TIMESTEP)
+        )
+        self._smooth_up += attitude_alpha * (desired_up - self._smooth_up)
+        self._smooth_up /= max(float(np.linalg.norm(self._smooth_up)), 1e-8)
+        up = self._smooth_up.copy()
+
+        velocity = np.asarray(velocity, dtype=float)
+        if yaw_ned is not None and math.isfinite(float(yaw_ned)):
+            desired_heading = math.pi / 2.0 - float(yaw_ned)
+        elif float(np.linalg.norm(velocity[:2])) > 0.8:
+            desired_heading = math.atan2(velocity[1], velocity[0])
+        else:
+            desired_heading = self._heading_enu_rad
+        heading_error = (
+            desired_heading - self._heading_enu_rad + math.pi
+        ) % (2.0 * math.pi) - math.pi
+        yaw_alpha = 1.0 - math.exp(
+            -_TIMESTEP / max(self._yaw_response_time_s, _TIMESTEP)
+        )
+        self._heading_enu_rad += yaw_alpha * heading_error
+
+        forward = np.array([
+            math.cos(self._heading_enu_rad),
+            math.sin(self._heading_enu_rad),
+            0.0,
+        ])
+        forward -= float(np.dot(forward, up)) * up
+        forward_norm = float(np.linalg.norm(forward))
+        if forward_norm < 1e-8:
+            forward = np.array([1.0, 0.0, 0.0])
+            forward -= float(np.dot(forward, up)) * up
+            forward_norm = float(np.linalg.norm(forward))
+        forward /= max(forward_norm, 1e-8)
+        right = np.cross(up, forward)
+        right /= max(float(np.linalg.norm(right)), 1e-8)
+        forward = np.cross(right, up)
+        rotation = np.column_stack((forward, right, up))
+        return self._matrix_to_quaternion(rotation)
+
     # ------------------------------------------------------------------
     def set_target(self, x: float, y: float, z: float):
         self._target = [x, y, z]
@@ -260,9 +365,6 @@ class Drone:
         Kinematic orientation avoids torque–inertia fights with the external-force
         abstraction while keeping thrust and visuals consistent.
         """
-        MAX_TILT   = math.radians(40)        # max lean from vertical
-        UP_SLEW    = 0.26                    # blend toward new thrust dir (0–1)
-
         err = np.array(
             [self._target[i] - pos[i] for i in range(3)], dtype=float
         )
@@ -283,25 +385,9 @@ class Drone:
         else:
             desired_up = np.array([0.0, 0.0, 1.0])
 
-        # Ease attitude into aggressive direction changes
-        self._smooth_up = (1.0 - UP_SLEW) * self._smooth_up + UP_SLEW * desired_up
-        sn = float(np.linalg.norm(self._smooth_up))
-        if sn > 1e-8:
-            self._smooth_up /= sn
+        # Kinematically bank and yaw the body with cadence-independent response.
+        orn_new = self._smooth_flight_attitude(desired_up, vel_np)
         desired_up = self._smooth_up.copy()
-
-        # Clamp tilt angle
-        if desired_up[2] < math.cos(MAX_TILT):
-            xy_n = float(np.linalg.norm(desired_up[:2]))
-            if xy_n > 1e-8:
-                desired_up = np.array([
-                    desired_up[0] / xy_n * math.sin(MAX_TILT),
-                    desired_up[1] / xy_n * math.sin(MAX_TILT),
-                    math.cos(MAX_TILT),
-                ])
-
-        # Kinematically tilt body so mesh visually banks into the manoeuvre
-        orn_new = self._align_z_to_vec(desired_up)
         pybullet.resetBasePositionAndOrientation(
             self._body, list(pos), list(orn_new), physicsClientId=self._client
         )
@@ -381,9 +467,9 @@ class Drone:
                                    plus gravity comp, then force = a·m.
           • sp.is_empty          → no-op; caller picks a fallback.
 
-        sp.yaw is informational in Stage A — body yaw is currently derived
-        implicitly from the tilt axis. The real ArduPilot in Stage B will
-        honour it via its attitude controller.
+        Stage A also turns the visual/kinematic body toward sp.yaw while
+        preserving the thrust-vector bank. Stage B delegates the same setpoint
+        to ArduPilot's attitude controller.
         """
         if sp is None or sp.is_empty:
             return
@@ -412,30 +498,12 @@ class Drone:
         force = self._condition_force(force, vel)
         f_mag = float(np.linalg.norm(force))
 
-        # Kinematic tilt so the mesh visually banks into the manoeuvre.
-        MAX_TILT = math.radians(40)
-        UP_SLEW  = 0.26
+        # Kinematic tilt/yaw so the mesh banks and points into the manoeuvre.
         if f_mag > 1e-6:
             desired_up = force / f_mag
         else:
             desired_up = np.array([0.0, 0.0, 1.0])
-
-        self._smooth_up = (1.0 - UP_SLEW) * self._smooth_up + UP_SLEW * desired_up
-        sn = float(np.linalg.norm(self._smooth_up))
-        if sn > 1e-8:
-            self._smooth_up /= sn
-        desired_up = self._smooth_up.copy()
-
-        if desired_up[2] < math.cos(MAX_TILT):
-            xy_n = float(np.linalg.norm(desired_up[:2]))
-            if xy_n > 1e-8:
-                desired_up = np.array([
-                    desired_up[0] / xy_n * math.sin(MAX_TILT),
-                    desired_up[1] / xy_n * math.sin(MAX_TILT),
-                    math.cos(MAX_TILT),
-                ])
-
-        orn = self._align_z_to_vec(desired_up)
+        orn = self._smooth_flight_attitude(desired_up, vel, sp.yaw)
         pybullet.resetBasePositionAndOrientation(
             self._body, list(pos), list(orn), physicsClientId=self._client,
         )

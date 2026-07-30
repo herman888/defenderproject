@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 SCHEMA = "aegis.local-sim-control.v1"
 ALLOWED_SPEEDS = frozenset({1.0, 2.0, 4.0, 8.0})
+ALLOWED_FAILURES = frozenset({"radar", "eo", "actuator"})
 MAX_DATAGRAM_BYTES = 4096
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost"})
 
@@ -23,8 +24,13 @@ def validate_command(packet: object) -> dict:
     if not isinstance(packet, dict) or packet.get("schema") != SCHEMA:
         raise ValueError("unsupported local simulation command")
     action = packet.get("action")
-    if action in {"pause_toggle", "restart"}:
+    if action in {"pause_toggle", "restart", "next_preset", "clear_failures"}:
         return {"action": action}
+    if action == "toggle_failure":
+        failure = packet.get("failure")
+        if failure not in ALLOWED_FAILURES:
+            raise ValueError("failure is not an allowed training injection")
+        return {"action": action, "failure": failure}
     if action == "set_speed":
         speed = packet.get("speed")
         if isinstance(speed, bool) or not isinstance(speed, (int, float)):

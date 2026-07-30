@@ -6,7 +6,7 @@
 
 class FSocket;
 
-/** Minimal local presentation controls; no input is sent to Python. */
+/** Loopback-only controls for the local Python training simulation. */
 UCLASS()
 class AEGISTACTICALVIEWER_API AAegisTacticalPlayerController : public APlayerController
 {
@@ -26,7 +26,13 @@ private:
     void SetSimulationRate2x();
     void SetSimulationRate4x();
     void SetSimulationRate8x();
+    void ToggleRadarFailure();
+    void ToggleEoFailure();
+    void ToggleActuatorFailure();
+    void ClearFailures();
+    void NextScenarioPreset();
     void SetSimulationRate(double Rate);
+    void ToggleFailure(const FString& Failure, const FString& Label);
     void SendLocalSimulationCommand(const FString& Json, const FString& Label);
 
     FSocket* ControlSocket = nullptr;

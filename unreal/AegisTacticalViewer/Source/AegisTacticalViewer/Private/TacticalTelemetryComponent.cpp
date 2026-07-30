@@ -1,11 +1,13 @@
 #include "TacticalTelemetryComponent.h"
 
 #include "AegisTacticalCameraActor.h"
+#include "AegisTacticalSiteActor.h"
 #include "AegisTacticalViewer.h"
 #include "Common/UdpSocketBuilder.h"
 #include "Containers/StringConv.h"
 #include "Dom/JsonObject.h"
 #include "Interfaces/IPv4/IPv4Address.h"
+#include "Kismet/GameplayStatics.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "SocketSubsystem.h"
@@ -228,7 +230,14 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
     double RequestedRate = 1.0;
     double AchievedRealtimeFactor = 0.0;
     double InterceptorSpeedCap = 0.0;
+    double GuidanceNavigationGain = 0.0;
+    double GuidanceCommandSpeed = 0.0;
+    double GuidanceClosingSpeed = 0.0;
+    double GuidanceLosRate = 0.0;
+    double GuidanceTrackConfidence = 0.0;
+    double AiResidualAuthority = 0.0;
     FString InterceptorProfileEvidence = TEXT("UNKNOWN");
+    FString GuidanceMode = TEXT("WAITING");
     if (Root->TryGetObjectField(TEXT("simulation"), Simulation)
         && Simulation != nullptr && Simulation->IsValid())
     {
@@ -241,6 +250,109 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
             ++Health.RejectedPackets;
             RejectedPacketCount = static_cast<int32>(Health.RejectedPackets);
             return false;
+        }
+        const auto ReadOptionalFinite = [&Simulation](
+            const TCHAR* Field,
+            double& Value)
+        {
+            return !(*Simulation)->HasField(Field)
+                || ReadFiniteNumber(*Simulation, Field, Value);
+        };
+        if (((*Simulation)->HasField(TEXT("guidance_mode"))
+                && !(*Simulation)->TryGetStringField(TEXT("guidance_mode"), GuidanceMode))
+            || !ReadOptionalFinite(TEXT("navigation_gain"), GuidanceNavigationGain)
+            || !ReadOptionalFinite(TEXT("command_speed_mps"), GuidanceCommandSpeed)
+            || !ReadOptionalFinite(TEXT("closing_speed_mps"), GuidanceClosingSpeed)
+            || !ReadOptionalFinite(TEXT("los_rate_dps"), GuidanceLosRate)
+            || !ReadOptionalFinite(TEXT("track_confidence"), GuidanceTrackConfidence)
+            || !ReadOptionalFinite(TEXT("ai_residual_authority"), AiResidualAuthority)
+            || GuidanceNavigationGain < 0.0 || GuidanceNavigationGain > 10.0
+            || GuidanceCommandSpeed < 0.0 || GuidanceCommandSpeed > 250.0
+            || FMath::Abs(GuidanceClosingSpeed) > 500.0
+            || GuidanceLosRate < 0.0 || GuidanceLosRate > 720.0
+            || GuidanceTrackConfidence < 0.0 || GuidanceTrackConfidence > 1.0
+            || AiResidualAuthority < 0.0 || AiResidualAuthority > 1.0)
+        {
+            ++Health.RejectedPackets;
+            RejectedPacketCount = static_cast<int32>(Health.RejectedPackets);
+            return false;
+        }
+    }
+
+    bool bRadarLocked = false;
+    bool bEoLocked = false;
+    bool bRadarFailure = false;
+    bool bEoFailure = false;
+    bool bActuatorFailure = false;
+    FString FusionSource = TEXT("SEARCHING");
+    const TSharedPtr<FJsonObject>* Sensors = nullptr;
+    if (Root->TryGetObjectField(TEXT("sensors"), Sensors)
+        && Sensors != nullptr && Sensors->IsValid())
+    {
+        if (!(*Sensors)->TryGetBoolField(TEXT("radar_locked"), bRadarLocked)
+            || !(*Sensors)->TryGetBoolField(TEXT("eo_locked"), bEoLocked)
+            || !ReadRequiredString(*Sensors, TEXT("fusion_source"), FusionSource))
+        {
+            ++Health.RejectedPackets;
+            RejectedPacketCount = static_cast<int32>(Health.RejectedPackets);
+            return false;
+        }
+        (*Sensors)->TryGetBoolField(TEXT("radar_failure"), bRadarFailure);
+        (*Sensors)->TryGetBoolField(TEXT("eo_failure"), bEoFailure);
+        (*Sensors)->TryGetBoolField(TEXT("actuator_failure"), bActuatorFailure);
+    }
+
+    FString EnvironmentName = TEXT("CLEAR");
+    double VisibilityMetres = 0.0;
+    FVector WindEnuMetresPerSecond = FVector::ZeroVector;
+    const TSharedPtr<FJsonObject>* Environment = nullptr;
+    if (Root->TryGetObjectField(TEXT("environment"), Environment)
+        && Environment != nullptr && Environment->IsValid())
+    {
+        if (!ReadRequiredString(*Environment, TEXT("name"), EnvironmentName)
+            || !ReadFiniteNumber(*Environment, TEXT("visibility_m"), VisibilityMetres)
+            || VisibilityMetres < 0.0
+            || !ReadVector(*Environment, TEXT("wind_enu_mps"), WindEnuMetresPerSecond))
+        {
+            ++Health.RejectedPackets;
+            RejectedPacketCount = static_cast<int32>(Health.RejectedPackets);
+            return false;
+        }
+    }
+
+    FString ScenarioIntruder = TEXT("UNKNOWN");
+    FString ScenarioPattern = TEXT("UNKNOWN");
+    FString ScenarioPad = TEXT("MID");
+    bool bRecording = false;
+    const TSharedPtr<FJsonObject>* Scenario = nullptr;
+    if (Root->TryGetObjectField(TEXT("scenario"), Scenario)
+        && Scenario != nullptr && Scenario->IsValid())
+    {
+        if (!ReadRequiredString(*Scenario, TEXT("intruder"), ScenarioIntruder)
+            || !ReadRequiredString(*Scenario, TEXT("pattern"), ScenarioPattern)
+            || !ReadRequiredString(*Scenario, TEXT("pad"), ScenarioPad)
+            || !(*Scenario)->TryGetBoolField(TEXT("recording"), bRecording))
+        {
+            ++Health.RejectedPackets;
+            RejectedPacketCount = static_cast<int32>(Health.RejectedPackets);
+            return false;
+        }
+    }
+
+    FVector PredictedIntercept = FVector::ZeroVector;
+    bool bHasPredictedIntercept = false;
+    if (const TSharedPtr<FJsonValue>* PredictedValue =
+        Root->Values.Find(TEXT("predicted_intercept_enu_m")))
+    {
+        if ((*PredictedValue)->Type != EJson::Null)
+        {
+            if (!ReadVector(Root, TEXT("predicted_intercept_enu_m"), PredictedIntercept))
+            {
+                ++Health.RejectedPackets;
+                RejectedPacketCount = static_cast<int32>(Health.RejectedPackets);
+                return false;
+            }
+            bHasPredictedIntercept = true;
         }
     }
 
@@ -319,7 +431,40 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
     Health.AchievedRealtimeFactor = AchievedRealtimeFactor;
     Health.InterceptorSpeedCapMps = InterceptorSpeedCap;
     Health.InterceptorProfileEvidence = InterceptorProfileEvidence;
+    Health.GuidanceMode = GuidanceMode;
+    Health.GuidanceNavigationGain = GuidanceNavigationGain;
+    Health.GuidanceCommandSpeedMps = GuidanceCommandSpeed;
+    Health.GuidanceClosingSpeedMps = GuidanceClosingSpeed;
+    Health.GuidanceLosRateDps = GuidanceLosRate;
+    Health.GuidanceTrackConfidence = GuidanceTrackConfidence;
+    Health.AiResidualAuthority = AiResidualAuthority;
+    Health.bRadarLocked = bRadarLocked;
+    Health.bEoLocked = bEoLocked;
+    Health.bRadarFailure = bRadarFailure;
+    Health.bEoFailure = bEoFailure;
+    Health.bActuatorFailure = bActuatorFailure;
+    Health.FusionSource = FusionSource;
+    Health.EnvironmentName = EnvironmentName;
+    Health.VisibilityMetres = VisibilityMetres;
+    Health.WindEnuMetresPerSecond = WindEnuMetresPerSecond;
+    Health.ScenarioIntruder = ScenarioIntruder;
+    Health.ScenarioPattern = ScenarioPattern;
+    Health.ScenarioPad = ScenarioPad;
+    Health.bRecording = bRecording;
+    Health.bHasPredictedIntercept = bHasPredictedIntercept;
+    Health.PredictedInterceptEnuMetres = PredictedIntercept;
     ++Health.ForwardedPackets;
+
+    if (TacticalSite == nullptr && GetWorld() != nullptr)
+    {
+        TacticalSite = Cast<AAegisTacticalSiteActor>(UGameplayStatics::GetActorOfClass(
+            GetWorld(), AAegisTacticalSiteActor::StaticClass()));
+    }
+    if (TacticalSite != nullptr)
+    {
+        TacticalSite->SetPredictedIntercept(
+            PredictedIntercept, bHasPredictedIntercept, Status);
+    }
 
     UpdateTrack(Intruder);
     if (bHasInterceptor)

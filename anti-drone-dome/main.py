@@ -756,6 +756,7 @@ def _run_one_mission(
         "camera_failure": False,
         "actuator_failure": False,
     }
+    requested_next_preset = False
 
     # Wall-clock throttle for dashboard state pushes (decoupled from physics tick rate).
     # At sim_speed >= 4x the inner-loop step counter advances multiple ticks per outer
@@ -795,6 +796,19 @@ def _run_one_mission(
                 elif command["action"] == "set_speed":
                     sim_speed = command["speed"]
                     pending_events.append(f"Presentation speed {sim_speed:.0f}x")
+                elif command["action"] == "toggle_failure":
+                    failure_key = {
+                        "radar": "radar_failure",
+                        "eo": "camera_failure",
+                        "actuator": "actuator_failure",
+                    }[command["failure"]]
+                    dash_ctrl[failure_key] = not bool(dash_ctrl.get(failure_key))
+                elif command["action"] == "clear_failures":
+                    for failure_key in previous_failures:
+                        dash_ctrl[failure_key] = False
+                elif command["action"] == "next_preset":
+                    requested_next_preset = True
+                    mission_result = "NEXT_PRESET"
 
         # ── Dashboard control drain ──────────────────────────────────
         while True:
@@ -1010,6 +1024,11 @@ def _run_one_mission(
             #                   coasts toward it instead of stalling
             #   pre-engaged   → position-hold at pad altitude (placeholder FC takeoff)
             if interceptor_engaged and guidance_track:
+                guidance_track = dict(guidance_track)
+                guidance_track.setdefault(
+                    "confidence",
+                    radar.track_confidence(),
+                )
                 if live_policy:
                     g_setpoint = live_policy.compute_setpoint(
                         interceptor.get_state(),
@@ -1340,9 +1359,9 @@ def _run_one_mission(
                         "status": status,
                         "site": site_config["name"],
                         "guidance": (
-                            "residual_ai_apn" if live_policy else
+                            "bounded_residual_ai_adaptive_apn" if live_policy else
                             "ardupilot_sitl" if sitl_bridge else
-                            "apn"
+                            "adaptive_apn"
                         ),
                         "coordinate_frame": {
                             "type": "local-tangent-plane",
@@ -1402,6 +1421,20 @@ def _run_one_mission(
                                 fused_track.get("source")
                                 if fused_track else "SEARCHING"
                             ),
+                            "radar_failure": bool(dash_ctrl.get("radar_failure")),
+                            "eo_failure": bool(dash_ctrl.get("camera_failure")),
+                            "actuator_failure": bool(dash_ctrl.get("actuator_failure")),
+                        },
+                        "environment": {
+                            "name": pattern.get("environment", "clear"),
+                            "visibility_m": float(environment["visibility_m"]),
+                            "wind_enu_mps": list(map(float, wind_force)),
+                        },
+                        "scenario": {
+                            "intruder": intruder_key,
+                            "pattern": pattern_key,
+                            "pad": pad_key,
+                            "recording": bool(TELEMETRY_RECORD),
                         },
                         "simulation": {
                             "requested_rate": float(sim_speed),
@@ -1414,6 +1447,47 @@ def _run_one_mission(
                             "interceptor_profile_evidence": interceptor_profile[
                                 "evidence"
                             ]["status"],
+                            "guidance_mode": (
+                                live_policy.guidance.last_diagnostics["mode"]
+                                if live_policy else
+                                guidance.last_diagnostics["mode"]
+                            ),
+                            "navigation_gain": float(
+                                (
+                                    live_policy.guidance.last_diagnostics
+                                    if live_policy else guidance.last_diagnostics
+                                ).get("navigation_gain", 0.0)
+                            ),
+                            "command_speed_mps": float(
+                                (
+                                    live_policy.guidance.last_diagnostics
+                                    if live_policy else guidance.last_diagnostics
+                                ).get("command_speed_mps", 0.0)
+                            ),
+                            "closing_speed_mps": float(
+                                (
+                                    live_policy.guidance.last_diagnostics
+                                    if live_policy else guidance.last_diagnostics
+                                ).get("closing_speed_mps", 0.0)
+                            ),
+                            "los_rate_dps": float(
+                                (
+                                    live_policy.guidance.last_diagnostics
+                                    if live_policy else guidance.last_diagnostics
+                                ).get("los_rate_dps", 0.0)
+                            ),
+                            "track_confidence": float(
+                                (
+                                    live_policy.guidance.last_diagnostics
+                                    if live_policy else guidance.last_diagnostics
+                                ).get("track_confidence", 0.0)
+                            ),
+                            "ai_residual_authority": float(
+                                live_policy.last_diagnostics.get(
+                                    "residual_authority", 0.0
+                                )
+                                if live_policy else 0.0
+                            ),
                         },
                     })
                 except OSError as exc:
@@ -1447,9 +1521,9 @@ def _run_one_mission(
                     "wind_mps"           : tuple(wind_force),
                     "site_name"          : site_config["name"],
                     "guidance_mode"      : (
-                        "RESIDUAL AI + APN" if live_policy else
+                        "BOUNDED RESIDUAL AI + ADAPTIVE APN" if live_policy else
                         "ARDUPILOT SITL" if sitl_bridge else
-                        "APN AUTONOMY"
+                        "ADAPTIVE APN AUTONOMY"
                     ),
                     "radar_station"      : radar.station_pos.tolist(),
                     "predicted_intercept": predicted_intercept,
@@ -1549,6 +1623,7 @@ def _run_one_mission(
         "acmi_file"          : acmi.filename,
         "mission_run_id"     : mission_recorder.run_id,
         "mission_manifest"   : mission_recorder.manifest_path,
+        "next_preset"        : requested_next_preset,
     }
     mission_recorder.finalize(
         result,
@@ -1684,6 +1759,14 @@ def _mission_loop(state_q, ctrl_q, dash_proc, shared_state=None, state_lock=None
     current_pattern  = "direct"
     chosen_speed     = 1.0
     chosen_pad       = "mid"
+    viewer_presets = [
+        ("shahed136", "direct", "mid"),
+        ("fpv_attack", "nap_earth", "near"),
+        ("consumer_quad", "spiral", "mid"),
+        ("shahed136", "crossing", "far"),
+        ("fpv_attack", "pop_up", "near"),
+        ("consumer_quad", "offset", "mid"),
+    ]
 
     try:
         while True:
@@ -1719,6 +1802,22 @@ def _mission_loop(state_q, ctrl_q, dash_proc, shared_state=None, state_lock=None
                 continue
 
             if mr == "RESTART":
+                continue
+
+            if mr == "NEXT_PRESET":
+                try:
+                    current_index = viewer_presets.index(
+                        (current_intruder, current_pattern, chosen_pad)
+                    )
+                except ValueError:
+                    current_index = -1
+                current_intruder, current_pattern, chosen_pad = viewer_presets[
+                    (current_index + 1) % len(viewer_presets)
+                ]
+                print(
+                    "[sim-control] next preset: "
+                    f"{current_intruder}/{current_pattern}/{chosen_pad}"
+                )
                 continue
 
             if mr == "ABORTED":

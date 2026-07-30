@@ -20,16 +20,16 @@ evidence. This project only renders the validated UDP telemetry emitted by
    visual context only and not a real-world georeference.
 3. Press Play. The game mode automatically creates a telemetry manager which
    listens only on UDP `127.0.0.1:8788`.
-4. Press `C` while the viewer has focus to cycle between **Chase**,
-   **Tactical**, and **Terrain** camera framing.
+4. Press `C` while the viewer has focus to cycle through **Engagement**,
+   **Command**, **Chase**, **Top Down**, **Orbit**, and **Sensor / EO** views.
 
 Until curated assets are licensed into the project, the viewer creates a
 non-authoritative fixed-wing silhouette for the intruder, a compact quadcopter
 silhouette for the interceptor, and a generic protected training-site marker.
 They are deliberately visual fallbacks rather than claims about real aircraft
-or a real location. To replace them with Fab/Quixel content, update the
-matching entries in `TacticalAssetRegistry.cpp` with imported mesh paths. The
-telemetry, physics, and display-only safety boundary do not change.
+or a real location. To replace them with Fab/Quixel content, use the matching
+names in [`ASSET_SLOTS.md`](ASSET_SLOTS.md). The telemetry, physics, and
+display-only safety boundary do not change.
 
 For the final art pass, add only free/verified-license Fab or Quixel content:
 
@@ -51,9 +51,37 @@ Press Play once in Unreal. Press `C` to cycle camera framing. Use
 
 ## Packaged viewer
 
-The tested Windows build is at `unreal/builds/AegisTacticalViewer-Win64/Windows/`.
+The tested Windows build is at
+`unreal/builds/AegisTacticalViewer-Win64-next/Windows/`.
 Run `anti-drone-dome/scripts/launch_packaged_unreal_demo.ps1` for the same
 continuous demo without opening the Unreal editor or pressing Play.
+
+The packaged viewer also provides loopback-only training controls:
+
+| Key | Local simulation action |
+| --- | --- |
+| `Space` | Pause/resume |
+| `R` | Restart current scenario |
+| `1`, `2`, `4`, `8` | Requested simulation rate |
+| `C` | Cycle tactical camera |
+| `N` | Load the next curated scenario preset |
+| `F5`, `F6`, `F7` | Toggle radar, EO, or actuator failure injection |
+| `X` | Clear all injected failures |
+
+Every live run records JSONL and ACMI evidence. Run
+`anti-drone-dome/scripts/launch_packaged_unreal_replay.ps1` to replay the most
+recent validated JSONL mission at 2x.
+
+The default controller is adaptive APN: navigation gain, command speed,
+terminal blend, and target-acceleration compensation respond to the live
+engagement and track confidence. A learned policy can be added only as a
+bounded residual. See
+[`GUIDANCE_AI.md`](../../anti-drone-dome/GUIDANCE_AI.md). To verify that both
+vehicles move continuously in a recording, run:
+
+```powershell
+python scripts\validate_unreal_motion_recording.py missions\renderer\unreal-demo.jsonl
+```
 
 ## Start the live pipeline manually
 
@@ -68,8 +96,10 @@ python main.py --telemetry-udp 127.0.0.1:8787
 ```
 
 Then press Play in Unreal. `LogAegisTacticalViewer` reports received packets in
-the Unreal Output Log. The actors interpolate only between received snapshots;
-they do not extrapolate or issue commands back to Python.
+the Unreal Output Log. The actors interpolate only between received snapshots
+and never extrapolate. The controls above send a separate, whitelisted protocol
+to the local training simulation on `127.0.0.1:8789`; there is no hardware or
+weapon command path.
 
 ## Coordinate convention
 

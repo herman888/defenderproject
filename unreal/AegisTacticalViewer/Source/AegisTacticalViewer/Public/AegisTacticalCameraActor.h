@@ -24,7 +24,7 @@ public:
     /** Stops framing a track once the authoritative feed reports it absent. */
     void ClearTrack(const FString& TrackRole);
 
-    /** C cycles chase, tactical overview, and terrain-follow presentation. */
+    /** C cycles engagement, command, chase, top-down, orbit, and EO presentation. */
     void CyclePresentationMode();
     FString GetPresentationModeLabel() const;
 
@@ -39,10 +39,12 @@ private:
     FVector InterceptorPosition = FVector::ZeroVector;
     FVector IntruderVelocity = FVector::ForwardVector;
     FVector InterceptorVelocity = FVector::ForwardVector;
+    FVector SmoothedFocus = FVector::ZeroVector;
     bool bHasIntruder = false;
     bool bHasInterceptor = false;
     bool bClaimedPlayerView = false;
     bool bHasFramedTrack = false;
+    bool bHasSmoothedFocus = false;
     int32 PresentationMode = 0;
     float PresentationSeconds = 0.0f;
 };
