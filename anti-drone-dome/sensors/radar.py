@@ -17,6 +17,8 @@ import time
 from collections import deque
 import numpy as np
 
+from sensors.radar_model import RadarDetectionModel
+
 _DT        = 1.0 / 240.0   # physics timestep
 _PROC_NOISE = 5.0           # continuous white-jerk spectral density, tunes Q
 _ACC_ALPHA  = 0.08          # retained API setting for scenario compatibility
@@ -133,6 +135,7 @@ class RadarNode:
         latency_steps: int = 0,
         false_alarm_probability: float = 0.0,
         seed: int | None = None,
+        detection_model=None,
     ):
         self.station_pos      = np.array(station_pos,      dtype=float)
         self.protected_center = np.array(protected_center, dtype=float)
@@ -149,6 +152,14 @@ class RadarNode:
             raise ValueError("radar dwell_steps must be positive and latency non-negative")
         if not 0.0 <= self._false_alarm_probability <= 1.0:
             raise ValueError("false_alarm_probability must be in [0, 1]")
+        # Detection physics. Defaults to the radar range equation plus
+        # Shnidman's P_d, which couples P_d to P_fa through the detection
+        # threshold. The curve this replaced was piecewise-linear in
+        # range/max_range with no radar equation behind it, and let P_d and
+        # P_fa be set independently - physically impossible.
+        self._detection_model = detection_model or RadarDetectionModel(
+            max_range_m=self.max_range,
+        )
         self._rng = np.random.default_rng(seed)
         self._scan_calls = 0
         self._latency_queue = deque()
@@ -357,19 +368,7 @@ class RadarNode:
                 self._tracker.step(None)
             return {"detected": False, "seq": self._seq}
 
-        # Range-normalised detection curve (Swerling-I, scaled by target RCS)
-        _RCS_REF = 0.05   # baseline RCS (Shahed-136)
-        rcs_factor = math.sqrt(max(target_rcs, 1e-4) / _RCS_REF)  # ≤1 for small targets
-
-        t_frac = rng / max(self.max_range, 1.0)
-        if t_frac <= 0.15:
-            p_base = 0.88
-        elif t_frac <= 0.50:
-            p_base = 0.88 - (t_frac - 0.15) / 0.35 * 0.30   # 0.88 → 0.58
-        else:
-            p_base = 0.58 - (t_frac - 0.50) / 0.50 * 0.28   # 0.58 → 0.30
-
-        p_det = max(0.02, min(0.96, p_base * rcs_factor))
+        p_det = self._detection_model.p_detect(rng, max(target_rcs, 1e-4))
 
         if self._rng.random() > p_det:
             self._hits = max(0, self._hits - 1)
