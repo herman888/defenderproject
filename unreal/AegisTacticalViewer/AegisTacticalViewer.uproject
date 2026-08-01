@@ -22,6 +22,18 @@
     {
       "Name": "Interchange",
       "Enabled": true
+    },
+    {
+      "Name": "CesiumForUnreal",
+      "Enabled": true
+    },
+    {
+      "Name": "Niagara",
+      "Enabled": true
+    },
+    {
+      "Name": "Water",
+      "Enabled": false
     }
   ]
 }

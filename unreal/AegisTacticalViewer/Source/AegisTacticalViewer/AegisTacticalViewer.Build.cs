@@ -13,7 +13,7 @@ public class AegisTacticalViewer : ModuleRules
 
         PrivateDependencyModuleNames.AddRange(new string[]
         {
-            "Json", "JsonUtilities", "Networking", "Sockets"
+            "Json", "JsonUtilities", "Networking", "Sockets", "Niagara", "NiagaraCore"
         });
     }
 }

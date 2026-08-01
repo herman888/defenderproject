@@ -1,6 +1,7 @@
 #include "TacticalTelemetryComponent.h"
 
 #include "AegisTacticalCameraActor.h"
+#include "AegisTacticalEffectsManager.h"
 #include "AegisTacticalSiteActor.h"
 #include "AegisTacticalViewer.h"
 #include "Common/UdpSocketBuilder.h"
@@ -485,6 +486,7 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
 
     Health.DroppedPackets += Health.LastSequence >= 0
         ? FMath::Max<int64>(0, PacketSequence - Health.LastSequence - 1) : 0;
+    const bool bTransitionedToIntercepted = (Health.Status != TEXT("INTERCEPTED") && Status == TEXT("INTERCEPTED"));
     Health.LastSequence = PacketSequence;
     LastSequence = PacketSequence;
     Health.LastMissionTimeSeconds = MissionTime;
@@ -549,6 +551,23 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
             TacticalCamera->ClearTrack(TEXT("interceptor"));
         }
     }
+
+    if (bTransitionedToIntercepted)
+    {
+        if (EffectsManager == nullptr && GetWorld() != nullptr)
+        {
+            EffectsManager = Cast<AAegisTacticalEffectsManager>(UGameplayStatics::GetActorOfClass(
+                GetWorld(), AAegisTacticalEffectsManager::StaticClass()));
+        }
+        if (EffectsManager != nullptr)
+        {
+            if (AAegisTacticalTrackActor* IntruderActor = GetOrCreateTrack(Intruder))
+            {
+                EffectsManager->SpawnInterceptExplosion(IntruderActor->GetActorLocation());
+            }
+        }
+    }
+
     return true;
 }
 

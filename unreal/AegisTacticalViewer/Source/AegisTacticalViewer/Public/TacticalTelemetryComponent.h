@@ -10,6 +10,7 @@ class FSocket;
 class FJsonObject;
 class AAegisTacticalCameraActor;
 class AAegisTacticalSiteActor;
+class AAegisTacticalEffectsManager;
 
 /** Receives display-only aegis.unreal-bridge.v1 UDP telemetry. */
 UCLASS(ClassGroup = (Aegis), meta = (BlueprintSpawnableComponent))
@@ -64,5 +65,6 @@ private:
     TMap<FString, FTacticalTrackSnapshot> LatestSnapshotsByRole;
     TObjectPtr<AAegisTacticalCameraActor> TacticalCamera;
     TObjectPtr<AAegisTacticalSiteActor> TacticalSite;
+    TObjectPtr<AAegisTacticalEffectsManager> EffectsManager;
     FTacticalTelemetryHealth Health;
 };
