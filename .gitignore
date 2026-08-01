@@ -43,6 +43,11 @@ anti-drone-dome/winget_*.log
 /git_status.txt
 /git_short.txt
 
+# Training datasets (~353 MB / 21k images). Re-fetch with
+# anti-drone-dome/scripts/fetch_public_datasets.py; provenance and licensing
+# are recorded in anti-drone-dome/data/public/SOURCES.md.
+anti-drone-dome/data/
+
 # Downloaded/base YOLO weights (auto-fetched on first run)
 anti-drone-dome/models/yolo11n_drone.pt
 anti-drone-dome/models/yolov8n.pt
