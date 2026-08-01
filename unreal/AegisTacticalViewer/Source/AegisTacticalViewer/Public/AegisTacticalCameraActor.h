@@ -37,6 +37,9 @@ public:
     /** Receives display state only, for non-authoritative cinematic camera beats. */
     void SetMissionPresentationState(const struct FTacticalTelemetryHealth& Health);
 
+    void TriggerHitStop(float Duration = 0.4f);
+    void CheckInterceptProximity(float Separation);
+
 private:
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<USceneComponent> SceneRoot;
@@ -70,4 +73,7 @@ private:
     double PreviousMissionTimeSeconds = -1.0;
     FString PreviousMissionStatus;
     FString LastAutoCut;
+    
+    float HitStopTimeRemaining = 0.0f;
+    float HitStopTimeDilation = 0.25f;
 };

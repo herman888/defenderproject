@@ -92,6 +92,8 @@ private:
     void SetDisplayColor(const FLinearColor& Color);
     void AddTrailPoint(const FVector& WorldLocation);
     void UpdateContrailRibbon();
+    void UpdateEngineEffects(float DeltaSeconds);
+    void UpdateNavigationLights(float DeltaSeconds);
 
     FVector InterpolationStartLocation = FVector::ZeroVector;
     FVector TargetLocation = FVector::ZeroVector;
@@ -115,4 +117,6 @@ private:
     bool bUsesRotors = false;
     bool bUsesAuthoredMesh = false;
     float LastSpeedMetresPerSecond = 0.0f;
+    float SmoothedEngineScale = 0.14f;
+    float SmoothedEngineIntensity = 80.0f;
 };

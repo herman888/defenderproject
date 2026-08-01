@@ -35,6 +35,83 @@ FString SensorState(const bool bFailure, const bool bLocked)
 }
 }
 
+void AAegisTacticalHUD::DrawCornerBracket(float X, float Y, float DirX, float DirY, float Size, const FLinearColor& Color, float Thickness)
+{
+    DrawLine(X, Y, X + DirX * Size, Y, Color, Thickness);
+    DrawLine(X, Y, X, Y + DirY * Size, Color, Thickness);
+}
+
+void AAegisTacticalHUD::DrawThreatAssessmentPanel(
+    float X, float Y, 
+    const FTacticalTrackSnapshot* Intruder,
+    float MissionTimeSeconds,
+    const FLinearColor& PanelColor,
+    const FLinearColor& HeaderColor,
+    const FLinearColor& BodyColor,
+    const FLinearColor& MutedColor,
+    const FLinearColor& CyanColor,
+    const FLinearColor& OrangeColor,
+    UFont* Font)
+{
+    float PanelWidth = 380.0f;
+    float PanelHeight = 150.0f;
+    
+    DrawRect(PanelColor, X, Y, PanelWidth, PanelHeight);
+    DrawRect(OrangeColor, X, Y, PanelWidth, 2.0f);
+    
+    DrawText(TEXT("THREAT ASSESSMENT"), HeaderColor, X + 16.0f, Y + 12.0f, Font, 1.05f);
+    
+    float PulseAlpha = 0.5f + 0.5f * FMath::Sin(MissionTimeSeconds * 5.0f);
+    DrawRect(FLinearColor(1.0f, 0.18f, 0.16f, PulseAlpha), X + 348.0f, Y + 22.0f, 8.0f, 8.0f);
+    
+    int32 ThreatValue = 5000;
+    int32 EffectorCost = 500;
+    
+    if (Intruder)
+    {
+        FString LowerType = Intruder->Type.ToLower();
+        if (LowerType.Contains(TEXT("shahed")))
+        {
+            ThreatValue = 20000;
+            EffectorCost = 1800;
+        }
+        else if (LowerType.Contains(TEXT("fpv")))
+        {
+            ThreatValue = 500;
+            EffectorCost = 400;
+        }
+        else if (LowerType.Contains(TEXT("consumer")))
+        {
+            ThreatValue = 2000;
+            EffectorCost = 400;
+        }
+    }
+    
+    int32 NetSavings = ThreatValue - EffectorCost;
+    
+    auto FormatDollar = [](int32 Val) -> FString
+    {
+        FString S = FString::Printf(TEXT("%d"), FMath::Abs(Val));
+        for (int32 i = S.Len() - 3; i > 0; i -= 3)
+        {
+            S.InsertAt(i, TEXT(","));
+        }
+        return (Val < 0 ? TEXT("-$") : TEXT("$")) + S;
+    };
+    
+    FString CpkText = FString::Printf(TEXT("EFFECTOR COST: %s | THREAT VALUE: %s | NET SAVINGS: %s"), 
+        *FormatDollar(EffectorCost), *FormatDollar(ThreatValue), *FormatDollar(NetSavings));
+    
+    DrawText(TEXT("COST-PER-KILL (CPK)"), CyanColor, X + 16.0f, Y + 48.0f, Font, 0.8f);
+    DrawText(CpkText, BodyColor, X + 16.0f, Y + 68.0f, Font, 0.75f);
+    
+    int32 TotalDeciseconds = FMath::FloorToInt(MissionTimeSeconds * 10.0f);
+    int32 Minutes = TotalDeciseconds / 600;
+    int32 Seconds = (TotalDeciseconds / 10) % 60;
+    int32 Deciseconds = TotalDeciseconds % 10;
+    DrawText(FString::Printf(TEXT("ENGAGEMENT TIME: %02d:%02d.%d"), Minutes, Seconds, Deciseconds), MutedColor, X + 16.0f, Y + 110.0f, Font, 0.86f);
+}
+
 void AAegisTacticalHUD::UpdateHistory(
     const FTacticalTelemetryHealth& Health,
     const FTacticalTrackSnapshot* Intruder,
@@ -136,17 +213,38 @@ void AAegisTacticalHUD::DrawHUD()
         if (bOnScreen)
         {
             constexpr float BoxSize = 30.0f;
-            DrawLine(ScreenPosition.X - BoxSize, ScreenPosition.Y - BoxSize,
-                ScreenPosition.X + BoxSize, ScreenPosition.Y - BoxSize, Color, 1.7f);
-            DrawLine(ScreenPosition.X + BoxSize, ScreenPosition.Y - BoxSize,
-                ScreenPosition.X + BoxSize, ScreenPosition.Y + BoxSize, Color, 1.7f);
-            DrawLine(ScreenPosition.X + BoxSize, ScreenPosition.Y + BoxSize,
-                ScreenPosition.X - BoxSize, ScreenPosition.Y + BoxSize, Color, 1.7f);
-            DrawLine(ScreenPosition.X - BoxSize, ScreenPosition.Y + BoxSize,
-                ScreenPosition.X - BoxSize, ScreenPosition.Y - BoxSize, Color, 1.7f);
+            constexpr float BracketSize = BoxSize * 0.3f;
+            DrawCornerBracket(ScreenPosition.X - BoxSize, ScreenPosition.Y - BoxSize, 1.0f, 1.0f, BracketSize, Color, 1.7f);
+            DrawCornerBracket(ScreenPosition.X + BoxSize, ScreenPosition.Y - BoxSize, -1.0f, 1.0f, BracketSize, Color, 1.7f);
+            DrawCornerBracket(ScreenPosition.X + BoxSize, ScreenPosition.Y + BoxSize, -1.0f, -1.0f, BracketSize, Color, 1.7f);
+            DrawCornerBracket(ScreenPosition.X - BoxSize, ScreenPosition.Y + BoxSize, 1.0f, -1.0f, BracketSize, Color, 1.7f);
+
+            DrawLine(ScreenPosition.X - 4.0f, ScreenPosition.Y, ScreenPosition.X + 4.0f, ScreenPosition.Y, Color, 1.5f);
+            DrawLine(ScreenPosition.X, ScreenPosition.Y - 4.0f, ScreenPosition.X, ScreenPosition.Y + 4.0f, Color, 1.5f);
+
+            DrawLine(ScreenPosition.X + BoxSize, ScreenPosition.Y, ScreenPosition.X + BoxSize + 15.0f, ScreenPosition.Y - 15.0f, Color, 1.0f);
+            DrawLine(ScreenPosition.X + BoxSize + 15.0f, ScreenPosition.Y - 15.0f, ScreenPosition.X + BoxSize + 35.0f, ScreenPosition.Y - 15.0f, Color, 1.0f);
+            
             DrawText(FString::Printf(TEXT("%s  %.0f m"), *Name,
-                Track.PositionEnuMetres.Z), Color, ScreenPosition.X + 36.0f,
-                ScreenPosition.Y - 25.0f, Font, 0.68f);
+                Track.PositionEnuMetres.Z), Color, ScreenPosition.X + BoxSize + 40.0f,
+                ScreenPosition.Y - 22.0f, Font, 0.68f);
+
+            const FVector VelWorldPos = AAegisTacticalTrackActor::EnuToUnrealWorld(Track.PositionEnuMetres + Track.VelocityEnuMetresPerSecond);
+            FVector2D ScreenVelPos(ForceInitToZero);
+            if (Controller->ProjectWorldLocationToScreen(VelWorldPos, ScreenVelPos, true))
+            {
+                FVector2D VelDir = ScreenVelPos - ScreenPosition;
+                if (!VelDir.IsNearlyZero())
+                {
+                    VelDir.Normalize();
+                    float VelLineLen = 25.0f;
+                    FVector2D VelEnd = ScreenPosition + VelDir * VelLineLen;
+                    DrawLine(ScreenPosition.X, ScreenPosition.Y, VelEnd.X, VelEnd.Y, Color, 1.5f);
+                    FVector2D Side(-VelDir.Y, VelDir.X);
+                    DrawLine(VelEnd.X, VelEnd.Y, VelEnd.X - VelDir.X * 6.0f + Side.X * 4.0f, VelEnd.Y - VelDir.Y * 6.0f + Side.Y * 4.0f, Color, 1.5f);
+                    DrawLine(VelEnd.X, VelEnd.Y, VelEnd.X - VelDir.X * 6.0f - Side.X * 4.0f, VelEnd.Y - VelDir.Y * 6.0f - Side.Y * 4.0f, Color, 1.5f);
+                }
+            }
             return;
         }
         FVector2D Direction = ScreenPosition - FVector2D(ScreenW * 0.5f, ScreenH * 0.5f);
@@ -322,6 +420,8 @@ void AAegisTacticalHUD::DrawHUD()
         PanelX + 16.0f, 328.0f, Font, 0.70f);
     DrawText(TEXT("NO HARDWARE / WEAPON COMMAND PATH"),
         Muted, PanelX + 16.0f, 348.0f, Font, 0.66f);
+
+    DrawThreatAssessmentPanel(PanelX, 400.0f, bHasIntruder ? &Intruder : nullptr, Health.LastMissionTimeSeconds, Panel, HeaderColor, Body, Muted, Cyan, Orange, Font);
 
     const float ControlY = ScreenH - 68.0f;
     const float RadarSize = 250.0f;

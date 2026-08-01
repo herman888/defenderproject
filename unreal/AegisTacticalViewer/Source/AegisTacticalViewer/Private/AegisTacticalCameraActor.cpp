@@ -161,6 +161,16 @@ void AAegisTacticalCameraActor::SetMissionPresentationState(
 
 void AAegisTacticalCameraActor::Tick(float DeltaSeconds)
 {
+    if (HitStopTimeRemaining > 0.0f)
+    {
+        CustomTimeDilation = HitStopTimeDilation;
+        HitStopTimeRemaining -= GetWorld() ? GetWorld()->GetDeltaSeconds() : (DeltaSeconds / HitStopTimeDilation);
+    }
+    else
+    {
+        CustomTimeDilation = 1.0f;
+    }
+
     Super::Tick(DeltaSeconds);
     PresentationSeconds += DeltaSeconds;
 
@@ -189,6 +199,9 @@ void AAegisTacticalCameraActor::Tick(float DeltaSeconds)
     const float Separation = bHasInterceptor
         ? FVector::Distance(IntruderPosition, InterceptorPosition)
         : 0.0f;
+
+    CheckInterceptProximity(Separation);
+
     const FVector GroundFocus(LeadFocus.X, LeadFocus.Y, 0.0f);
     FVector Focus = PresentationMode == 1
         ? FMath::Lerp(GroundFocus, LeadFocus, 0.48f) : LeadFocus;
@@ -322,4 +335,17 @@ void AAegisTacticalCameraActor::Tick(float DeltaSeconds)
         GetActorLocation(), DesiredLocation, DeltaSeconds, LocationFollowSpeed));
     SetActorRotation(FMath::RInterpTo(
         GetActorRotation(), DesiredRotation, DeltaSeconds, 6.0f));
+}
+
+void AAegisTacticalCameraActor::TriggerHitStop(float Duration)
+{
+    HitStopTimeRemaining = Duration;
+}
+
+void AAegisTacticalCameraActor::CheckInterceptProximity(float Separation)
+{
+    if (bHasInterceptor && Separation > 0.0f && Separation < 1500.0f && HitStopTimeRemaining <= 0.0f)
+    {
+        TriggerHitStop();
+    }
 }

@@ -481,16 +481,9 @@ void AAegisTacticalTrackActor::Tick(float DeltaSeconds)
         InterpolationStartRotation, TargetRotation, SmoothAlpha).GetNormalized());
 
     UpdateContrailRibbon();
-    const float EnginePulse = 0.82f + 0.18f * FMath::Sin(World->GetTimeSeconds() * 16.0f);
-    const float EngineScale = FMath::Clamp(0.12f + LastSpeedMetresPerSecond / 240.0f,
-        0.14f, 0.46f) * EnginePulse;
-    EngineGlow->SetRelativeScale3D(FVector(EngineScale, EngineScale * 1.25f, EngineScale * 1.25f));
-    EngineLight->SetVisibility(!EngineGlow->bHiddenInGame);
-    EngineLight->SetIntensity(FMath::Clamp(80.0f + LastSpeedMetresPerSecond * 10.0f,
-        80.0f, 1100.0f) * EnginePulse);
-    const bool bNavigationOn = FMath::Fmod(World->GetTimeSeconds(), 1.15f) < 0.11f;
-    PortNavigationLight->SetVisibility(bNavigationOn);
-    StarboardNavigationLight->SetVisibility(bNavigationOn);
+    
+    UpdateEngineEffects(DeltaSeconds);
+    UpdateNavigationLights(DeltaSeconds);
 
     if (bUsesRotors)
     {
@@ -511,4 +504,57 @@ void AAegisTacticalTrackActor::Tick(float DeltaSeconds)
                 Label->GetComponentLocation(), CameraLocation));
         }
     }
+}
+
+void AAegisTacticalTrackActor::UpdateEngineEffects(float DeltaSeconds)
+{
+    const UWorld* World = GetWorld();
+    if (!World) return;
+
+    float TargetScale = 0.14f;
+    float TargetIntensity = 80.0f;
+
+    if (LastSpeedMetresPerSecond > 100.0f)
+    {
+        TargetScale = 0.46f;
+        TargetIntensity = 1100.0f;
+    }
+    else if (LastSpeedMetresPerSecond >= 30.0f)
+    {
+        TargetScale = 0.30f;
+        TargetIntensity = 500.0f;
+    }
+
+    SmoothedEngineScale = FMath::FInterpTo(SmoothedEngineScale, TargetScale, DeltaSeconds, 2.0f);
+    SmoothedEngineIntensity = FMath::FInterpTo(SmoothedEngineIntensity, TargetIntensity, DeltaSeconds, 2.0f);
+
+    const float EnginePulse = 0.82f + 0.18f * FMath::Sin(World->GetTimeSeconds() * 16.0f);
+    const float FinalScale = SmoothedEngineScale * EnginePulse;
+    
+    EngineGlow->SetRelativeScale3D(FVector(FinalScale, FinalScale * 1.25f, FinalScale * 1.25f));
+    EngineLight->SetVisibility(!EngineGlow->bHiddenInGame);
+    EngineLight->SetIntensity(SmoothedEngineIntensity * EnginePulse);
+}
+
+void AAegisTacticalTrackActor::UpdateNavigationLights(float DeltaSeconds)
+{
+    const UWorld* World = GetWorld();
+    if (!World) return;
+
+    bool bNavigationOn = false;
+    if (bIsStale)
+    {
+        bNavigationOn = FMath::Fmod(World->GetTimeSeconds(), 0.25f) < 0.125f;
+        PortNavigationLight->SetLightColor(FLinearColor(1.0f, 0.6f, 0.0f));
+        StarboardNavigationLight->SetLightColor(FLinearColor(1.0f, 0.6f, 0.0f));
+    }
+    else
+    {
+        bNavigationOn = FMath::Fmod(World->GetTimeSeconds(), 1.0f) < 0.5f;
+        PortNavigationLight->SetLightColor(FLinearColor(1.0f, 0.04f, 0.02f));
+        StarboardNavigationLight->SetLightColor(FLinearColor(0.02f, 0.8f, 0.16f));
+    }
+
+    PortNavigationLight->SetVisibility(bNavigationOn);
+    StarboardNavigationLight->SetVisibility(bNavigationOn);
 }

@@ -13,6 +13,20 @@ class AEGISTACTICALVIEWER_API AAegisTacticalHUD : public AHUD
 public:
     virtual void DrawHUD() override;
 
+    void DrawCornerBracket(float X, float Y, float DirX, float DirY, float Size, const FLinearColor& Color, float Thickness = 1.7f);
+
+    void DrawThreatAssessmentPanel(
+        float X, float Y, 
+        const struct FTacticalTrackSnapshot* Intruder,
+        float MissionTimeSeconds,
+        const FLinearColor& PanelColor,
+        const FLinearColor& HeaderColor,
+        const FLinearColor& BodyColor,
+        const FLinearColor& MutedColor,
+        const FLinearColor& CyanColor,
+        const FLinearColor& OrangeColor,
+        class UFont* Font);
+
     void TogglePresentationMode() { bCleanCinematicMode = !bCleanCinematicMode; }
     bool IsCleanCinematicMode() const { return bCleanCinematicMode; }
 
