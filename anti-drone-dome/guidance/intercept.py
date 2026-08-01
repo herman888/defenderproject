@@ -45,8 +45,10 @@ inside sim/drone.py for Stage A; ArduPilot over MAVLink in Stage B).
 import math
 import numpy as np
 
-from config import MAX_ACCEL
+from config import INTERCEPT_CONTACT_RADIUS_M, MAX_ACCEL
 from guidance.setpoint import GuidanceSetpoint, enu_to_ned, los_yaw_ned
+
+_CONTACT_RADIUS_M = INTERCEPT_CONTACT_RADIUS_M
 
 _V_INT             = 68.0    # m/s — nominal intercept speed (below 70 m/s hard cap)
 _K_LON             = 4.0     # nominal longitudinal gain
@@ -323,15 +325,18 @@ class PurePursuitGuidance:
             2.8,
             5.4,
         ))
+        # A one-metre contact cannot be achieved if terminal guidance starts
+        # only a few frames before fly-by. Begin terminal capture according to
+        # the current closing rate so it can shed excess relative velocity.
         terminal_range = float(np.clip(
-            10.0 + max(closing_speed, 0.0) * 0.08,
-            12.0,
-            _R_TERM,
+            25.0 + max(closing_speed, 0.0) * 0.55,
+            35.0,
+            85.0,
         ))
         taper_range = float(np.clip(
-            terminal_range + 8.0 + max(closing_speed, 0.0) * 0.04,
-            terminal_range + 8.0,
-            _R_TAPER + 4.0,
+            terminal_range + 18.0 + max(closing_speed, 0.0) * 0.35,
+            terminal_range + 18.0,
+            125.0,
         ))
         return (
             navigation_gain,
@@ -428,12 +433,28 @@ class PurePursuitGuidance:
             longitudinal_gain * (command_speed - v_parallel) * lead_hat
         )
         a_apn = a_pn + a_aug + a_longitudinal
-        terminal_accel = float(np.clip(
-            82.0 + max(signed_closing, 0.0) * 1.35,
-            90.0,
-            min(_TERM_THRUST_ACCEL, MAX_ACCEL),
+        # Contact terminal controller.  It controls both relative position and
+        # relative velocity; the former LOS-only command simply flew through
+        # the target inside the old 18 m proximity radius.
+        contact_error = max(rng - _CONTACT_RADIUS_M, 0.0)
+        desired_closing = float(np.clip(
+            contact_error * 0.65,
+            0.35,
+            28.0,
         ))
-        a_terminal = r_hat * terminal_accel
+        desired_relative_velocity = -r_hat * desired_closing
+        terminal_progress = float(np.clip(
+            (taper_range - rng) / max(taper_range - _CONTACT_RADIUS_M, 1.0),
+            0.0,
+            1.0,
+        ))
+        terminal_kp = 1.35 + 2.65 * terminal_progress
+        terminal_kd = 2.0 * math.sqrt(terminal_kp)
+        a_terminal = _cap_accel(
+            a_est
+            + terminal_kp * r_vec
+            + terminal_kd * (v_rel - desired_relative_velocity)
+        )
 
         if rng >= taper_range:
             blend = 0.0
@@ -461,6 +482,8 @@ class PurePursuitGuidance:
             "track_confidence": track_confidence,
             "target_maneuver_mps2": target_maneuver,
             "terminal_blend": blend,
+            "terminal_desired_closing_mps": desired_closing,
+            "terminal_contact_radius_m": _CONTACT_RADIUS_M,
             "lead_time_s": lead_time,
             "lead_angle_deg": lead_angle,
         }

@@ -25,6 +25,9 @@ public:
     void SetPredictedIntercept(
         const FVector& PositionEnuMetres, bool bVisible, const FString& Status);
 
+    /** Visual radar state only; sensor truth remains in the telemetry feed. */
+    void SetSensorPresentationState(bool bRadarLocked, bool bRadarFailed);
+
 private:
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<USceneComponent> SceneRoot;
@@ -40,6 +43,9 @@ private:
 
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UStaticMeshComponent> RadarAntenna;
+
+    UPROPERTY(VisibleAnywhere)
+    TObjectPtr<UStaticMeshComponent> RadarPulse;
 
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UStaticMeshComponent> PerimeterMarker;
@@ -73,4 +79,6 @@ private:
 
     float MarkerPulseSeconds = 0.0f;
     bool bMarkerVisible = false;
+    bool bRadarLocked = false;
+    bool bRadarFailed = false;
 };

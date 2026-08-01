@@ -169,6 +169,7 @@
         "inertia_kg_m2": [0.045, 0.045, 0.08]
       },
       "propulsion": {
+        "thrust_axis": "body_x",
         "max_speed_mps": 70.0,
         "max_horizontal_force_n": 260.0,
         "vertical_force_min_n": -80.0,

@@ -99,7 +99,8 @@ from comms.datalink    import DataLink
 from comms.sitl_bridge import SITLBridge
 from guidance.intercept import PurePursuitGuidance
 from guidance.setpoint  import GuidanceSetpoint, enu_to_ned
-from config             import PAD_ALTITUDE_M, PAD_GROUND_Z_M, TAKEOFF_TOL_M
+from config             import (PAD_ALTITUDE_M, PAD_GROUND_Z_M, TAKEOFF_TOL_M,
+                                INTERCEPT_CONTACT_RADIUS_M)
 from dome.killzone  import DomeKillZone
 from scenarios      import (INTRUDER_TYPES, ATTACK_PATTERNS, PAD_OFFSETS,
                             get_environment_for_pattern, get_site_config,
@@ -1110,7 +1111,7 @@ def _run_one_mission(
             intruder_position    = i_pos,
             intruder_detected    = radar_return.get("detected", False),
             interceptor_position = int_pos,
-            intercept_radius     = 18.0,   # scaled for 200 m dome
+            intercept_radius     = INTERCEPT_CONTACT_RADIUS_M,
         )
         status = dome.get_status()
 

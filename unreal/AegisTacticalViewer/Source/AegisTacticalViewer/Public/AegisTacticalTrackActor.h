@@ -8,6 +8,7 @@
 class UInstancedStaticMeshComponent;
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
+class UPointLightComponent;
 class UStaticMeshComponent;
 class UTextRenderComponent;
 
@@ -54,6 +55,10 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
     TObjectPtr<UInstancedStaticMeshComponent> Trail;
 
+    /** A pooled, continuous contrail ribbon replaces the original dot trail. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
+    TArray<TObjectPtr<UStaticMeshComponent>> ContrailSegments;
+
     /** Small non-authoritative silhouette pieces used until a Fab mesh is assigned. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
     TObjectPtr<UStaticMeshComponent> MainWing;
@@ -68,6 +73,15 @@ protected:
     TObjectPtr<UStaticMeshComponent> EngineGlow;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
+    TObjectPtr<UPointLightComponent> EngineLight;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
+    TObjectPtr<UPointLightComponent> PortNavigationLight;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
+    TObjectPtr<UPointLightComponent> StarboardNavigationLight;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
     TArray<TObjectPtr<UStaticMeshComponent>> RotorArms;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Visual")
@@ -77,6 +91,7 @@ private:
     void ApplyVisualDefinition(const FTacticalTrackSnapshot& Snapshot);
     void SetDisplayColor(const FLinearColor& Color);
     void AddTrailPoint(const FVector& WorldLocation);
+    void UpdateContrailRibbon();
 
     FVector InterpolationStartLocation = FVector::ZeroVector;
     FVector TargetLocation = FVector::ZeroVector;
@@ -85,6 +100,8 @@ private:
     TArray<FVector> TrailPoints;
     TObjectPtr<UMaterialInterface> ShapeMaterial;
     TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
+    TObjectPtr<UMaterialInstanceDynamic> EngineMaterial;
+    TArray<TObjectPtr<UMaterialInstanceDynamic>> ContrailMaterials;
     FLinearColor BaseColor = FLinearColor::White;
     FString AppliedVisualKey;
     FString DisplayName;
@@ -97,4 +114,5 @@ private:
     bool bLastLinkStale = false;
     bool bUsesRotors = false;
     bool bUsesAuthoredMesh = false;
+    float LastSpeedMetresPerSecond = 0.0f;
 };

@@ -56,8 +56,10 @@ private:
     void UpdateTrack(const FTacticalTrackSnapshot& Snapshot);
     void MarkRoleAbsent(const FString& Role);
     AAegisTacticalTrackActor* GetOrCreateTrack(const FTacticalTrackSnapshot& Snapshot);
+    void HideStaticTrackDuplicates();
 
     FSocket* Socket = nullptr;
+    float StaticPreviewSweepSeconds = 0.0f;
     TMap<FString, TObjectPtr<AAegisTacticalTrackActor>> TrackActors;
     TMap<FString, FTacticalTrackSnapshot> LatestSnapshotsByRole;
     TObjectPtr<AAegisTacticalCameraActor> TacticalCamera;

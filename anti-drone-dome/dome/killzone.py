@@ -3,6 +3,8 @@
 import math
 import time
 
+from config import INTERCEPT_CONTACT_RADIUS_M
+
 
 class DomeKillZone:
     def __init__(
@@ -42,12 +44,14 @@ class DomeKillZone:
             return event
         return None
 
-    def check_intercept(self, interceptor_position: tuple, intruder_position: tuple, intercept_radius: float = 3.0) -> bool:
+    def check_intercept(self, interceptor_position: tuple, intruder_position: tuple,
+                         intercept_radius: float = INTERCEPT_CONTACT_RADIUS_M) -> bool:
         dist = math.sqrt(sum((interceptor_position[i] - intruder_position[i]) ** 2 for i in range(3)))
         return dist <= intercept_radius
 
     def update_status(self, intruder_position: tuple, intruder_detected: bool,
-                      interceptor_position: tuple = None, intercept_radius: float = 3.0):
+                      interceptor_position: tuple = None,
+                      intercept_radius: float = INTERCEPT_CONTACT_RADIUS_M):
         old_status = self._status
         dist_from_center = self._dist(intruder_position)
         if intruder_detected:

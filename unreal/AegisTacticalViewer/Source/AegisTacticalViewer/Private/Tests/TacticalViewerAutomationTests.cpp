@@ -73,6 +73,17 @@ bool FPacketValidationTest::RunTest(const FString& Parameters)
     UTacticalTelemetryComponent* Receiver = NewObject<UTacticalTelemetryComponent>();
     TestTrue(TEXT("A complete local display packet is accepted"),
         Receiver->ProcessPacketForAutomation(ValidPacket));
+    const FString RawSimulatorPacket = ValidPacket
+        .Replace(TEXT("\"bridge_schema\":\"aegis.unreal-bridge.v1\","), TEXT(""))
+        .Replace(TEXT(",\"heading_deg\":90"), TEXT(""))
+        .Replace(TEXT("\"sequence\":1"), TEXT("\"sequence\":2"))
+        .Replace(TEXT("\"mission_time_s\":2.5"), TEXT("\"mission_time_s\":2.6"));
+    TestTrue(TEXT("A direct local simulator packet derives a visual heading"),
+        Receiver->ProcessPacketForAutomation(RawSimulatorPacket));
+    TestFalse(TEXT("A malformed bridge-schema field is rejected"),
+        Receiver->ProcessPacketForAutomation(ValidPacket.Replace(
+            TEXT("\"bridge_schema\":\"aegis.unreal-bridge.v1\""),
+            TEXT("\"bridge_schema\":17"))));
     TestFalse(TEXT("Malformed JSON is rejected"),
         Receiver->ProcessPacketForAutomation(TEXT("{broken")));
     TestFalse(TEXT("Fractional sequence numbers are rejected"),

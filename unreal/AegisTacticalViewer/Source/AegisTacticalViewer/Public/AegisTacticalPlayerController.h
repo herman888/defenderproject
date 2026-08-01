@@ -31,6 +31,10 @@ private:
     void ToggleActuatorFailure();
     void ClearFailures();
     void NextScenarioPreset();
+    void ToggleHudMode();
+    void OrbitYaw(float Value);
+    void OrbitPitch(float Value);
+    void OrbitZoom(float Value);
     void SetSimulationRate(double Rate);
     void ToggleFailure(const FString& Failure, const FString& Label);
     void SendLocalSimulationCommand(const FString& Json, const FString& Label);

@@ -54,6 +54,8 @@ AAegisTacticalSiteActor::AAegisTacticalSiteActor()
     SensorDome->SetupAttachment(SceneRoot);
     RadarAntenna = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RadarAntenna"));
     RadarAntenna->SetupAttachment(SceneRoot);
+    RadarPulse = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RadarPulse"));
+    RadarPulse->SetupAttachment(SceneRoot);
     PerimeterMarker = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PerimeterMarker"));
     PerimeterMarker->SetupAttachment(SceneRoot);
     SiteLabel = CreateDefaultSubobject<UTextRenderComponent>(TEXT("SiteLabel"));
@@ -86,6 +88,7 @@ AAegisTacticalSiteActor::AAegisTacticalSiteActor()
         ConfigureStatic(SensorTower, Cylinder.Object, BasicMaterial.Object, FLinearColor(0.32f, 0.38f, 0.42f));
         ConfigureStatic(SensorDome, Sphere.Object, BasicMaterial.Object, FLinearColor(0.12f, 0.65f, 0.68f));
         ConfigureStatic(RadarAntenna, Cube.Object, BasicMaterial.Object, FLinearColor(0.14f, 0.76f, 0.78f));
+        ConfigureStatic(RadarPulse, Sphere.Object, BasicMaterial.Object, FLinearColor(0.12f, 0.85f, 0.76f));
         ConfigureStatic(InterceptMarker, Sphere.Object, BasicMaterial.Object, FLinearColor(1.0f, 0.72f, 0.10f));
         ConfigureStatic(InterceptBeacon, Cube.Object, BasicMaterial.Object, FLinearColor(1.0f, 0.72f, 0.10f));
         InterceptMaterial = Cast<UMaterialInstanceDynamic>(InterceptMarker->GetMaterial(0));
@@ -110,6 +113,9 @@ AAegisTacticalSiteActor::AAegisTacticalSiteActor()
     SensorDome->SetRelativeScale3D(FVector(1.35f, 1.35f, 0.7f));
     RadarAntenna->SetRelativeLocation(FVector(0.0f, 0.0f, 1110.0f));
     RadarAntenna->SetRelativeScale3D(FVector(4.0f, 0.18f, 0.12f));
+    RadarPulse->SetRelativeLocation(FVector(0.0f, 0.0f, 1110.0f));
+    RadarPulse->SetRelativeScale3D(FVector(0.1f, 0.1f, 0.015f));
+    RadarPulse->SetCastShadow(false);
 
     // Prefer the attributed RTS radar tower when it has been imported. The
     // lightweight procedural antenna remains separate so it can rotate without
@@ -201,17 +207,32 @@ AAegisTacticalSiteActor::AAegisTacticalSiteActor()
 void AAegisTacticalSiteActor::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    MarkerPulseSeconds += DeltaSeconds;
     if (RadarAntenna != nullptr)
     {
-        RadarAntenna->AddLocalRotation(FRotator(0.0f, 42.0f * DeltaSeconds, 0.0f));
+        RadarAntenna->AddLocalRotation(FRotator(0.0f,
+            (bRadarFailed ? 6.0f : (bRadarLocked ? 58.0f : 34.0f)) * DeltaSeconds, 0.0f));
+    }
+    if (RadarPulse != nullptr)
+    {
+        const float Phase = FMath::Fmod(MarkerPulseSeconds * (bRadarLocked ? 1.4f : 0.75f), 1.0f);
+        const float Radius = bRadarFailed ? 0.05f : FMath::Lerp(0.8f, 22.0f, Phase);
+        RadarPulse->SetRelativeScale3D(FVector(Radius, Radius, 0.012f));
+        RadarPulse->SetVisibility(!bRadarFailed);
     }
     if (bMarkerVisible && InterceptMarker != nullptr)
     {
-        MarkerPulseSeconds += DeltaSeconds;
         const float Pulse = 3.2f + 0.55f * FMath::Sin(MarkerPulseSeconds * 5.0f);
         InterceptMarker->SetRelativeScale3D(FVector(Pulse));
         InterceptBeacon->AddLocalRotation(FRotator(0.0f, 65.0f * DeltaSeconds, 0.0f));
     }
+}
+
+void AAegisTacticalSiteActor::SetSensorPresentationState(
+    const bool bInRadarLocked, const bool bInRadarFailed)
+{
+    bRadarLocked = bInRadarLocked;
+    bRadarFailed = bInRadarFailed;
 }
 
 void AAegisTacticalSiteActor::SetPredictedIntercept(

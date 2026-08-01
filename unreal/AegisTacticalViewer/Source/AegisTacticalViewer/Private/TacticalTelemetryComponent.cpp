@@ -8,6 +8,10 @@
 #include "Dom/JsonObject.h"
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "Kismet/GameplayStatics.h"
+#include "Engine/StaticMeshActor.h"
+#include "Engine/StaticMesh.h"
+#include "Components/StaticMeshComponent.h"
+#include "EngineUtils.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "SocketSubsystem.h"
@@ -82,14 +86,26 @@ bool ReadQuaternion(const TSharedPtr<FJsonObject>& Object, FQuat& Out)
 
 bool ParseTrack(const TSharedPtr<FJsonObject>& Track, FTacticalTrackSnapshot& Out)
 {
-    return ReadRequiredString(Track, TEXT("id"), Out.Id)
-        && ReadRequiredString(Track, TEXT("role"), Out.Role)
-        && ReadRequiredString(Track, TEXT("asset_id"), Out.AssetId)
-        && ReadRequiredString(Track, TEXT("type"), Out.Type)
-        && ReadVector(Track, TEXT("position_enu_m"), Out.PositionEnuMetres)
-        && ReadVector(Track, TEXT("velocity_enu_mps"), Out.VelocityEnuMetresPerSecond)
-        && ReadQuaternion(Track, Out.OrientationEnu)
-        && ReadFiniteNumber(Track, TEXT("heading_deg"), Out.HeadingDegrees);
+    if (!ReadRequiredString(Track, TEXT("id"), Out.Id)
+        || !ReadRequiredString(Track, TEXT("role"), Out.Role)
+        || !ReadRequiredString(Track, TEXT("asset_id"), Out.AssetId)
+        || !ReadRequiredString(Track, TEXT("type"), Out.Type)
+        || !ReadVector(Track, TEXT("position_enu_m"), Out.PositionEnuMetres)
+        || !ReadVector(Track, TEXT("velocity_enu_mps"), Out.VelocityEnuMetresPerSecond)
+        || !ReadQuaternion(Track, Out.OrientationEnu))
+    {
+        return false;
+    }
+    if (!ReadFiniteNumber(Track, TEXT("heading_deg"), Out.HeadingDegrees))
+    {
+        // Raw local simulator packets do not need a presentation bridge. The
+        // supplied attitude remains authoritative; this compass value is only
+        // a defensive fallback for a malformed attitude on a later frame.
+        Out.HeadingDegrees = FMath::Fmod(FMath::RadiansToDegrees(FMath::Atan2(
+            Out.VelocityEnuMetresPerSecond.X,
+            Out.VelocityEnuMetresPerSecond.Y)) + 360.0, 360.0);
+    }
+    return true;
 }
 }
 
@@ -106,6 +122,40 @@ void UTacticalTelemetryComponent::BeginPlay()
     if (GetWorld() != nullptr)
     {
         TacticalCamera = GetWorld()->SpawnActor<AAegisTacticalCameraActor>();
+        HideStaticTrackDuplicates();
+    }
+}
+
+void UTacticalTelemetryComponent::HideStaticTrackDuplicates()
+{
+    if (GetWorld() == nullptr)
+    {
+        return;
+    }
+    for (TActorIterator<AStaticMeshActor> It(GetWorld()); It; ++It)
+    {
+        UStaticMeshComponent* MeshComponent = It->GetStaticMeshComponent();
+        UStaticMesh* Mesh = MeshComponent != nullptr ? MeshComponent->GetStaticMesh() : nullptr;
+        if (Mesh == nullptr)
+        {
+            continue;
+        }
+        const FString AssetPath = Mesh->GetPathName();
+        if (AssetPath.Contains(TEXT("/Aegis/Imported/Shahed136/"), ESearchCase::IgnoreCase)
+            || AssetPath.Contains(TEXT("/Aegis/Vehicles/SM_Interceptor"), ESearchCase::IgnoreCase))
+        {
+            // Imported vehicles are preview assets in the map. At runtime
+            // their telemetry-driven AAegisTacticalTrackActor is the only
+            // vehicle visual, preventing a stationary duplicate in mid-air.
+            if (It->IsHidden())
+            {
+                continue;
+            }
+            It->SetActorHiddenInGame(true);
+            MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            UE_LOG(LogAegisTacticalViewer, Log,
+                TEXT("Hid static vehicle preview %s; awaiting telemetry track"), *AssetPath);
+        }
     }
 }
 
@@ -131,7 +181,7 @@ void UTacticalTelemetryComponent::OpenSocket()
         return;
     }
     UE_LOG(LogAegisTacticalViewer, Log,
-        TEXT("Listening for local aegis.unreal-bridge.v1 telemetry on 127.0.0.1:%d"), ListenPort);
+        TEXT("Listening for local aegis.tactical.v1 telemetry on 127.0.0.1:%d"), ListenPort);
 }
 
 void UTacticalTelemetryComponent::CloseSocket()
@@ -148,6 +198,17 @@ void UTacticalTelemetryComponent::TickComponent(float DeltaTime, ELevelTick Tick
     FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+    // World Partition can stream editor-preview meshes after BeginPlay.  Keep
+    // a short, inexpensive sweep so a static imported Shahed can never be
+    // mistaken for the authoritative telemetry-driven aircraft.
+    StaticPreviewSweepSeconds += DeltaTime;
+    if (StaticPreviewSweepSeconds >= 1.0f)
+    {
+        // Streaming is asynchronous in the authored World Partition map.
+        // Re-run this only once per second, not per telemetry packet.
+        HideStaticTrackDuplicates();
+        StaticPreviewSweepSeconds = 0.0f;
+    }
     const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
     const bool bLinkStale = Health.IsStale(Now);
     for (const TPair<FString, TObjectPtr<AAegisTacticalTrackActor>>& Pair : TrackActors)
@@ -209,10 +270,13 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
     double MissionTime = -1.0;
     const TSharedPtr<FJsonObject>* Tracks = nullptr;
     const TSharedPtr<FJsonObject>* Simulation = nullptr;
+    const bool bHasBridgeSchema = Root->HasField(TEXT("bridge_schema"));
+    const bool bValidBridgeSchema = !bHasBridgeSchema
+        || (Root->TryGetStringField(TEXT("bridge_schema"), BridgeSchema)
+            && BridgeSchema == TEXT("aegis.unreal-bridge.v1"));
     if (!ReadRequiredString(Root, TEXT("schema"), Schema)
         || Schema != TEXT("aegis.tactical.v1")
-        || !ReadRequiredString(Root, TEXT("bridge_schema"), BridgeSchema)
-        || BridgeSchema != TEXT("aegis.unreal-bridge.v1")
+        || !bValidBridgeSchema
         || !ReadRequiredString(Root, TEXT("status"), Status)
         || !ReadRequiredString(Root, TEXT("site"), Site)
         || !ReadFiniteNumber(Root, TEXT("sequence"), Sequence)
@@ -455,6 +519,11 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
     Health.PredictedInterceptEnuMetres = PredictedIntercept;
     ++Health.ForwardedPackets;
 
+    if (TacticalCamera != nullptr)
+    {
+        TacticalCamera->SetMissionPresentationState(Health);
+    }
+
     if (TacticalSite == nullptr && GetWorld() != nullptr)
     {
         TacticalSite = Cast<AAegisTacticalSiteActor>(UGameplayStatics::GetActorOfClass(
@@ -462,6 +531,7 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
     }
     if (TacticalSite != nullptr)
     {
+        TacticalSite->SetSensorPresentationState(bRadarLocked, bRadarFailure);
         TacticalSite->SetPredictedIntercept(
             PredictedIntercept, bHasPredictedIntercept, Status);
     }

@@ -15,7 +15,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from config             import MAX_ACCEL
+from config             import INTERCEPT_CONTACT_RADIUS_M, MAX_ACCEL
 from guidance.intercept import PurePursuitGuidance, _V_INT, _R_TAPER, _R_TERM
 from guidance.setpoint  import GuidanceSetpoint
 
@@ -87,6 +87,11 @@ def run_tests():
                     and sp_term.position is None))
     results.append(("Terminal yaw == None (free yaw)",
                     sp_term.yaw is None))
+    results.append(("Terminal controller uses the 1 m physical contact gate",
+                    guidance.last_diagnostics["terminal_contact_radius_m"]
+                    == INTERCEPT_CONTACT_RADIUS_M == 1.0))
+    results.append(("Terminal controller commands a non-zero closing speed",
+                    guidance.last_diagnostics["terminal_desired_closing_mps"] > 0.0))
     if sp_term.accel is not None:
         ax, ay, _az = sp_term.accel
         # NED accel: x=north, y=east. ENU pos (8,6,0) → NED LOS = (north=6, east=8).

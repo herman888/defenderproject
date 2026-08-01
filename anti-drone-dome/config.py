@@ -44,6 +44,9 @@ MAX_ACCEL = 17.0 * 9.81   # m/s²  (≈ 166.77)
 # loop runs onboard the FC in Stage B and this gain becomes moot.
 PLACEHOLDER_FC_KV = 0.0
 
+# Contact evaluation is deliberately separate from any cinematic effects.
+INTERCEPT_CONTACT_RADIUS_M = 1.0
+
 
 # ── Pad / takeoff ───────────────────────────────────────────────────
 # Pad altitude the placeholder FC climbs to before guidance takes

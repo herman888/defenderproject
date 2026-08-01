@@ -1,6 +1,7 @@
 #include "AegisTacticalPlayerController.h"
 
 #include "AegisTacticalCameraActor.h"
+#include "AegisTacticalHUD.h"
 #include "Common/UdpSocketBuilder.h"
 #include "InputCoreTypes.h"
 #include "Interfaces/IPv4/IPv4Address.h"
@@ -34,6 +35,18 @@ void AAegisTacticalPlayerController::SetupInputComponent()
         &AAegisTacticalPlayerController::ClearFailures);
     InputComponent->BindKey(EKeys::N, IE_Pressed, this,
         &AAegisTacticalPlayerController::NextScenarioPreset);
+    InputComponent->BindKey(EKeys::H, IE_Pressed, this,
+        &AAegisTacticalPlayerController::ToggleHudMode);
+    InputComponent->BindAxis(TEXT("MouseX"), this,
+        &AAegisTacticalPlayerController::OrbitYaw);
+    InputComponent->BindAxis(TEXT("MouseY"), this,
+        &AAegisTacticalPlayerController::OrbitPitch);
+    InputComponent->BindAxis(TEXT("MouseWheelAxis"), this,
+        &AAegisTacticalPlayerController::OrbitZoom);
+    InputComponent->BindAxis(TEXT("Gamepad_RightX"), this,
+        &AAegisTacticalPlayerController::OrbitYaw);
+    InputComponent->BindAxis(TEXT("Gamepad_RightY"), this,
+        &AAegisTacticalPlayerController::OrbitPitch);
 }
 
 void AAegisTacticalPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -99,6 +112,41 @@ void AAegisTacticalPlayerController::NextScenarioPreset()
     SendLocalSimulationCommand(
         TEXT("{\"schema\":\"aegis.local-sim-control.v1\",\"action\":\"next_preset\"}"),
         TEXT("LOCAL SIM: LOADING NEXT SCENARIO PRESET"));
+}
+
+void AAegisTacticalPlayerController::ToggleHudMode()
+{
+    if (AAegisTacticalHUD* Hud = Cast<AAegisTacticalHUD>(GetHUD()))
+    {
+        Hud->TogglePresentationMode();
+        LastLocalCommand = Hud->IsCleanCinematicMode()
+            ? TEXT("DISPLAY: CLEAN CINEMATIC HUD")
+            : TEXT("DISPLAY: FULL TACTICAL HUD");
+    }
+}
+
+void AAegisTacticalPlayerController::OrbitYaw(const float Value)
+{
+    if (AAegisTacticalCameraActor* Camera = Cast<AAegisTacticalCameraActor>(GetViewTarget()))
+    {
+        Camera->AddOrbitYaw(Value);
+    }
+}
+
+void AAegisTacticalPlayerController::OrbitPitch(const float Value)
+{
+    if (AAegisTacticalCameraActor* Camera = Cast<AAegisTacticalCameraActor>(GetViewTarget()))
+    {
+        Camera->AddOrbitPitch(-Value);
+    }
+}
+
+void AAegisTacticalPlayerController::OrbitZoom(const float Value)
+{
+    if (AAegisTacticalCameraActor* Camera = Cast<AAegisTacticalCameraActor>(GetViewTarget()))
+    {
+        Camera->AddOrbitZoom(Value);
+    }
 }
 
 void AAegisTacticalPlayerController::SetSimulationRate(const double Rate)

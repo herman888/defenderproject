@@ -24,6 +24,7 @@ class DataLink:
         self._conn = None
         self._last_track = None
         self._sock = None
+        self._last_send_error_log = 0.0
         self._setup(port)
 
     def _setup(self, port: int):
@@ -75,7 +76,13 @@ class DataLink:
                   f"{vel[1] if len(vel) > 1 else 0:.1f}, "
                   f"{vel[2] if len(vel) > 2 else 0:.1f}) seq={self._seq}")
         except Exception as e:
-            pass  # Silent fail on send error
+            # Rate-limited: a fully silent failure here previously made the
+            # datalink look frozen instead of erroring, since every
+            # successful send prints a line above.
+            now = time.time()
+            if now - self._last_send_error_log > 5.0:
+                print(f"DATALINK: send_track failed, broadcast paused: {e}")
+                self._last_send_error_log = now
 
     def receive_track(self) -> dict:
         if self._conn is None:

@@ -3,6 +3,8 @@
 #include "AegisTacticalCameraActor.h"
 #include "AegisTacticalPlayerController.h"
 #include "AegisTacticalTelemetryManager.h"
+#include "AegisTacticalTrackActor.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Kismet/GameplayStatics.h"
@@ -90,6 +92,98 @@ void AAegisTacticalHUD::DrawHUD()
     const FLinearColor Orange(1.0f, 0.56f, 0.30f, 1.0f);
     const FLinearColor Blue(0.28f, 0.72f, 1.0f, 1.0f);
 
+    const AAegisTacticalTelemetryManager* Manager = Cast<AAegisTacticalTelemetryManager>(
+        UGameplayStatics::GetActorOfClass(
+            GetWorld(), AAegisTacticalTelemetryManager::StaticClass()));
+    const UTacticalTelemetryComponent* Telemetry =
+        Manager != nullptr ? Manager->Telemetry : nullptr;
+    if (Telemetry == nullptr)
+    {
+        DrawText(TEXT("LINK: INITIALIZING"), FLinearColor::Yellow,
+            28.0f, 28.0f, Font, 1.1f);
+        return;
+    }
+
+    const FTacticalTelemetryHealth& Health = Telemetry->GetHealth();
+    FTacticalTrackSnapshot Intruder;
+    FTacticalTrackSnapshot Interceptor;
+    const bool bHasIntruder =
+        Telemetry->GetLatestSnapshot(TEXT("intruder"), Intruder);
+    const bool bHasInterceptor =
+        Telemetry->GetLatestSnapshot(TEXT("interceptor"), Interceptor);
+    const auto DrawTrackBox = [this, ScreenW, ScreenH, Font](
+        const FTacticalTrackSnapshot& Track, const FString& Name,
+        const FLinearColor& Color)
+    {
+        APlayerController* Controller = GetOwningPlayerController();
+        if (Controller == nullptr)
+        {
+            return;
+        }
+        const FVector WorldPosition =
+            AAegisTacticalTrackActor::EnuToUnrealWorld(Track.PositionEnuMetres);
+        FVector2D ScreenPosition(ForceInitToZero);
+        const bool bProjected = Controller->ProjectWorldLocationToScreen(
+            WorldPosition, ScreenPosition, true);
+        const FVector CameraLocation = Controller->PlayerCameraManager != nullptr
+            ? Controller->PlayerCameraManager->GetCameraLocation() : FVector::ZeroVector;
+        const FVector CameraForward = Controller->PlayerCameraManager != nullptr
+            ? Controller->PlayerCameraManager->GetCameraRotation().Vector() : FVector::ForwardVector;
+        const bool bInFront = FVector::DotProduct(WorldPosition - CameraLocation, CameraForward) > 0.0f;
+        const bool bOnScreen = bProjected && bInFront
+            && ScreenPosition.X > 28.0f && ScreenPosition.X < ScreenW - 28.0f
+            && ScreenPosition.Y > 28.0f && ScreenPosition.Y < ScreenH - 28.0f;
+        if (bOnScreen)
+        {
+            constexpr float BoxSize = 30.0f;
+            DrawLine(ScreenPosition.X - BoxSize, ScreenPosition.Y - BoxSize,
+                ScreenPosition.X + BoxSize, ScreenPosition.Y - BoxSize, Color, 1.7f);
+            DrawLine(ScreenPosition.X + BoxSize, ScreenPosition.Y - BoxSize,
+                ScreenPosition.X + BoxSize, ScreenPosition.Y + BoxSize, Color, 1.7f);
+            DrawLine(ScreenPosition.X + BoxSize, ScreenPosition.Y + BoxSize,
+                ScreenPosition.X - BoxSize, ScreenPosition.Y + BoxSize, Color, 1.7f);
+            DrawLine(ScreenPosition.X - BoxSize, ScreenPosition.Y + BoxSize,
+                ScreenPosition.X - BoxSize, ScreenPosition.Y - BoxSize, Color, 1.7f);
+            DrawText(FString::Printf(TEXT("%s  %.0f m"), *Name,
+                Track.PositionEnuMetres.Z), Color, ScreenPosition.X + 36.0f,
+                ScreenPosition.Y - 25.0f, Font, 0.68f);
+            return;
+        }
+        FVector2D Direction = ScreenPosition - FVector2D(ScreenW * 0.5f, ScreenH * 0.5f);
+        if (!bInFront)
+        {
+            Direction *= -1.0f;
+        }
+        if (Direction.IsNearlyZero())
+        {
+            Direction = FVector2D(0.0f, -1.0f);
+        }
+        Direction.Normalize();
+        const FVector2D Center(ScreenW * 0.5f, ScreenH * 0.5f);
+        const FVector2D Arrow = Center + Direction * FMath::Min(ScreenW, ScreenH) * 0.40f;
+        const FVector2D Side(-Direction.Y, Direction.X);
+        DrawLine(Arrow.X, Arrow.Y, Arrow.X - Direction.X * 18.0f + Side.X * 9.0f,
+            Arrow.Y - Direction.Y * 18.0f + Side.Y * 9.0f, Color, 2.0f);
+        DrawLine(Arrow.X, Arrow.Y, Arrow.X - Direction.X * 18.0f - Side.X * 9.0f,
+            Arrow.Y - Direction.Y * 18.0f - Side.Y * 9.0f, Color, 2.0f);
+        DrawText(Name, Color, Arrow.X + 8.0f, Arrow.Y + 8.0f, Font, 0.60f);
+    };
+    if (bHasIntruder)
+    {
+        DrawTrackBox(Intruder, TEXT("THREAT"), Orange);
+    }
+    if (bHasInterceptor)
+    {
+        DrawTrackBox(Interceptor, TEXT("INTERCEPTOR"), Blue);
+    }
+    if (bCleanCinematicMode)
+    {
+        DrawText(TEXT("CLEAN CINEMATIC  [H] FULL TACTICAL"),
+            FLinearColor(0.75f, 0.84f, 0.88f, 0.72f), 24.0f,
+            ScreenH - 30.0f, Font, 0.66f);
+        return;
+    }
+
     DrawRect(Panel, 16.0f, 14.0f, 520.0f, 210.0f);
     DrawRect(Cyan, 16.0f, 14.0f, 520.0f, 2.0f);
     DrawText(TEXT("AEGIS TACTICAL VIEWER"), HeaderColor, 28.0f, 24.0f, Font, 1.35f);
@@ -102,19 +196,6 @@ void AAegisTacticalHUD::DrawHUD()
         Camera != nullptr ? *Camera->GetPresentationModeLabel() : TEXT("INITIALIZING")),
         Muted, 28.0f, 68.0f, Font, 0.76f);
 
-    const AAegisTacticalTelemetryManager* Manager = Cast<AAegisTacticalTelemetryManager>(
-        UGameplayStatics::GetActorOfClass(
-            GetWorld(), AAegisTacticalTelemetryManager::StaticClass()));
-    const UTacticalTelemetryComponent* Telemetry =
-        Manager != nullptr ? Manager->Telemetry : nullptr;
-    if (Telemetry == nullptr)
-    {
-        DrawText(TEXT("LINK: INITIALIZING"), FLinearColor::Yellow,
-            28.0f, 98.0f, Font, 1.1f);
-        return;
-    }
-
-    const FTacticalTelemetryHealth& Health = Telemetry->GetHealth();
     const float WorldSeconds = GetWorld() != nullptr ? GetWorld()->GetTimeSeconds() : 0.0f;
     const bool bStale = Health.IsStale(WorldSeconds);
     const FLinearColor LinkColor = Health.ReceivedPackets == 0
@@ -145,12 +226,6 @@ void AAegisTacticalHUD::DrawHUD()
         Health.bRecording ? TEXT("RECORDING JSONL + ACMI") : TEXT("LIVE ONLY")),
         Cyan, 28.0f, 184.0f, Font, 0.72f);
 
-    FTacticalTrackSnapshot Intruder;
-    FTacticalTrackSnapshot Interceptor;
-    const bool bHasIntruder =
-        Telemetry->GetLatestSnapshot(TEXT("intruder"), Intruder);
-    const bool bHasInterceptor =
-        Telemetry->GetLatestSnapshot(TEXT("interceptor"), Interceptor);
     UpdateHistory(
         Health,
         bHasIntruder ? &Intruder : nullptr,
@@ -186,11 +261,21 @@ void AAegisTacticalHUD::DrawHUD()
             Intruder.VelocityEnuMetresPerSecond
                 - Interceptor.VelocityEnuMetresPerSecond,
             Direction);
+        const float TimeToIntercept = Closing > 0.25f
+            ? Separation / Closing : -1.0f;
+        const float AltitudeDelta = Interceptor.PositionEnuMetres.Z
+            - Intruder.PositionEnuMetres.Z;
         DrawText(TEXT("INTERCEPTOR  ACTIVE"), Blue,
             PanelX + 16.0f, 140.0f, Font, 0.86f);
         DrawText(FString::Printf(TEXT("SEP %6.1f m   CLOSING %6.1f m/s"),
             Separation, Closing),
             Body, PanelX + 16.0f, 160.0f, Font, 0.78f);
+        DrawText(FString::Printf(TEXT("TTI %s   ALT DELTA %+6.1f m"),
+            TimeToIntercept >= 0.0f
+                ? *FString::Printf(TEXT("%4.1f s"), TimeToIntercept)
+                : TEXT("---"),
+            AltitudeDelta),
+            Muted, PanelX + 16.0f, 177.0f, Font, 0.71f);
     }
     else
     {

@@ -100,7 +100,7 @@ def _build_shahed_geom(scale: float, wing_rgba, fuse_rgba):
                             [-1, 0, 0],
                             [ 0, 1, 0]], dtype=np.float32)
         v = (R_base @ v.T).T
-        v -= v.mean(axis=0)           # centre AFTER rotation
+        v -= (v.min(axis=0) + v.max(axis=0)) * 0.5   # centre by bbox midpoint (symmetric wings)
         # Scale so total wingspan (Y extent) ≈ scale metres
         half_span = np.abs(v[:, 1]).max()
         v_scaled  = v * (scale * 0.5 / half_span) if half_span > 0 else v * scale
@@ -126,6 +126,74 @@ def _build_shahed_geom(scale: float, wing_rgba, fuse_rgba):
     fvp = fv["position"].astype(np.float32)
     fvp[:, 0] += 0.1          # slight forward offset
     parts.append((fvp, ff.astype(np.uint32), fuse_rgba))
+
+    verts, faces, colors = _combine(parts)
+    return verts * scale, faces, colors
+
+
+def _build_rocket_geom(scale: float, body_rgba, fin_rgba, nozzle_rgba):
+    """
+    Rocket/missile interceptor mesh.
+    Nose → +X (forward), 4 swept delta fins at rear, nozzle bell at -X.
+    Normalized so total length ≈ 1.0 before scaling.
+    """
+    N = 16       # polygon sides for cylinder / cone approximation
+    t = 0.010    # fin half-thickness (pre-scale)
+    parts = []
+
+    def _cyl(x0, x1, r):
+        a  = np.linspace(0, 2 * np.pi, N, endpoint=False).astype(np.float32)
+        r0 = np.column_stack([np.full(N, x0, np.float32), r * np.cos(a), r * np.sin(a)])
+        r1 = np.column_stack([np.full(N, x1, np.float32), r * np.cos(a), r * np.sin(a)])
+        v  = np.vstack([r0, r1])
+        f  = [[i, i + N, (i + 1) % N + N] for i in range(N)] + \
+             [[i, (i + 1) % N + N, (i + 1) % N] for i in range(N)]
+        return v.astype(np.float32), np.array(f, np.uint32)
+
+    def _cone(x_tip, x_base, r):
+        a   = np.linspace(0, 2 * np.pi, N, endpoint=False).astype(np.float32)
+        tip = np.array([[x_tip, 0.0, 0.0]], np.float32)
+        rng = np.column_stack([np.full(N, x_base, np.float32),
+                                r * np.cos(a), r * np.sin(a)]).astype(np.float32)
+        v   = np.vstack([tip, rng])
+        f   = [[0, i + 1, (i + 1) % N + 1] for i in range(N)]
+        return v, np.array(f, np.uint32)
+
+    # ── fuselage cylinder ────────────────────────────────────────────────────
+    v, f = _cyl(-0.30, 0.30, 0.050)
+    parts.append((v, f, body_rgba))
+
+    # ── sharp nose ogive (+X tip) ────────────────────────────────────────────
+    v, f = _cone(0.55, 0.30, 0.050)
+    parts.append((v, f, body_rgba))
+
+    # ── nozzle bell (flared, -X) ─────────────────────────────────────────────
+    v, f = _cone(-0.45, -0.30, 0.082)
+    parts.append((v, f, nozzle_rgba))
+
+    # ── 4 swept delta fins at 0°, 90°, 180°, 270° around X axis ─────────────
+    base_fin = np.array([
+        [-0.06,  0.050, 0.0],   # inner-front (at fuselage surface)
+        [-0.35,  0.050, 0.0],   # inner-rear  (at fuselage surface)
+        [-0.42,  0.260, 0.0],   # outer-rear  (swept tip)
+        [-0.12,  0.210, 0.0],   # outer-front
+    ], dtype=np.float32)
+
+    for deg in (0, 90, 180, 270):
+        rad = math.radians(deg)
+        Rx  = np.array([[1,              0,              0],
+                        [0,  math.cos(rad), -math.sin(rad)],
+                        [0,  math.sin(rad),  math.cos(rad)]], np.float32)
+        fp  = (Rx @ base_fin.T).T
+        thk = np.array([0.0, -math.sin(rad), math.cos(rad)], np.float32) * t
+        fv  = np.vstack([fp + thk, fp - thk]).astype(np.float32)
+        ff  = np.array([[0,1,2],[0,2,3],   # top face
+                        [4,6,5],[4,7,6],   # bottom face
+                        [0,4,5],[0,5,1],   # inner-front edge
+                        [1,5,6],[1,6,2],   # inner-rear edge
+                        [2,6,7],[2,7,3],   # outer edge
+                        [3,7,4],[3,4,0]], np.uint32)
+        parts.append((fv, ff, fin_rgba))
 
     verts, faces, colors = _combine(parts)
     return verts * scale, faces, colors
@@ -273,7 +341,7 @@ _INTRUDER_SCALES = {
     "consumer_quad":  1.2,   # 3x tactical magnification over 0.4 m span
     "fpv_attack":     1.0,   # ~3x tactical magnification over 0.32 m span
 }
-_INTERCEPTOR_SCALE = 1.65    # 3x tactical magnification over 0.55 m span
+_INTERCEPTOR_SCALE = 5.0
 
 
 class SimRenderer:
@@ -481,10 +549,11 @@ class SimRenderer:
         self._int_telem.visible = False
 
     def _build_interceptor_mesh(self):
-        bv, bf, bc = _build_quad_geom(
+        bv, bf, bc = _build_rocket_geom(
             _INTERCEPTOR_SCALE,
-            body_rgba  = (0.10, 0.45, 0.90, 1.0),
-            rotor_rgba = (0.20, 0.65, 1.00, 0.85),
+            body_rgba   = (0.15, 0.50, 0.95, 1.0),
+            fin_rgba    = (0.08, 0.32, 0.72, 1.0),
+            nozzle_rgba = (1.00, 0.58, 0.08, 1.0),
         )
         self._interceptor_mesh = visuals.Mesh(
             vertices=bv, faces=bf, vertex_colors=bc, shading="flat",
@@ -811,10 +880,11 @@ class SimRenderer:
                      color=(0.0, 0.7, 0.15, 0.5), width=1, parent=sv)
 
         # Interceptor mesh (independent instance)
-        bv, bf, bc = _build_quad_geom(
+        bv, bf, bc = _build_rocket_geom(
             _INTERCEPTOR_SCALE,
-            body_rgba=(0.10, 0.45, 0.90, 1.0),
-            rotor_rgba=(0.20, 0.65, 1.00, 0.85),
+            body_rgba   = (0.15, 0.50, 0.95, 1.0),
+            fin_rgba    = (0.08, 0.32, 0.72, 1.0),
+            nozzle_rgba = (1.00, 0.58, 0.08, 1.0),
         )
         self._pip_int_mesh = visuals.Mesh(
             vertices=bv, faces=bf, vertex_colors=bc,

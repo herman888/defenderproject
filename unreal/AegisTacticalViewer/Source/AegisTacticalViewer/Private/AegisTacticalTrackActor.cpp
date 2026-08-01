@@ -3,6 +3,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Math/RotationMatrix.h"
 #include "GameFramework/PlayerController.h"
@@ -47,6 +48,21 @@ AAegisTacticalTrackActor::AAegisTacticalTrackActor()
     EngineGlow = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EngineGlow"));
     EngineGlow->SetupAttachment(Visual);
     EngineGlow->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    EngineLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("EngineLight"));
+    EngineLight->SetupAttachment(Visual);
+    EngineLight->SetCastShadows(false);
+    EngineLight->SetAttenuationRadius(350.0f);
+    EngineLight->SetVisibility(false);
+    PortNavigationLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("PortNavigationLight"));
+    PortNavigationLight->SetupAttachment(Visual);
+    PortNavigationLight->SetLightColor(FLinearColor(1.0f, 0.04f, 0.02f));
+    PortNavigationLight->SetAttenuationRadius(180.0f);
+    PortNavigationLight->SetCastShadows(false);
+    StarboardNavigationLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("StarboardNavigationLight"));
+    StarboardNavigationLight->SetupAttachment(Visual);
+    StarboardNavigationLight->SetLightColor(FLinearColor(0.02f, 0.8f, 0.16f));
+    StarboardNavigationLight->SetAttenuationRadius(180.0f);
+    StarboardNavigationLight->SetCastShadows(false);
     for (int32 Index = 0; Index < 4; ++Index)
     {
         UStaticMeshComponent* RotorArm = CreateDefaultSubobject<UStaticMeshComponent>(
@@ -71,6 +87,8 @@ AAegisTacticalTrackActor::AAegisTacticalTrackActor()
     }
     static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(
         TEXT("/Engine/BasicShapes/Cube.Cube"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> Cylinder(
+        TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> Cone(
         TEXT("/Engine/BasicShapes/Cone.Cone"));
     if (Cube.Succeeded())
@@ -85,6 +103,20 @@ AAegisTacticalTrackActor::AAegisTacticalTrackActor()
         for (UStaticMeshComponent* RotorBlade : RotorBlades)
         {
             RotorBlade->SetStaticMesh(Cube.Object);
+        }
+    }
+    if (Cylinder.Succeeded())
+    {
+        for (int32 Index = 0; Index < 24; ++Index)
+        {
+            UStaticMeshComponent* Segment = CreateDefaultSubobject<UStaticMeshComponent>(
+                *FString::Printf(TEXT("ContrailSegment%d"), Index));
+            Segment->SetupAttachment(Visual);
+            Segment->SetStaticMesh(Cylinder.Object);
+            Segment->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            Segment->SetCastShadow(false);
+            Segment->SetHiddenInGame(true);
+            ContrailSegments.Add(Segment);
         }
     }
     static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(
@@ -176,26 +208,45 @@ void AAegisTacticalTrackActor::ApplyVisualDefinition(
     }
     else if (bIsInterceptor)
     {
-        // A compact quad silhouette: central fuselage plus four crossed arms.
-        Visual->SetRelativeRotation(FRotator::ZeroRotator);
-        Visual->SetRelativeScale3D(FVector(1.35f, 1.35f, 0.65f));
+        // This is a body-X rocket interceptor with four propulsors in its tail
+        // plane, not a flat consumer quad.  Keep the local nose along +X: that
+        // is the same axis used by the PyBullet propulsion model and telemetry
+        // attitude, so the display can never appear to translate sideways.
+        const FSoftObjectPath ConePath(TEXT("/Engine/BasicShapes/Cone.Cone"));
+        if (UStaticMesh* Cone = Cast<UStaticMesh>(ConePath.TryLoad()))
+        {
+            Visual->SetStaticMesh(Cone);
+        }
+        Visual->SetRelativeRotation(FRotator(90.0f, 0.0f, 0.0f));
+        Visual->SetRelativeScale3D(FVector(1.05f, 1.05f, 3.6f));
         EngineGlow->SetHiddenInGame(false);
+        MainWing->SetHiddenInGame(false);
+        TailWing->SetHiddenInGame(false);
+        VerticalFin->SetHiddenInGame(false);
+        // Low-cost cruciform tail fins.  The final art slot replaces these
+        // primitives with an authored mesh and LOD chain.
+        MainWing->SetRelativeLocation(FVector(-140.0f, 0.0f, 0.0f));
+        MainWing->SetRelativeScale3D(FVector(0.45f, 2.15f, 0.08f));
+        TailWing->SetRelativeLocation(FVector(-140.0f, 0.0f, 0.0f));
+        TailWing->SetRelativeScale3D(FVector(0.45f, 0.08f, 2.15f));
+        VerticalFin->SetRelativeLocation(FVector(-205.0f, 0.0f, 0.0f));
+        VerticalFin->SetRelativeScale3D(FVector(0.32f, 0.95f, 0.95f));
         for (int32 Index = 0; Index < RotorArms.Num(); ++Index)
         {
             UStaticMeshComponent* Arm = RotorArms[Index];
             Arm->SetHiddenInGame(false);
-            Arm->SetRelativeLocation(FVector::ZeroVector);
-            Arm->SetRelativeRotation(FRotator(0.0f, Index % 2 == 0 ? 45.0f : -45.0f, 0.0f));
-            Arm->SetRelativeScale3D(FVector(2.8f, 0.13f, 0.10f));
+            const float Y = Index % 2 == 0 ? 92.0f : -92.0f;
+            const float Z = Index < 2 ? 92.0f : -92.0f;
+            Arm->SetRelativeLocation(FVector(-205.0f, Y, Z));
+            Arm->SetRelativeScale3D(FVector(0.18f, 0.42f, 0.42f));
             UStaticMeshComponent* Blade = RotorBlades[Index];
             Blade->SetHiddenInGame(false);
-            const float X = Index < 2 ? 155.0f : -155.0f;
-            const float Y = Index % 2 == 0 ? 155.0f : -155.0f;
-            Blade->SetRelativeLocation(FVector(X, Y, 35.0f));
-            Blade->SetRelativeScale3D(FVector(1.05f, 0.07f, 0.035f));
+            Blade->SetRelativeLocation(FVector(-220.0f, Y, Z));
+            Blade->SetRelativeRotation(FRotator(0.0f, 0.0f, Index % 2 == 0 ? 45.0f : -45.0f));
+            Blade->SetRelativeScale3D(FVector(0.07f, 0.82f, 0.04f));
         }
-        EngineGlow->SetRelativeLocation(FVector(-95.0f, 0.0f, -15.0f));
-        EngineGlow->SetRelativeScale3D(FVector(0.30f));
+        EngineGlow->SetRelativeLocation(FVector(-265.0f, 0.0f, 0.0f));
+        EngineGlow->SetRelativeScale3D(FVector(0.28f));
         bUsesRotors = true;
     }
     else
@@ -224,6 +275,9 @@ void AAegisTacticalTrackActor::ApplyVisualDefinition(
     BaseColor = Definition.BaseColor;
     DisplayName = Definition.Label + TEXT("  ") + Snapshot.Id;
     SetDisplayColor(BaseColor);
+    const float WingOffset = bIsInterceptor ? 150.0f : 185.0f;
+    PortNavigationLight->SetRelativeLocation(FVector(-20.0f, -WingOffset, 18.0f));
+    StarboardNavigationLight->SetRelativeLocation(FVector(-20.0f, WingOffset, 18.0f));
 }
 
 void AAegisTacticalTrackActor::SetDisplayColor(const FLinearColor& Color)
@@ -253,6 +307,25 @@ void AAegisTacticalTrackActor::SetDisplayColor(const FLinearColor& Color)
     {
         DynamicMaterial->SetVectorParameterValue(TEXT("Color"), Color);
     }
+    if (ShapeMaterial != nullptr && EngineMaterial == nullptr)
+    {
+        EngineMaterial = UMaterialInstanceDynamic::Create(ShapeMaterial, this);
+        EngineGlow->SetMaterial(0, EngineMaterial);
+    }
+    if (EngineMaterial != nullptr)
+    {
+        EngineMaterial->SetVectorParameterValue(TEXT("Color"),
+            bUsesRotors ? FLinearColor(0.06f, 0.40f, 1.0f) : FLinearColor(1.0f, 0.24f, 0.04f));
+    }
+    if (ShapeMaterial != nullptr && ContrailMaterials.IsEmpty())
+    {
+        for (UStaticMeshComponent* Segment : ContrailSegments)
+        {
+            UMaterialInstanceDynamic* Material = UMaterialInstanceDynamic::Create(ShapeMaterial, this);
+            Segment->SetMaterial(0, Material);
+            ContrailMaterials.Add(Material);
+        }
+    }
     Label->SetTextRenderColor(Color.ToFColor(true));
 }
 
@@ -263,16 +336,50 @@ void AAegisTacticalTrackActor::AddTrailPoint(const FVector& WorldLocation)
         return;
     }
     TrailPoints.Add(WorldLocation);
-    if (TrailPoints.Num() > 36)
+    if (TrailPoints.Num() > 25)
     {
         TrailPoints.RemoveAt(0);
     }
+    // The legacy instanced-sphere trail is intentionally left empty: pooled
+    // cylinder sections below give a continuous, low-cost fading ribbon.
     Trail->ClearInstances();
-    for (int32 Index = 0; Index < TrailPoints.Num(); ++Index)
+    UpdateContrailRibbon();
+}
+
+void AAegisTacticalTrackActor::UpdateContrailRibbon()
+{
+    const int32 SegmentCount = FMath::Min(ContrailSegments.Num(), TrailPoints.Num() - 1);
+    for (int32 Index = 0; Index < ContrailSegments.Num(); ++Index)
     {
-        const float Scale = 0.035f + 0.085f * (static_cast<float>(Index + 1) / TrailPoints.Num());
-        Trail->AddInstance(
-            FTransform(FRotator::ZeroRotator, TrailPoints[Index], FVector(Scale)), true);
+        UStaticMeshComponent* Segment = ContrailSegments[Index];
+        if (Index >= SegmentCount)
+        {
+            Segment->SetHiddenInGame(true);
+            continue;
+        }
+        const FVector Start = TrailPoints[Index];
+        const FVector End = TrailPoints[Index + 1];
+        const FVector Delta = End - Start;
+        const float Length = Delta.Length();
+        if (Length < KINDA_SMALL_NUMBER)
+        {
+            Segment->SetHiddenInGame(true);
+            continue;
+        }
+        const float Age = static_cast<float>(Index + 1) / FMath::Max(1, SegmentCount);
+        const float Width = FMath::Lerp(0.055f, 0.14f, Age);
+        Segment->SetWorldLocation((Start + End) * 0.5f);
+        Segment->SetWorldRotation(FRotationMatrix::MakeFromZ(Delta.GetSafeNormal()).Rotator());
+        Segment->SetWorldScale3D(FVector(Width, Width, Length / 100.0f));
+        Segment->SetHiddenInGame(false);
+        if (ContrailMaterials.IsValidIndex(Index) && ContrailMaterials[Index] != nullptr)
+        {
+            const FLinearColor Smoke = bUsesRotors
+                ? FLinearColor(0.10f, 0.36f, 0.62f)
+                : FLinearColor(0.36f, 0.31f, 0.24f);
+            ContrailMaterials[Index]->SetVectorParameterValue(TEXT("Color"),
+                FLinearColor::LerpUsingHSV(Smoke * 0.25f, Smoke, Age));
+        }
     }
 }
 
@@ -314,6 +421,7 @@ void AAegisTacticalTrackActor::ApplySnapshot(const FTacticalTrackSnapshot& Snaps
     bIsStale = false;
     bAbsent = false;
     SetActorHiddenInGame(false);
+    LastSpeedMetresPerSecond = Snapshot.VelocityEnuMetresPerSecond.Length();
     AddTrailPoint(TargetLocation);
 }
 
@@ -323,6 +431,10 @@ void AAegisTacticalTrackActor::MarkAbsent()
     bIsStale = true;
     TrailPoints.Reset();
     Trail->ClearInstances();
+    for (UStaticMeshComponent* Segment : ContrailSegments)
+    {
+        Segment->SetHiddenInGame(true);
+    }
     bHasSnapshot = false;
     PreviousSnapshotTime = -BIG_NUMBER;
     SetActorHiddenInGame(true);
@@ -367,6 +479,18 @@ void AAegisTacticalTrackActor::Tick(float DeltaSeconds)
         InterpolationStartLocation, TargetLocation, SmoothAlpha));
     SetActorRotation(FQuat::Slerp(
         InterpolationStartRotation, TargetRotation, SmoothAlpha).GetNormalized());
+
+    UpdateContrailRibbon();
+    const float EnginePulse = 0.82f + 0.18f * FMath::Sin(World->GetTimeSeconds() * 16.0f);
+    const float EngineScale = FMath::Clamp(0.12f + LastSpeedMetresPerSecond / 240.0f,
+        0.14f, 0.46f) * EnginePulse;
+    EngineGlow->SetRelativeScale3D(FVector(EngineScale, EngineScale * 1.25f, EngineScale * 1.25f));
+    EngineLight->SetVisibility(!EngineGlow->bHiddenInGame);
+    EngineLight->SetIntensity(FMath::Clamp(80.0f + LastSpeedMetresPerSecond * 10.0f,
+        80.0f, 1100.0f) * EnginePulse);
+    const bool bNavigationOn = FMath::Fmod(World->GetTimeSeconds(), 1.15f) < 0.11f;
+    PortNavigationLight->SetVisibility(bNavigationOn);
+    StarboardNavigationLight->SetVisibility(bNavigationOn);
 
     if (bUsesRotors)
     {

@@ -7,6 +7,7 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
+from config import INTERCEPT_CONTACT_RADIUS_M
 from guidance.intercept import PurePursuitGuidance
 from guidance.setpoint import ned_to_enu
 from ml.observation import encode_observation, encode_observation_v2
@@ -203,7 +204,7 @@ class InterceptionEnv(gym.Env):
         reward = progress * 0.1 - 0.01 - 0.003 * power
         if self.residual_apn:
             reward -= 0.002 * float(np.dot(residual_action, residual_action))
-        intercepted = separation <= 18.0
+        intercepted = separation <= INTERCEPT_CONTACT_RADIUS_M
         breached = math.hypot(*self.intruder_position[:2]) <= 2.0
         if intercepted:
             reward += 100.0
@@ -292,7 +293,7 @@ class InterceptionEnv(gym.Env):
     def _info(self):
         return {
             "separation_m": self._separation(),
-            "intercepted": self._separation() <= 18.0,
+            "intercepted": self._separation() <= INTERCEPT_CONTACT_RADIUS_M,
             "wind_mps": self.wind.copy(),
             "battery_fraction": self.battery_fraction,
             "energy_used": self.energy_used,

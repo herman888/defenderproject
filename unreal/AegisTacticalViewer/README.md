@@ -19,9 +19,13 @@ evidence. This project only renders the validated UDP telemetry emitted by
 2. The saved local World Partition map is already `Content/Maps.umap`; it is
    visual context only and not a real-world georeference.
 3. Press Play. The game mode automatically creates a telemetry manager which
-   listens only on UDP `127.0.0.1:8788`.
+   listens only on UDP `127.0.0.1:8788`. It accepts either the preferred
+   enriched bridge feed or the simulator's validated local tactical feed;
+   direct packets derive a display-only heading from their velocity.
 4. Press `C` while the viewer has focus to cycle through **Engagement**,
    **Command**, **Chase**, **Top Down**, **Orbit**, and **Sensor / EO** views.
+   In Orbit view, use mouse/right stick to orbit and the mouse wheel to zoom.
+   Press `H` for the clean cinematic overlay; press it again for the full tactical HUD.
 
 The attributed Shahed-136 and radar-tower models in
 `anti-drone-dome/assets` are imported under `/Game/Aegis/Imported`; attribution
@@ -65,6 +69,8 @@ The packaged viewer also provides loopback-only training controls:
 | `R` | Restart current scenario |
 | `1`, `2`, `4`, `8` | Requested simulation rate |
 | `C` | Cycle tactical camera |
+| `H` | Toggle clean cinematic / full tactical HUD |
+| Mouse/right stick + wheel | Orbit camera and zoom (Orbit view only) |
 | `N` | Load the next curated scenario preset |
 | `F5`, `F6`, `F7` | Toggle radar, EO, or actuator failure injection |
 | `X` | Clear all injected failures |
@@ -84,6 +90,26 @@ vehicles move continuously in a recording, run:
 python scripts\validate_unreal_motion_recording.py missions\renderer\unreal-demo.jsonl
 ```
 
+## Vertical-slice presentation pass
+
+The viewer’s code-side presentation pass is deliberately asset-independent:
+
+- The flight camera now has predictive framing, telemetry-triggered cuts for
+  deployment/radar acquisition/intercept, manual orbit, dynamic FOV, and a
+  visibility trace to avoid terrain and compound geometry.
+- Vehicle trails are pooled continuous contrail sections instead of dots, with
+  speed-responsive engine glow, navigation lights, rotor motion, and a visual
+  radar sweep/pulse. These are display effects only.
+- `H` keeps target boxes, altitude labels, and off-screen arrows while removing
+  the panels for cinematic capture. Full tactical mode adds closure, time to
+  intercept, altitude delta, track confidence, history, and the ENU picture.
+- The default renderer keeps Lumen and virtual shadows disabled, enables
+  modest AO/bloom/exposure, and uses TSR at 80% internal resolution. Use the
+  75–85% quality tiers as the intended GTX 1650 range.
+
+The remaining editor-only art work is documented in
+[`documentation/vertical-slice-art-pass.md`](documentation/vertical-slice-art-pass.md).
+
 ## Start the live pipeline manually
 
 In `anti-drone-dome`, use two terminals:
@@ -101,6 +127,11 @@ the Unreal Output Log. The actors interpolate only between received snapshots
 and never extrapolate. The controls above send a separate, whitelisted protocol
 to the local training simulation on `127.0.0.1:8789`; there is no hardware or
 weapon command path.
+
+For the simplest local viewer path, the simulator may send straight to the
+viewer instead: `python main.py --telemetry-udp 127.0.0.1:8788`. The bridge is
+still preferred when Cesium/geodetic metadata or a separate validation hop is
+required.
 
 ## Coordinate convention
 

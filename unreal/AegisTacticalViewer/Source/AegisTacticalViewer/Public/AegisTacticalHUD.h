@@ -13,6 +13,9 @@ class AEGISTACTICALVIEWER_API AAegisTacticalHUD : public AHUD
 public:
     virtual void DrawHUD() override;
 
+    void TogglePresentationMode() { bCleanCinematicMode = !bCleanCinematicMode; }
+    bool IsCleanCinematicMode() const { return bCleanCinematicMode; }
+
 private:
     void UpdateHistory(
         const struct FTacticalTelemetryHealth& Health,
@@ -24,4 +27,8 @@ private:
     TArray<float> AltitudeHistory;
     TArray<float> RangeHistory;
     double LastHistoryMissionTime = -1.0;
+    // The default is deliberately unobstructed: a flight replay must show
+    // world-space motion before it shows instrumentation. H restores the
+    // complete tactical overlay at any time.
+    bool bCleanCinematicMode = true;
 };

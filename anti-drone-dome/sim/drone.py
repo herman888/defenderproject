@@ -103,7 +103,37 @@ class Drone:
         self._prev_error = [0.0, 0.0, 0.0]
         self._rotor_angle = 0.0
         self._smooth_up = np.array([0.0, 0.0, 1.0], dtype=float)
+        self._smooth_thrust_axis = np.array([0.0, 0.0, 1.0], dtype=float)
         self._heading_enu_rad = 0.0
+        self._propulsion_axis = propulsion.get("thrust_axis", "body_z")
+        # The interceptor is a four-prop vector-thrust vehicle.  The attitude
+        # controller below is intentionally kinematic (it avoids torque/inertia
+        # fights with Bullet at the telemetry cadence), but propulsion is still
+        # applied at four physical tail locations along the configured body
+        # axis.  The reference interceptor uses body +X, matching the URDF nose
+        # and preventing its rocket-shaped mesh from flying sideways.
+        rotor_radius = float(
+            profile.get("geometry", {}).get("wingspan_m", 0.55)
+            if profile else 0.55
+        ) * 0.25
+        if self._propulsion_axis == "body_x":
+            tail_x = -float(
+                profile.get("geometry", {}).get("length_m", 0.55)
+                if profile else 0.55
+            ) * 0.35
+            self._rotor_local_positions = (
+                np.array((tail_x,  rotor_radius,  rotor_radius), dtype=float),
+                np.array((tail_x,  rotor_radius, -rotor_radius), dtype=float),
+                np.array((tail_x, -rotor_radius,  rotor_radius), dtype=float),
+                np.array((tail_x, -rotor_radius, -rotor_radius), dtype=float),
+            )
+        else:
+            self._rotor_local_positions = (
+                np.array(( rotor_radius,  rotor_radius, 0.0), dtype=float),
+                np.array(( rotor_radius, -rotor_radius, 0.0), dtype=float),
+                np.array((-rotor_radius,  rotor_radius, 0.0), dtype=float),
+                np.array((-rotor_radius, -rotor_radius, 0.0), dtype=float),
+            )
         self._attitude_response_time_s = float(
             flight_envelope.get("attitude_response_time_s", 0.16)
         )
@@ -343,11 +373,43 @@ class Drone:
         pos, _ = pybullet.getBasePositionAndOrientation(self._body, physicsClientId=self._client)
         vel, _ = pybullet.getBaseVelocity(self._body, physicsClientId=self._client)
         force  = self._compute_vtol(pos, vel)
-        pybullet.applyExternalForce(
-            self._body, -1, force, list(pos), pybullet.WORLD_FRAME,
-            physicsClientId=self._client,
-        )
+        _, orientation = pybullet.getBasePositionAndOrientation(
+            self._body, physicsClientId=self._client)
+        self._apply_rotor_thrust(force, pos, orientation)
         self._spin_rotors()
+
+    def _apply_rotor_thrust(self, total_force, position, orientation):
+        """Apply collective thrust through each rotor along the configured axis.
+
+        The controller supplies an already envelope-limited world-force.  Its
+        component parallel to the freshly commanded body thrust axis is distributed
+        across the four rotors.  Any small perpendicular remainder (drag or a
+        component-wise envelope clamp) is applied at the centre of mass, which
+        preserves the controller's existing translational envelope without
+        pretending that it is extra propeller thrust.
+        """
+        force = np.asarray(total_force, dtype=float)
+        rotation = np.asarray(
+            pybullet.getMatrixFromQuaternion(orientation), dtype=float
+        ).reshape(3, 3)
+        axis_index = 0 if self._propulsion_axis == "body_x" else 2
+        body_thrust_axis = rotation[:, axis_index]
+        axial_magnitude = max(0.0, float(np.dot(force, body_thrust_axis)))
+        axial_force = body_thrust_axis * axial_magnitude
+        residual_force = force - axial_force
+        rotor_force = axial_force / len(self._rotor_local_positions)
+        centre = np.asarray(position, dtype=float)
+        for local_position in self._rotor_local_positions:
+            world_position = centre + rotation @ local_position
+            pybullet.applyExternalForce(
+                self._body, -1, rotor_force.tolist(), world_position.tolist(),
+                pybullet.WORLD_FRAME, physicsClientId=self._client,
+            )
+        if float(np.linalg.norm(residual_force)) > 1e-8:
+            pybullet.applyExternalForce(
+                self._body, -1, residual_force.tolist(), centre.tolist(),
+                pybullet.WORLD_FRAME, physicsClientId=self._client,
+            )
 
     def _compute_vtol(self, pos, vel):
         """
@@ -376,18 +438,9 @@ class Drone:
         fz = self._kp * err[2] - self._kd * vel_np[2] + self._hover_ff
         self._prev_error = err.tolist()
 
-        f_des = np.array([fx, fy, fz])
-        f_mag = float(np.linalg.norm(f_des))
-
-        # Desired body-up direction
-        if f_mag > 1e-6:
-            desired_up = f_des / f_mag
-        else:
-            desired_up = np.array([0.0, 0.0, 1.0])
-
-        # Kinematically bank and yaw the body with cadence-independent response.
-        orn_new = self._smooth_flight_attitude(desired_up, vel_np)
-        desired_up = self._smooth_up.copy()
+        force, orn_new = self._resolve_vtol_thrust(
+            np.array([fx, fy, fz]), vel_np
+        )
         pybullet.resetBasePositionAndOrientation(
             self._body, list(pos), list(orn_new), physicsClientId=self._client
         )
@@ -395,18 +448,102 @@ class Drone:
             self._body, list(vel), [0.0, 0.0, 0.0], physicsClientId=self._client
         )
 
-        # Thrust along tilted body-Z + aerodynamic drag
+        # Airframe speed cap (vehicle limit, not a guidance shortcut).
         speed = float(np.linalg.norm(vel_np))
         if speed > self._max_spd:
             vel_np = vel_np * (self._max_spd / speed)
             pybullet.resetBaseVelocity(
                 self._body, vel_np.tolist(), [0.0, 0.0, 0.0], physicsClientId=self._client
             )
+        return force.tolist()
 
-        thrust = desired_up * f_mag
-        drag   = -0.15 * vel_np
+    def _resolve_vtol_thrust(self, requested_force, velocity, yaw_ned=None):
+        """Turn a world-frame controller request into physically plausible VTOL thrust.
+
+        A multirotor cannot retain its full vertical collective while its body
+        is tilt-limited for a lateral acceleration.  The previous controller
+        normalised the unbounded request, clamped the attitude, then retained
+        the old magnitude.  That injected excess upward force.  This resolver
+        first allocates vertical collective, limits horizontal thrust by both
+        the airframe and the permitted tilt, then applies the collective along
+        the *actual smoothed body +Z* axis.
+        """
+        if self._propulsion_axis == "body_x":
+            return self._resolve_forward_thrust(requested_force, velocity)
+
+        requested = np.asarray(requested_force, dtype=float)
+        horizontal = requested[:2].copy()
+        horizontal_norm = float(np.linalg.norm(horizontal))
+        if horizontal_norm > self._max_h:
+            horizontal *= self._max_h / horizontal_norm
+            horizontal_norm = self._max_h
+
+        # A conventional quad can reduce collective to descend, but cannot
+        # command meaningful reverse thrust without a separately calibrated
+        # reversible-propulsion profile.
+        vertical = float(np.clip(requested[2], 0.0, self._max_v))
+        max_horizontal_for_tilt = vertical * math.tan(self._max_tilt_rad)
+        if horizontal_norm > max_horizontal_for_tilt and horizontal_norm > 1e-8:
+            horizontal *= max_horizontal_for_tilt / horizontal_norm
+
+        target_thrust = np.array((horizontal[0], horizontal[1], vertical))
+        target_magnitude = float(np.linalg.norm(target_thrust))
+        desired_up = (
+            target_thrust / target_magnitude
+            if target_magnitude > 1e-8
+            else np.array((0.0, 0.0, 1.0))
+        )
+        orientation = self._smooth_flight_attitude(desired_up, velocity, yaw_ned)
+        body_up = self._smooth_up.copy()
+
+        # Compensate only for the current, bounded bank angle so collective
+        # preserves the requested vertical component while lateral force ramps
+        # in with the attitude response.
+        collective = vertical / max(body_up[2], math.cos(self._max_tilt_rad))
+        collective = min(collective, self._max_v / math.cos(self._max_tilt_rad))
+        thrust = body_up * collective
+        drag = -0.15 * np.asarray(velocity, dtype=float)
         limited = self._limit_force(thrust + drag)
-        return self._condition_force(limited, vel_np).tolist()
+        return self._condition_force(limited, velocity), orientation
+
+    def _resolve_forward_thrust(self, requested_force, velocity):
+        """Resolve the rocket interceptor's four-prop thrust along body +X."""
+        requested = np.asarray(requested_force, dtype=float)
+        requested_magnitude = float(np.linalg.norm(requested))
+        desired_axis = (
+            requested / requested_magnitude
+            if requested_magnitude > 1e-8
+            else self._smooth_thrust_axis.copy()
+        )
+        response_alpha = 1.0 - math.exp(
+            -_TIMESTEP / max(self._attitude_response_time_s, _TIMESTEP)
+        )
+        self._smooth_thrust_axis += response_alpha * (
+            desired_axis - self._smooth_thrust_axis
+        )
+        self._smooth_thrust_axis /= max(
+            float(np.linalg.norm(self._smooth_thrust_axis)), 1e-8
+        )
+        forward = self._smooth_thrust_axis
+        reference_up = np.array((0.0, 0.0, 1.0))
+        right = np.cross(reference_up, forward)
+        if float(np.linalg.norm(right)) < 1e-8:
+            right = np.array((0.0, 1.0, 0.0))
+        right /= max(float(np.linalg.norm(right)), 1e-8)
+        up = np.cross(forward, right)
+        up /= max(float(np.linalg.norm(up)), 1e-8)
+        orientation = self._matrix_to_quaternion(
+            np.column_stack((forward, right, up))
+        )
+
+        # The profile's horizontal force is the available collective for this
+        # forward-thrust interceptor.  Axis component limits are retained for
+        # the final safety envelope after drag is added.
+        collective = min(requested_magnitude, self._max_h)
+        thrust = forward * collective
+        drag = -0.15 * np.asarray(velocity, dtype=float)
+        limited = self._limit_force(thrust + drag)
+        return self._condition_force(limited, velocity), orientation
 
     def _spin_rotors(self):
         for i, joint in enumerate(self._rotor_joints):
@@ -490,20 +627,11 @@ class Drone:
         a_cmd_enu = np.array(
             placeholder_fc_accel_enu(sp, tuple(vel)), dtype=float)
 
-        # Convert accel command to body force via vehicle mass.
-        force = a_cmd_enu * self._mass_kg
-
-        # FC saturates each axis to the profile's physical force envelope.
-        force = self._limit_force(force)
-        force = self._condition_force(force, vel)
-        f_mag = float(np.linalg.norm(force))
-
-        # Kinematic tilt/yaw so the mesh banks and points into the manoeuvre.
-        if f_mag > 1e-6:
-            desired_up = force / f_mag
-        else:
-            desired_up = np.array([0.0, 0.0, 1.0])
-        orn = self._smooth_flight_attitude(desired_up, vel, sp.yaw)
+        # Convert the FC request to constrained collective thrust and a
+        # matching attitude.  This uses the same rotor model as position mode.
+        force, orn = self._resolve_vtol_thrust(
+            a_cmd_enu * self._mass_kg, vel, sp.yaw
+        )
         pybullet.resetBasePositionAndOrientation(
             self._body, list(pos), list(orn), physicsClientId=self._client,
         )
@@ -522,10 +650,7 @@ class Drone:
                 physicsClientId=self._client,
             )
 
-        pybullet.applyExternalForce(
-            self._body, -1, force.tolist(), list(pos),
-            pybullet.WORLD_FRAME, physicsClientId=self._client,
-        )
+        self._apply_rotor_thrust(force, pos, orn)
 
         self._spin_rotors()
 
@@ -780,6 +905,35 @@ class LoiteringMunition:
     # ------------------------------------------------------------------
     def set_target(self, x: float, y: float, z: float):
         self._target = [x, y, z]
+        # Fixed-wing scenarios begin with an airborne vehicle, not a runway
+        # take-off model. Give a newly tasked aircraft its cruise entry
+        # condition immediately so it cannot spend the opening seconds falling
+        # almost vertically while a force controller spools up. This is an
+        # initial-condition change only: steering, lift, drag, force slew,
+        # disturbance, energy, and envelope limits remain physics-driven.
+        if not self._fixed_wing:
+            return
+        pos, _ = pybullet.getBasePositionAndOrientation(
+            self._body, physicsClientId=self._client)
+        velocity, angular_velocity = pybullet.getBaseVelocity(
+            self._body, physicsClientId=self._client)
+        horizontal_speed = math.hypot(velocity[0], velocity[1])
+        dx, dy = x - pos[0], y - pos[1]
+        distance = math.hypot(dx, dy)
+        if horizontal_speed >= self._stall_speed * 0.5 or distance < 1e-3:
+            return
+        direction = (dx / distance, dy / distance, 0.0)
+        entry_speed = max(self._stall_speed * 1.05, self._cruise_speed)
+        pybullet.resetBasePositionAndOrientation(
+            self._body, list(pos), list(self._align_x_to_vec(direction)),
+            physicsClientId=self._client,
+        )
+        pybullet.resetBaseVelocity(
+            self._body,
+            [direction[0] * entry_speed, direction[1] * entry_speed, 0.0],
+            list(angular_velocity),
+            physicsClientId=self._client,
+        )
 
     @property
     def body_id(self) -> int:
