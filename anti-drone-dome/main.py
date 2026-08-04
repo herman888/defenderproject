@@ -1618,22 +1618,31 @@ def _run_one_mission(
                 }
             mission_recorder.record_snapshot(dashboard_state)
             pending_events = []
-            try:
-                state_q.put_nowait(dashboard_state)
-            except Exception:
-                pass
-            else:
+            if EXTERNAL_VIEWER_ONLY:
+                # No Qt process is draining this queue, so a push would fill it
+                # and then raise Full on every subsequent step. The state is
+                # still built above because the mission recorder consumes it -
+                # that is the evidence artifact - but the queue and its rate
+                # report are meaningless here.
                 tactical_frame = None
                 tactical_overlay = {}
-                _dash_push_count += 1
+            else:
+                try:
+                    state_q.put_nowait(dashboard_state)
+                except Exception:
+                    pass
+                else:
+                    tactical_frame = None
+                    tactical_overlay = {}
+                    _dash_push_count += 1
 
-            # 5-second rolling rate report
-            if _now - _dash_push_window >= 5.0:
-                _rate = _dash_push_count / (_now - _dash_push_window)
-                print(f"[dash-throttle] ~{_rate:5.1f} push/s "
-                      f"(target {_DASH_PUSH_HZ:.0f}, sim_speed {sim_speed:.2g}x)")
-                _dash_push_count  = 0
-                _dash_push_window = _now
+                # 5-second rolling rate report
+                if _now - _dash_push_window >= 5.0:
+                    _rate = _dash_push_count / (_now - _dash_push_window)
+                    print(f"[dash-throttle] ~{_rate:5.1f} push/s "
+                          f"(target {_DASH_PUSH_HZ:.0f}, sim_speed {sim_speed:.2g}x)")
+                    _dash_push_count  = 0
+                    _dash_push_window = _now
 
         if (
             intercept_pending

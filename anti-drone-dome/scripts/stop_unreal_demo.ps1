@@ -7,7 +7,7 @@ function Stop-AegisDemoProcessTree([int]$ProcessId) {
 }
 
 Get-CimInstance Win32_Process | Where-Object {
-    $_.Name -eq 'python.exe' -and $_.CommandLine -match '(?i)(integration\\unreal_bridge\.py|main\.py.*--demo-repeat)'
+    $_.Name -eq 'python.exe' -and $_.CommandLine -match '(?i)(integration\\unreal_bridge\.py|main\.py.*--(auto-start|demo-repeat|external-viewer-only|swarm))'
 } | ForEach-Object { Stop-AegisDemoProcessTree $_.ProcessId }
 
 Write-Host 'Local demo helpers stopped. Unreal remains open.'

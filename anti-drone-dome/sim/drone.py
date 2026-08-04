@@ -752,6 +752,17 @@ class LoiteringMunition:
         self._cruise_response_time_s = float(profile_propulsion.get(
             "cruise_response_time_s", 3.5
         ))
+        # Bank limit follows from the airframe's own lateral-acceleration
+        # envelope via the coordinated-turn relation tan(phi) = a_lat / g,
+        # rather than being an independently invented number.
+        self._max_bank_rad = math.atan(
+            float(flight_envelope.get("max_lateral_accel_g", 2.0))
+        )
+        self._roll_rate_rad_s = math.radians(
+            float(flight_envelope.get("max_roll_rate_dps", 60.0))
+        )
+        self._bank_rad = 0.0
+        self._bank_prev_horizontal_velocity = None
         self._max_lateral_accel_mps2 = 9.81 * float(
             flight_envelope.get("max_lateral_accel_g", float("inf"))
         )
@@ -884,7 +895,13 @@ class LoiteringMunition:
 
     @staticmethod
     def _align_x_to_vec(v):
-        """Quaternion (xyzw) aligning body +X with world vector v."""
+        """Quaternion (xyzw) aligning body +X with world vector v.
+
+        This is the *minimum-rotation* alignment, so it carries zero roll about
+        the velocity axis. On its own it makes a fixed-wing airframe weathervane
+        flat through turns, which no winged aircraft can do - see
+        ``_coordinated_bank_quaternion``.
+        """
         v = np.asarray(v, dtype=float)
         n = np.linalg.norm(v)
         if n < 1e-6:
@@ -901,6 +918,67 @@ class LoiteringMunition:
         half  = math.acos(dot) / 2.0
         s     = math.sin(half)
         return (axis[0]*s, axis[1]*s, axis[2]*s, math.cos(half))
+
+    def _coordinated_bank_angle(self, velocity, dt: float) -> float:
+        """Roll angle for a coordinated turn, rate-limited, in radians.
+
+        A winged airframe turns by banking: the horizontal component of lift
+        supplies the centripetal acceleration, giving the standard coordinated
+        turn relation
+
+            tan(phi) = a_lateral / g
+
+        where ``a_lateral`` is the horizontal acceleration normal to the ground
+        track. Roll is then rate-limited, because an airframe cannot snap to a
+        new bank angle instantaneously.
+
+        Attitude here is presentation only - it does not feed back into the
+        trajectory, which stays force-driven through ``_compute_forces`` and the
+        flight-envelope limits. Making bank *drive* the turn would be the
+        correct next step (see docs-internal/PROGRAM_PLAN.md section 6.1 on
+        replacing the placeholder flight model with a validated 6-DOF plant).
+        """
+        horizontal = np.asarray(velocity[:2], dtype=float)
+        speed = float(np.linalg.norm(horizontal))
+        previous = getattr(self, "_bank_prev_horizontal_velocity", None)
+        self._bank_prev_horizontal_velocity = horizontal.copy()
+
+        target_bank = 0.0
+        if previous is not None and speed > 1.0 and dt > 1e-9:
+            previous_speed = float(np.linalg.norm(previous))
+            if previous_speed > 1.0:
+                # Signed heading change gives turn rate; a_lat = omega * V.
+                cross = float(previous[0] * horizontal[1] - previous[1] * horizontal[0])
+                dot = float(previous @ horizontal)
+                heading_change = math.atan2(cross, dot)
+                turn_rate = heading_change / dt
+                lateral_accel = turn_rate * speed
+                target_bank = math.atan2(lateral_accel, 9.81)
+
+        limit = getattr(self, "_max_bank_rad", math.radians(45.0))
+        target_bank = max(-limit, min(limit, target_bank))
+
+        current = getattr(self, "_bank_rad", 0.0)
+        max_step = getattr(self, "_roll_rate_rad_s", math.radians(60.0)) * dt
+        delta = max(-max_step, min(max_step, target_bank - current))
+        self._bank_rad = current + delta
+        return self._bank_rad
+
+    @staticmethod
+    def _roll_about_x(quaternion, roll_rad: float):
+        """Compose ``quaternion`` (xyzw) with a roll about the body +X axis."""
+        if abs(roll_rad) < 1e-9:
+            return quaternion
+        half = 0.5 * roll_rad
+        roll = (math.sin(half), 0.0, 0.0, math.cos(half))
+        x1, y1, z1, w1 = quaternion
+        x2, y2, z2, w2 = roll
+        return (
+            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+        )
 
     # ------------------------------------------------------------------
     def set_target(self, x: float, y: float, z: float):
@@ -967,6 +1045,12 @@ class LoiteringMunition:
             speed = self._max_spd
 
         orn = self._align_x_to_vec(nose_dir)
+        if self._fixed_wing:
+            # A winged airframe banks to turn; the minimum-rotation alignment
+            # above carries no roll, which reads as a flat weathervaning slide.
+            orn = self._roll_about_x(
+                orn, self._coordinated_bank_angle(vel, _TIMESTEP)
+            )
         pybullet.resetBasePositionAndOrientation(
             self._body, list(pos), list(orn), physicsClientId=self._client)
         pybullet.resetBaseVelocity(

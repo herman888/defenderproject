@@ -149,6 +149,41 @@ swarm still feeds ground truth to the coordinator at two sites in `main.py`.
 **Performance.** 380/800 (47.5%), 1 of 8 gates passing. The terminal limit cycle
 (§2.8) is diagnosed but not fixed. The system runs; it does not yet perform.
 
+### Operational note: the viewer and simulator contend badly
+
+Measured 2026-08-04 on a 4-core/8-thread i7-9750H, counting completed missions
+in ~110 s:
+
+| Configuration | Missions |
+|---|---|
+| Simulator alone | **6** |
+| + packaged viewer at full quality | **0** |
+| + viewer with Lumen/fog off, 720p, 30 fps | 1 |
+| + also CPU-affinity separated (viewer low cores, sim high) | 2 |
+
+Standalone the simulator sustains ~1.5x real time and repeats missions
+correctly; with the viewer at full quality the loop drops to ~0.12x and startup
+alone takes 33 s. The mitigations in `scripts/launch_packaged_unreal_demo.ps1`
+recover roughly a third of standalone throughput.
+
+**For demos on this class of hardware, prefer `launch_packaged_unreal_replay.ps1`:**
+record with the simulator alone, then replay the JSONL into the viewer. That
+removes the contention entirely and is the only configuration where the HUD's
+`achieved` rate reflects the simulator's real performance rather than the
+contention. A recording captured *while* contended bakes the degraded rate into
+the replay.
+
+Two traps worth knowing, both of which cost time here:
+
+- **UE `-ExecCmds` must be one quoted token with comma separators.** An unquoted
+  or pipe-separated form is silently mis-parsed: UE treats the fragment after
+  the first space as a map name and attempts network address resolution on it,
+  and the console variables never apply. A "no effect" result from this flag is
+  more likely a syntax error than a falsified hypothesis.
+- **The telemetry record is rewritten per mission**, so its line count is
+  constant (142) no matter how many missions have run. It is not a progress
+  indicator; count `MISSION DEBRIEF` in the simulator log instead.
+
 ### Go / no-go by use
 
 | Use | Verdict |
