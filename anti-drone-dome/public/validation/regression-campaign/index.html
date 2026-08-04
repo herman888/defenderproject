@@ -1182,6 +1182,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Current powered result">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-this-replaced-a-previously-reported-800800" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why this replaced a previously reported 800/800
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gate-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gate status
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -2200,6 +2228,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Current powered result">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-this-replaced-a-previously-reported-800800" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why this replaced a previously reported 800/800
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gate-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gate status
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -2253,14 +2309,112 @@
 <p>The stress-factor section reports observed correlations only. It does not claim
 that a factor threshold proves a root cause.</p>
 <h2 id="current-powered-result">Current powered result<a class="headerlink" href="#current-powered-result" title="Permanent link">&para;</a></h2>
-<ul>
-<li>8 scenarios</li>
-<li>100 deterministic repeats per scenario</li>
-<li>800/800 APN interceptions</li>
-<li>96.3% Wilson lower bound for each perfect 100-episode scenario</li>
-<li><code>compound-edge</code> highest on the performance watchlist at 55.3% limit
-  utilization</li>
-</ul>
+<p>8 scenarios, 100 deterministic repeats each, 800 episodes, APN controller.</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Intercept rate</th>
+<th>Wilson 95% lower</th>
+<th>Gate</th>
+<th>p95 duration</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>terrain-mask-low</code></td>
+<td>100%</td>
+<td>96.3%</td>
+<td>95%</td>
+<td>15.7 s</td>
+<td>pass</td>
+</tr>
+<tr>
+<td><code>baseline-direct</code></td>
+<td>91%</td>
+<td>83.8%</td>
+<td>95%</td>
+<td>17.7 s</td>
+<td>fail</td>
+</tr>
+<tr>
+<td><code>agile-pop-up</code></td>
+<td>43%</td>
+<td>33.7%</td>
+<td>85%</td>
+<td>35.9 s</td>
+<td>fail</td>
+</tr>
+<tr>
+<td><code>degraded-track</code></td>
+<td>36%</td>
+<td>27.3%</td>
+<td>80%</td>
+<td>61.9 s</td>
+<td>fail</td>
+</tr>
+<tr>
+<td><code>remote-launch</code></td>
+<td>34%</td>
+<td>25.5%</td>
+<td>95%</td>
+<td>27.2 s</td>
+<td>fail</td>
+</tr>
+<tr>
+<td><code>spiral-noisy</code></td>
+<td>33%</td>
+<td>24.6%</td>
+<td>80%</td>
+<td>120.0 s</td>
+<td>fail</td>
+</tr>
+<tr>
+<td><code>crosswind-crossing</code></td>
+<td>11%</td>
+<td>6.3%</td>
+<td>95%</td>
+<td>120.0 s</td>
+<td>fail</td>
+</tr>
+<tr>
+<td><code>compound-edge</code></td>
+<td>9%</td>
+<td>4.8%</td>
+<td>70%</td>
+<td>120.0 s</td>
+<td>fail</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Overall: 357/800 interceptions (44.6%). 1 of 8 scenarios passes its gate.</strong></p>
+<h3 id="why-this-replaced-a-previously-reported-800800">Why this replaced a previously reported 800/800<a class="headerlink" href="#why-this-replaced-a-previously-reported-800800" title="Permanent link">&para;</a></h3>
+<p>An earlier revision of this page reported 800/800 interceptions with a 96.3%
+Wilson lower bound on every scenario. <strong>That result was measured with an 18 m
+contact radius</strong> — a proximity gate inherited from the cinematic viewer, not a
+physical contact criterion. Scoring an 18 m near-miss as a kill made every
+scenario succeed and made the campaign incapable of discriminating between them.</p>
+<p><code>INTERCEPT_CONTACT_RADIUS_M</code> is now <strong>1.0 m</strong>, representing actual physical
+contact between a sub-metre interceptor and its target. The numbers above are
+the same campaign, same seeds, same controller, re-measured against that
+criterion.</p>
+<p>The failures are the useful part. A stress campaign in which nothing ever fails
+is not stressing anything, and the curve above is the first evidence in this
+project that distinguishes an easy engagement from a hard one: a clean
+low-altitude intercept is reliable, a crosswind crossing shot or a compound
+maximum-stress case is currently not.</p>
+<p>Three scenarios (<code>spiral-noisy</code>, <code>crosswind-crossing</code>, <code>compound-edge</code>) show a
+p95 duration at the 120 s ceiling, meaning the dominant failure mode is
+<strong>timeout rather than miss</strong> — the interceptor does not converge on the
+collision triangle at all, rather than converging and missing narrowly. That
+points at guidance and closing geometry, not at terminal accuracy.</p>
+<h3 id="gate-status">Gate status<a class="headerlink" href="#gate-status" title="Permanent link">&para;</a></h3>
+<p>The gates were calibrated against the 18 m radius and have <strong>not</strong> been
+recalibrated. They are currently aspirational targets rather than achievable
+pass thresholds, and the campaign therefore reports <code>release_ready: false</code>.
+Recalibrating them to sit just under present performance would make the suite
+pass without changing anything real; that has deliberately not been done.</p>
 <p>These results verify repeatability in the current synthetic model. They are not
 field reliability, certification, or a prediction of effectiveness.</p>
 

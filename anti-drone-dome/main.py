@@ -770,11 +770,15 @@ def _run_one_mission(
     _dash_push_count   = 0
     _dash_push_window  = time.perf_counter()
 
-    if EXTERNAL_VIEWER_ONLY:
-        # There is no Qt dashboard process consuming this queue in packaged
-        # viewer mode. Avoid the duplicate 60 Hz state serialization path;
-        # the external tactical JSONL stream remains the replay record.
-        _last_dash_push = float("inf")
+    # NOTE: do not park `_last_dash_push` at infinity in EXTERNAL_VIEWER_ONLY
+    # mode. There is no Qt process consuming `state_q` there, so skipping the
+    # push looks like a free optimisation - but `mission_recorder.record_snapshot()`
+    # is driven from inside that same rate-gated block, so disabling it silently
+    # produced an empty mission record: a manifest reporting sample_count 0 and
+    # a zero-byte telemetry.jsonl for a mission that ran to a valid INTERCEPTED
+    # result. The `state_q.put_nowait` below is already exception-guarded and is
+    # a no-op when the queue is absent, so the state build is the only cost and
+    # it is what the evidence artifact is made of.
 
     if INTEGRATED_C2:
         print("SIMULATION STARTED — use the command-center controls to manage the mission\n")

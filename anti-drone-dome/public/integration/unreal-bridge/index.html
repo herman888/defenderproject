@@ -2356,6 +2356,11 @@ through as <code>null</code>.</p>
 <p>Then launch the simulator pointing its telemetry at the bridge's listen port:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">python</span> <span class="n">main</span><span class="p">.</span><span class="n">py</span> <span class="p">-</span><span class="n">-telemetry-udp</span> <span class="n">127</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">1</span><span class="p">:</span><span class="n">8787</span>
 </code></pre></div>
+<p>The canonical UE 5.8 presentation project is
+<code>unreal/AegisTacticalViewer/AegisTacticalViewer.uproject</code>. It binds only to
+<code>127.0.0.1:8788</code>, validates the bridge schema before displaying a track, and
+has no socket or code path back to Python. The saved local visual map is
+<code>/Game/Maps</code>; it is intentionally not a real-world georeference.</p>
 <p><code>--echo</code> prints a per-packet geodetic summary; <code>--stats-interval N</code> reports
 received/forwarded/dropped/rejected counts every <code>N</code> forwarded packets.</p>
 <p>The bridge validates each datagram, enforces strictly increasing sequence and

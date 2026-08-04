@@ -67,7 +67,24 @@ These block handing documentation to any specialist. If a reviewer finds them fi
 
 **2.6 — No CI, no packaging, no lockfile.** The only workflow belongs to vendored `gym-pybullet-drones`. No `pyproject.toml`, so imports are cwd-dependent. `requirements.txt` is `>=`-only. Status: OPEN.
 
-**A judgment call worth stating:** the 800/800, 8-for-8 regression campaign is presented as a strength. A campaign nothing ever fails is not stressing anything. Closing 2.1 will lower measured intercept rates — **publish that before/after deliberately.** A result that got worse for a principled reason is stronger evidence than one that was always perfect.
+**2.7 — RESOLVED 2026-08-04, and it was worse than predicted.** The plan flagged that a campaign nothing ever fails is not stressing anything. Running it revealed the cause: `INTERCEPT_CONTACT_RADIUS_M` was **18.0 m** — a proximity gate inherited from the cinematic viewer, not a physical contact criterion. Commit `17f3788` had already tightened it to **1.0 m**, but the published numbers were never re-measured.
+
+Re-measured (800 episodes, same seeds, same controller): **357/800 = 44.6%, 1 of 8 gates passing**, versus the published 800/800 at 96.3% Wilson lower bound.
+
+| Scenario | Rate | Wilson 95% lo | Gate | p95 |
+|---|---|---|---|---|
+| `terrain-mask-low` | 100% | 96.3% | 95% | 15.7 s |
+| `baseline-direct` | 91% | 83.8% | 95% | 17.7 s |
+| `agile-pop-up` | 43% | 33.7% | 85% | 35.9 s |
+| `degraded-track` | 36% | 27.3% | 80% | 61.9 s |
+| `remote-launch` | 34% | 25.5% | 95% | 27.2 s |
+| `spiral-noisy` | 33% | 24.6% | 80% | 120.0 s |
+| `crosswind-crossing` | 11% | 6.3% | 95% | 120.0 s |
+| `compound-edge` | 9% | 4.8% | 70% | 120.0 s |
+
+This is the honest P<sub>k</sub> curve, arrived at ahead of S1 and for a different reason than expected. Corrected in `results/current-evidence.md`, `system/implementation-status.md`, `validation/regression-campaign.md`, and the published HTML/CSV artifacts.
+
+**Two engineering signals worth acting on.** First, the three worst cases sit at the 120 s ceiling with `timeout` as the dominant outcome, not `breach` — the interceptor is failing to converge on the collision triangle at all, rather than converging and missing narrowly. That is a guidance and closing-geometry problem, not a terminal-accuracy problem, and it is the highest-value thing the APN work could target. Second, **the gates have not been recalibrated** and are now aspirational rather than achievable; `release_ready` is `false`. Re-tuning them to sit just under current performance would make the suite green without changing anything real, so it has deliberately not been done — but somebody has to decide which of "improve guidance" or "restate the gates" is the honest move.
 
 ---
 

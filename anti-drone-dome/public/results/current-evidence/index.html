@@ -1241,6 +1241,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#correction-2026-08-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Correction, 2026-08-04
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#not-yet-verified" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2214,6 +2225,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#correction-2026-08-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Correction, 2026-08-04
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#not-yet-verified" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2261,7 +2283,7 @@
 <tbody>
 <tr>
 <td>Tests</td>
-<td>42 tests passed after airframe, sensor, control, and calibration integration</td>
+<td>158 tests passed (<code>venv312\Scripts\python.exe -m pytest -q</code> from <code>anti-drone-dome/</code>)</td>
 </tr>
 <tr>
 <td>Live mission</td>
@@ -2273,11 +2295,15 @@
 </tr>
 <tr>
 <td>Stress campaign</td>
-<td>800/800 APN synthetic interceptions across eight cases</td>
+<td>357/800 APN synthetic interceptions across eight cases (44.6%), 1 of 8 gates passed</td>
 </tr>
 <tr>
 <td>Campaign confidence</td>
-<td>96.3% Wilson lower bound per 100/100 case</td>
+<td>Wilson 95% lower bound per case ranges 4.8% (<code>compound-edge</code>) to 96.3% (<code>terrain-mask-low</code>)</td>
+</tr>
+<tr>
+<td>Contact criterion</td>
+<td>1.0 m physical contact radius, replacing an inherited 18 m proximity gate</td>
 </tr>
 <tr>
 <td>ML comparison</td>
@@ -2309,6 +2335,17 @@ and verified.</p>
 <p>The companion smoke result measures packet validation and serialization only.
 It is not a Raspberry Pi, camera-capture, inference, thermal, or network
 benchmark.</p>
+<h2 id="correction-2026-08-04">Correction, 2026-08-04<a class="headerlink" href="#correction-2026-08-04" title="Permanent link">&para;</a></h2>
+<p>This page previously reported <strong>800/800 interceptions with a 96.3% Wilson lower
+bound on every case</strong>. That figure was measured with an 18 m contact radius — a
+proximity gate carried over from the cinematic viewer, not a physical contact
+criterion — which caused every scenario to score 100% and made the campaign
+unable to distinguish an easy engagement from a hard one.</p>
+<p>With <code>INTERCEPT_CONTACT_RADIUS_M = 1.0</code>, the same campaign, seeds, and
+controller yield 357/800. The failures are the point: this is the first
+evidence in the project that separates scenario difficulty. See
+<a href="../../validation/regression-campaign/">the regression campaign</a> for the
+per-scenario curve and the gate status.</p>
 <h2 id="not-yet-verified">Not yet verified<a class="headerlink" href="#not-yet-verified" title="Permanent link">&para;</a></h2>
 <ul>
 <li>real radar and EO timing under field conditions</li>
