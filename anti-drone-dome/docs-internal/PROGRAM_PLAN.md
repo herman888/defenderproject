@@ -111,6 +111,64 @@ t=66.0s  R=   9m  Vc= +11.7  LOS= 15.46 deg/s  sat=0.16  TERMINAL
 
 ---
 
+## 2b. Readiness assessment — 2026-08-04
+
+Everything below was measured on this date, not inferred. Re-run with
+`/larp-status` before quoting any of it.
+
+### Verified working
+
+| Check | Result |
+|---|---|
+| `pytest` | 167 passed |
+| `mkdocs build --strict` | passes |
+| Unreal editor target (UE 5.8) | compiles clean |
+| Packaged viewer + sim + bridge chain | runs end to end, no errors |
+| Headless tactical mission | INTERCEPTED T+14.07 s, 0.96 m closest approach |
+| Both swarm scenarios | run and produce sane results |
+| Motion-recording validation | passes |
+| Determinism | same seed reproduces bit-identically |
+
+This is a working system. The gaps below are about *robustness and evidence*,
+not about whether it runs.
+
+### Not yet robust
+
+**Infrastructure — the weakest area, and the cheapest to fix.**
+
+| Gap | Measured state | Consequence |
+|---|---|---|
+| No CI | no workflow for `anti-drone-dome` | every verification above is manual and one-shot; a regression lands silently |
+| No packaging | no `pyproject.toml` | imports are cwd-dependent; not installable |
+| No pinning | 0 of 13 requirements pinned, no lockfile | "works on my machine"; a contractor gets different versions |
+
+**Open credibility items** (see §2): the Roboflow key is **still unrotated**;
+`mkdocs.yml` still lists the three MEGAPROMPT files in the published nav; the
+swarm still feeds ground truth to the coordinator at two sites in `main.py`.
+
+**Performance.** 380/800 (47.5%), 1 of 8 gates passing. The terminal limit cycle
+(§2.8) is diagnosed but not fixed. The system runs; it does not yet perform.
+
+### Go / no-go by use
+
+| Use | Verdict |
+|---|---|
+| Run and demo locally | **Go.** Verified working end to end. |
+| Show investors | **Go, if led with the honest P<sub>k</sub> curve.** "We found our own 18 m gate and published the corrected 47.5%" is a stronger story than 800/800 ever was. |
+| Hand to an RF / CAD / acoustics contractor | **No-go.** Without CI, packaging, and pinned dependencies, day one is spent fighting the environment. |
+| Claim robustness or field performance | **No-go.** Not until the gates and the terminal guidance are addressed. |
+
+### Priority order
+
+1. Rotate the Roboflow key — minutes, and it is a live exposure.
+2. MEGAPROMPTs out of the published nav — minutes, pure credibility.
+3. CI + `pyproject.toml` + pinned dependencies — hours, and the highest-leverage
+   item remaining: it converts "verified once, by hand" into "stays verified."
+4. Remove ground-truth sensing (§2.1) — gates every swarm claim.
+5. Terminal guidance, the zero-effort-miss law (§2.8) — this is the 47.5%.
+
+---
+
 ## 3. Stage ladder — cut along the engagement chain
 
 Each stage completes *more of one engagement*, rather than polishing one layer. Every exit gate is a published artifact, not an opinion. TRL claims are per-subsystem, never system-wide.
