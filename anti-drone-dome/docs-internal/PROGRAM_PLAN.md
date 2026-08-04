@@ -132,7 +132,16 @@ What MATLAB would still buy later, in priority order: Phased Array System Toolbo
 
 ### 4.4 Unreal viewer — frozen at current quality
 
-Three packaged Win64 builds exist and work. It is a genuine sales asset with near-zero engineering value. Ship what exists; stop investing.
+Three packaged Win64 builds exist and work. It is a genuine sales asset with near-zero engineering value. Ship what exists; stop investing. Fix bugs, but add no rendering features, plugins, or content pipelines.
+
+**Incident, 2026-08-01 — deferred scope was re-introduced by another tool.** An external agent session (commit `c406730`) landed a UE5 rendering upgrade and a Niagara effects manager. The work was real and the intercept hook genuinely wired, but it shipped three defects and two scope violations:
+
+- **`CesiumForUnreal` declared in `.uproject` but never installed** — no project `Plugins/` directory and not in the engine's Marketplace folder, so **the project would not open at all.** Removed rather than installed: it is a heavy plugin serving this frozen workstream.
+- **Duplicate log category.** `AegisTacticalEffectsManager.cpp` added `DEFINE_LOG_CATEGORY_STATIC(LogAegisTacticalViewer, ...)` while `AegisTacticalViewer.h/.cpp` already declare and define that exact category. UE unity builds are on by default and this project does not override them, so it merges with `TacticalTelemetryComponent.cpp` (which includes the header) into one translation unit — a redefinition with different linkage.
+- **The fallback flash never worked.** `SpawnActor<AActor>` yields an actor with no `RootComponent`, so `AttachToComponent(GetRootComponent(), ...)` attached to `nullptr` and the light was never positioned. Since no Niagara systems are authored, *every* intercept took that path — net effect was no visual payoff at all, the exact thing being delivered. Also fixed: runtime-spawned lights must be `Movable`.
+- **`SpawnRocketLaunchSmoke`** was VFX for §4.1. Removed.
+
+**Mitigation:** `AGENTS.md` at the repo root now states scope, the deferred table, and conventions in a location any agent tool will read, and `sim/rocket_effector.py` carries a DEFERRED banner in its module docstring. Deferrals recorded only in a plan file or in one assistant's memory do not survive contact with other tooling.
 
 ---
 

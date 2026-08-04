@@ -1,5 +1,23 @@
 """Micro-rocket effector model for counter-swarm area thinning.
 
+    ############################################################
+    #  DEFERRED WORKSTREAM - NOT IN SCOPE                      #
+    #  Do not build on this, wire it into main.py, add VFX or  #
+    #  hardware for it, or cite it in external documentation.  #
+    ############################################################
+
+This module is retained as a costed, tested option - not as live scope. It is
+deferred because it changes what the programme *is*: a quadcopter that rams a
+drone is an aircraft programme, whereas a supersonic rocket with a
+fragmentation warhead is a munitions programme (ITAR, explosives licensing, a
+range with a surface danger zone). ``documentation/hardware/safety.md``'s
+"props removed, actuation disabled" posture does not survive a rocket motor. It
+also inverts the cost story at ~$1,800 expended against a $500 decoy.
+
+**Revisit trigger:** Monte Carlo shows quad-only defence failing a defined
+saturation case. See ``docs-internal/PROGRAM_PLAN.md`` section 4.1 and
+``AGENTS.md``.
+
 Models a boost-sustain solid-propellant interceptor used to thin a saturation
 raid before terminal quadcopter engagement. Flight phases:
 

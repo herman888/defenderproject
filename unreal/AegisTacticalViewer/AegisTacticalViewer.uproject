@@ -24,10 +24,6 @@
       "Enabled": true
     },
     {
-      "Name": "CesiumForUnreal",
-      "Enabled": true
-    },
-    {
       "Name": "Niagara",
       "Enabled": true
     },
