@@ -28,10 +28,10 @@ This page separates running code from validated evidence and future work.
 
 ## Verified in the current repository
 
-- 158 automated tests pass.
+- 167 automated tests pass.
 - The strict MkDocs build passes.
 - The Unreal editor target compiles cleanly against UE 5.8.
-- The eight-case APN campaign completed 357/800 synthetic interceptions (44.6%),
+- The eight-case APN campaign completed 380/800 synthetic interceptions (47.5%),
   passing 1 of 8 scenario gates. An earlier 800/800 figure was measured with an
   18 m proximity gate rather than the current 1.0 m physical contact radius; see
   [the regression campaign](../validation/regression-campaign.md).

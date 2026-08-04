@@ -69,22 +69,45 @@ These block handing documentation to any specialist. If a reviewer finds them fi
 
 **2.7 — RESOLVED 2026-08-04, and it was worse than predicted.** The plan flagged that a campaign nothing ever fails is not stressing anything. Running it revealed the cause: `INTERCEPT_CONTACT_RADIUS_M` was **18.0 m** — a proximity gate inherited from the cinematic viewer, not a physical contact criterion. Commit `17f3788` had already tightened it to **1.0 m**, but the published numbers were never re-measured.
 
-Re-measured (800 episodes, same seeds, same controller): **357/800 = 44.6%, 1 of 8 gates passing**, versus the published 800/800 at 96.3% Wilson lower bound.
+Re-measured (800 episodes, same seeds, same controller): **380/800 = 47.5%, 1 of 8 gates passing**, versus the published 800/800 at 96.3% Wilson lower bound.
 
 | Scenario | Rate | Wilson 95% lo | Gate | p95 |
 |---|---|---|---|---|
 | `terrain-mask-low` | 100% | 96.3% | 95% | 15.7 s |
-| `baseline-direct` | 91% | 83.8% | 95% | 17.7 s |
-| `agile-pop-up` | 43% | 33.7% | 85% | 35.9 s |
-| `degraded-track` | 36% | 27.3% | 80% | 61.9 s |
-| `remote-launch` | 34% | 25.5% | 95% | 27.2 s |
+| `baseline-direct` | 92% | 85.0% | 95% | 17.7 s |
+| `agile-pop-up` | 45% | 35.6% | 85% | 35.9 s |
+| `remote-launch` | 43% | 33.7% | 95% | 27.2 s |
+| `degraded-track` | 37% | 28.2% | 80% | 61.9 s |
 | `spiral-noisy` | 33% | 24.6% | 80% | 120.0 s |
-| `crosswind-crossing` | 11% | 6.3% | 95% | 120.0 s |
-| `compound-edge` | 9% | 4.8% | 70% | 120.0 s |
+| `crosswind-crossing` | 19% | 12.5% | 95% | 120.0 s |
+| `compound-edge` | 11% | 6.3% | 70% | 120.0 s |
 
-This is the honest P<sub>k</sub> curve, arrived at ahead of S1 and for a different reason than expected. Corrected in `results/current-evidence.md`, `system/implementation-status.md`, `validation/regression-campaign.md`, and the published HTML/CSV artifacts.
+This is the honest P<sub>k</sub> curve, arrived at ahead of S1 and for a different reason than expected. Corrected in `results/current-evidence.md`, `system/implementation-status.md`, `validation/regression-campaign.md`, and the published HTML/CSV artifacts. Campaign runs are deterministic — repeated runs reproduce these counts exactly.
 
-**Two engineering signals worth acting on.** First, the three worst cases sit at the 120 s ceiling with `timeout` as the dominant outcome, not `breach` — the interceptor is failing to converge on the collision triangle at all, rather than converging and missing narrowly. That is a guidance and closing-geometry problem, not a terminal-accuracy problem, and it is the highest-value thing the APN work could target. Second, **the gates have not been recalibrated** and are now aspirational rather than achievable; `release_ready` is `false`. Re-tuning them to sit just under current performance would make the suite green without changing anything real, so it has deliberately not been done — but somebody has to decide which of "improve guidance" or "restate the gates" is the honest move.
+**Of that, 23 episodes (44.6% → 47.5%) came from fixing contact evaluation, not from guidance.** Contact was tested only at step endpoints, and `_info()` recomputed that endpoint check independently of the swept termination test, so an episode ending on a real contact was reported as a miss whenever the sampled endpoint separation was still outside the radius. Now shared in `sim/collision.py` and pinned by `tests/test_collision_swept.py`. Measured swept-versus-endpoint divergence is small (~0.05 m; fires roughly once per 36 episodes at the step level), so this was worth ~3 points — real, but not the explanation for the gap.
+
+### 2.8 — Diagnosed: the failure is a terminal limit cycle, not a convergence failure
+
+`scripts/diagnose_guidance_failure.py` instruments the APN internals per step. The result overturned two plausible-sounding hypotheses (that the interceptor never converges, and that discrete-time tunnelling was hiding hits) — both were wrong, and both were only settled by measuring:
+
+```
+t= 2.0s  R=1228m  Vc=+118.5  LOS=  0.37 deg/s  sat=0.04  ADAPTIVE_APN
+t=10.0s  R= 201m  Vc=+118.3  LOS=  0.70 deg/s  sat=0.06  ADAPTIVE_APN
+t=12.0s  R=  19m  Vc= -32.5  LOS=142.49 deg/s  sat=1.00  TERMINAL
+t=30.0s  R=   9m  Vc= +10.0  LOS= 27.19 deg/s  sat=0.19  TERMINAL
+t=66.0s  R=   9m  Vc= +11.7  LOS= 15.46 deg/s  sat=0.16  TERMINAL
+```
+
+**Midcourse guidance is sound** — LOS rate below 2 deg/s from 1228 m to 201 m at 4–6% saturation. The interceptor overshoots at ~118 m/s, then holds a stable 8–9 m orbit for the remaining ~100 s, spending 87% of the episode in `TERMINAL`.
+
+**The mechanism is structural to PN.** The command is `N'·Vc·λ̇`. In the orbit Vc collapses to ~10 m/s while λ̇ climbs to 20–50 deg/s, so the law commands *least* authority exactly when the geometry is worst: saturation 0.10–0.39 while missing by ~1 m, leaving ~70% of available acceleration unused. PN has no answer to a low-closure, high-LOS-rate geometry, and nothing currently breaks the cycle.
+
+**Candidate fixes, none implemented:**
+1. **Switch laws in the terminal phase** rather than continuing PN, whose λ̇ diverges as R→0 by construction. A zero-effort-miss formulation nulls predicted miss before that singularity. This is the substantive fix and is contained to `guidance/intercept.py`.
+2. **Break-off and re-attack.** Orbiting for 100 s after an overshoot is not a behaviour any real system would have.
+3. **Confirm the contact radius dimensionally.** A ~0.35 m-span interceptor against a 2.5 m-span target implies a combined characteristic radius nearer 1.4 m than 1.0 m. Misses of 1.1–1.4 m may be physical hits — but this must be justified from geometry, never tuned to make the suite pass.
+
+**The gates have not been recalibrated** and are now aspirational rather than achievable; `release_ready` is `false`. Re-tuning them to sit just under current performance would turn the suite green without changing anything real, so it has deliberately not been done. Someone has to choose between "improve guidance" and "restate the gates."
 
 ---
 

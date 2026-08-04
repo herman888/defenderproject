@@ -8,6 +8,7 @@ import numpy as np
 from gymnasium import spaces
 
 from config import INTERCEPT_CONTACT_RADIUS_M
+from sim.collision import swept_contact
 from guidance.intercept import PurePursuitGuidance
 from guidance.setpoint import ned_to_enu
 from ml.observation import encode_observation, encode_observation_v2
@@ -144,6 +145,7 @@ class InterceptionEnv(gym.Env):
         self.sensor_age_s = 0.0
         self._evasion_phase = float(self.np_random.uniform(0.0, 2.0 * math.pi))
         self.steps = 0
+        self._intercepted = False
         self.previous_separation = self._separation()
         return self._observation(), self._info()
 
@@ -169,7 +171,9 @@ class InterceptionEnv(gym.Env):
         speed = float(np.linalg.norm(self.interceptor_velocity))
         if speed > 70.0:
             self.interceptor_velocity *= 70.0 / speed
+        interceptor_previous = self.interceptor_position.copy()
         self.interceptor_position += self.interceptor_velocity * self.dt
+        intruder_previous = self.intruder_position.copy()
 
         target = np.asarray(self.waypoints[self.waypoint_index], dtype=np.float32)
         delta = target - self.intruder_position
@@ -204,7 +208,27 @@ class InterceptionEnv(gym.Env):
         reward = progress * 0.1 - 0.01 - 0.003 * power
         if self.residual_apn:
             reward -= 0.002 * float(np.dot(residual_action, residual_action))
-        intercepted = separation <= INTERCEPT_CONTACT_RADIUS_M
+
+        # Swept contact test, guarding against tunnelling: an endpoint-only
+        # check misses any pass where the step displacement exceeds the contact
+        # radius. Measured effect here is small - it fires roughly once per 36
+        # episodes and the endpoint-versus-swept minimum differs by at most
+        # 0.05 m - because the interceptor is slow (~0.6 m/step) by the time it
+        # reaches contact, not fast. Kept because it is cheap and the hazard is
+        # real at higher closing speeds; it is NOT the explanation for the
+        # campaign's low intercept rate. See docs-internal/PROGRAM_PLAN.md.
+        #
+        # `separation` deliberately stays the endpoint value: it feeds
+        # `previous_separation` and the reward's progress term, which are
+        # defined on sampled positions.
+        intercepted, _swept_separation, _fraction = swept_contact(
+            interceptor_previous,
+            self.interceptor_position,
+            intruder_previous,
+            self.intruder_position,
+            INTERCEPT_CONTACT_RADIUS_M,
+        )
+        self._intercepted = bool(intercepted)
         breached = math.hypot(*self.intruder_position[:2]) <= 2.0
         if intercepted:
             reward += 100.0
@@ -293,7 +317,13 @@ class InterceptionEnv(gym.Env):
     def _info(self):
         return {
             "separation_m": self._separation(),
-            "intercepted": self._separation() <= INTERCEPT_CONTACT_RADIUS_M,
+            # Must mirror the swept test used in step(). Recomputing an
+            # endpoint-only check here silently disagreed with the termination
+            # condition: a step that ended the episode on a swept contact was
+            # reported as intercepted=False whenever the sampled endpoint
+            # separation was still outside the contact radius, so the campaign
+            # scored genuine hits as misses.
+            "intercepted": bool(self._intercepted),
             "wind_mps": self.wind.copy(),
             "battery_fraction": self.battery_fraction,
             "energy_used": self.energy_used,
