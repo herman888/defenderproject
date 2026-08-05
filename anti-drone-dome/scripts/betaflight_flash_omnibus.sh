@@ -4,8 +4,8 @@ set -euo pipefail
 
 PORT="/dev/cu.usbmodem0x80000001"
 HEX="/tmp/bf_flash.hex"
-PY="/Users/hermanisayenka/IdeaProjects/IsayenkaEECS1021/defenderproject/gym-pybullet-drones/.venv/bin/python3.14"
-DFU="/opt/homebrew/bin/dfu-util"
+PY="${PY:-$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)/gym-pybullet-drones/.venv/bin/python3}"
+DFU="${DFU:-$(command -v dfu-util || echo /opt/homebrew/bin/dfu-util)}"
 
 if [[ ! -f "$HEX" ]]; then
   echo "Downloading firmware (OMNIBUSF4 2025.12.4)..."

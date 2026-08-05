@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # InnoMaker USB IR camera + threat detection — paste this one line anywhere:
-#   bash /Users/hermanisayenka/IdeaProjects/IsayenkaEECS1021/defenderproject/anti-drone-dome/run_camera_detect.sh
+#   bash <repo>/defenderproject/anti-drone-dome/run_camera_detect.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 GYM_VENV="$ROOT/../gym-pybullet-drones/.venv/bin/activate"

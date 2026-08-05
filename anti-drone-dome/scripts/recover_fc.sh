@@ -2,10 +2,10 @@
 # Flash OMNIBUSF4 — works from DFU mode OR normal USB (sends bl) OR manual BOOT.
 set -euo pipefail
 
-DFU="/opt/homebrew/bin/dfu-util"
+DFU="${DFU:-$(command -v dfu-util || echo /opt/homebrew/bin/dfu-util)}"
 HEX="/tmp/bf_omni_357.hex"
 URL="https://github.com/betaflight/betaflight/releases/download/3.5.7/betaflight_3.5.7_OMNIBUSF4.hex"
-PY="/Users/hermanisayenka/IdeaProjects/IsayenkaEECS1021/defenderproject/gym-pybullet-drones/.venv/bin/python3.14"
+PY="${PY:-$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)/gym-pybullet-drones/.venv/bin/python3}"
 
 has_dfu() { $DFU -l 2>&1 | grep -q 'Found DFU'; }
 

@@ -116,7 +116,8 @@ nav:
       - NVIDIA GPU setup: development/gpu-setup.md
       - Contributing: contributing.md
       - Deploy to Vercel: deploy-vercel.md
-  - Design archive:
-      - Megaprompt V2: archive/MEGAPROMPT_V2.md
-      - Megaprompt V3: archive/MEGAPROMPT_V3.md
-      - Megaprompt V4: archive/MEGAPROMPT_V4.md
+
+# The design archive (original build prompts) is deliberately NOT published.
+# It lives in docs-internal/design-archive/. Those files are AI build prompts,
+# not engineering documentation, and reading as such on a public site
+# undercuts the evidence the rest of the site presents.

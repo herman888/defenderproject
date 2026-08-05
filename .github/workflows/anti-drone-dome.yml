@@ -1,0 +1,140 @@
+name: anti-drone-dome
+
+# Until this existed, every verification was manual and one-shot: a regression
+# could land silently between sessions. See docs-internal/PROGRAM_PLAN.md 2b.
+
+on:
+  push:
+    branches: [main, dev, "feature/**"]
+    paths:
+      - "anti-drone-dome/**"
+      - ".github/workflows/anti-drone-dome.yml"
+  pull_request:
+    paths:
+      - "anti-drone-dome/**"
+      - ".github/workflows/anti-drone-dome.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: anti-drone-dome
+
+jobs:
+  tests:
+    name: Tests (headless)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: anti-drone-dome/requirements.txt
+
+      - name: Install core dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # PyQt6 needs system Qt libraries that a headless runner lacks, and
+          # nothing under test imports it. Everything else is the pinned core.
+          grep -v '^PyQt6' requirements.txt > requirements.ci.txt
+          pip install -r requirements.ci.txt
+          pip install pytest==9.1.1
+
+      - name: Run test suite
+        env:
+          # Keep BLAS single-threaded so results do not depend on runner size.
+          OMP_NUM_THREADS: "1"
+          MPLBACKEND: Agg
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pytest -q --no-header -m "not perf" \
+            --junitxml=test-results.xml
+
+      - name: Publish test count
+        if: always()
+        run: |
+          COUNT=$(python - <<'PY'
+          import xml.etree.ElementTree as ET
+          try:
+              r = ET.parse("test-results.xml").getroot()
+              s = r if r.tag == "testsuite" else r.find("testsuite")
+              print(int(s.get("tests", 0)) - int(s.get("skipped", 0)))
+          except Exception:
+              print(0)
+          PY
+          )
+          echo "PASSING_TESTS=$COUNT" >> "$GITHUB_ENV"
+          {
+            echo "### Test suite"
+            echo ""
+            echo "**$COUNT tests passing**"
+            echo ""
+            echo "Cite this number in documentation rather than typing one by hand."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: anti-drone-dome/test-results.xml
+
+  docs:
+    name: Docs (strict)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install docs dependencies
+        run: pip install -r requirements-docs.txt
+
+      - name: Strict build
+        # --strict promotes broken links and missing nav targets to errors.
+        run: python -m mkdocs build --strict
+
+  hygiene:
+    name: Hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No committed secrets
+        run: |
+          if git ls-files --error-unmatch .env 2>/dev/null; then
+            echo "::error::.env is tracked; it must stay gitignored."
+            exit 1
+          fi
+          if git grep -nE 'ROBOFLOW_API_KEY[[:space:]]*=[[:space:]]*[A-Za-z0-9]{8,}' -- . ':!*.lock'; then
+            echo "::error::A live-looking API key is committed."
+            exit 1
+          fi
+
+      - name: Design archive stays unpublished
+        # These are AI build prompts, not engineering documentation.
+        run: |
+          if grep -q 'MEGAPROMPT' mkdocs.yml; then
+            echo "::error::MEGAPROMPT files are referenced from the published nav."
+            exit 1
+          fi
+
+      - name: No stale machine-specific paths
+        run: |
+          if git grep -nE '/Users/[a-z]+/IdeaProjects' -- . ':!*.lock' ':!docs-internal/*'; then
+            echo "::error::A hard-coded developer path is committed."
+            exit 1
+          fi
+
+      - name: Training data stays out of the repository
+        run: |
+          if git ls-files --error-unmatch data 2>/dev/null; then
+            echo "::error::anti-drone-dome/data is tracked; it is ~353 MB of refetchable datasets."
+            exit 1
+          fi

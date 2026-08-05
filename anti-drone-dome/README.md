@@ -14,7 +14,7 @@ That means the **`python3` you ran is not the one inside your venv** (system Pyt
 ### Recommended (reuse `gym-pybullet-drones` venv)
 
 ```bash
-cd /Users/hermanisayenka/IdeaProjects/IsayenkaEECS1021/defenderproject/gym-pybullet-drones
+cd <repo>/defenderproject/gym-pybullet-drones
 source .venv/bin/activate
 pip install pymavlink
 cd ../anti-drone-dome
@@ -24,7 +24,7 @@ python3 main.py
 Or one step from `anti-drone-dome`:
 
 ```bash
-cd /Users/hermanisayenka/IdeaProjects/IsayenkaEECS1021/defenderproject/anti-drone-dome
+cd <repo>/defenderproject/anti-drone-dome
 bash run_mac.sh
 ```
 
@@ -33,7 +33,7 @@ bash run_mac.sh
 ### Or: venv only in this folder
 
 ```bash
-cd /Users/hermanisayenka/IdeaProjects/IsayenkaEECS1021/defenderproject/anti-drone-dome
+cd <repo>/defenderproject/anti-drone-dome
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt

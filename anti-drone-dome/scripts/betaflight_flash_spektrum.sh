@@ -4,8 +4,8 @@ set -euo pipefail
 
 HEX="/tmp/bf_spektrum_405.hex"
 URL="https://github.com/betaflight/betaflight/releases/download/4.5.1/betaflight_4.5.1_STM32F405.hex"
-PY="/Users/hermanisayenka/IdeaProjects/IsayenkaEECS1021/defenderproject/gym-pybullet-drones/.venv/bin/python3.14"
-DFU="/opt/homebrew/bin/dfu-util"
+PY="${PY:-$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)/gym-pybullet-drones/.venv/bin/python3}"
+DFU="${DFU:-$(command -v dfu-util || echo /opt/homebrew/bin/dfu-util)}"
 
 find_port() {
   ls /dev/cu.usbmodem* 2>/dev/null | head -1 || true

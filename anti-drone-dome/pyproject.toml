@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aegis-larp"
+version = "0.1.0"
+description = "Project LARP - layered counter-UAS simulation, sensing, and command platform"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "Proprietary" }
+
+# Core runtime: the set actually required to run the simulator and the full
+# test suite. Deliberately narrow - the ML and vision stacks below are NOT
+# installed in the verified environment, and everything except their own
+# entry points runs without them.
+dependencies = [
+    "pybullet==3.2.7",
+    "numpy==2.4.6",
+    "gymnasium==1.3.0",
+    "matplotlib==3.11.0",
+    "pymavlink==2.4.49",
+    "pyqtgraph==0.14.0",
+    "PyQt6==6.11.0",
+]
+
+[project.optional-dependencies]
+# Guidance-policy training. Deferred workstream - see AGENTS.md.
+ml = [
+    "stable-baselines3>=2.4",
+    "tensorboard>=2.18",
+    "torch>=2.2",
+]
+# Camera detection pipeline.
+vision = [
+    "opencv-python>=4.9",
+    "ultralytics>=8.1",
+    "huggingface_hub>=0.20",
+]
+docs = [
+    "mkdocs==1.6.1",
+    "mkdocs-material==9.7.7",
+]
+dev = [
+    "pytest==9.1.1",
+]
+
+[project.scripts]
+aegis-sim = "main:main"
+
+[tool.setuptools]
+# Flat-layout package set. `main.py`, `config.py`, and `scenarios.py` are
+# top-level modules imported as such throughout the codebase.
+packages = [
+    "comms", "dome", "guidance", "hardware", "integration",
+    "ml", "sensors", "sim", "swarm", "validation", "viz",
+]
+py-modules = ["main", "config", "scenarios", "run_sim"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# `perf` marks host-relative timing checks that should not gate CI.
+markers = [
+    "perf: performance budget checks; host-relative, excluded from the fast suite",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]

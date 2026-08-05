@@ -16,7 +16,7 @@ Project LARP | Anti-Drone Dome
 | GPU | NVIDIA GeForce GTX 1650 — 4 GB VRAM, CUDA 12.6 |
 | CPU | Intel i5-9300HF — 4 cores / 8 threads |
 | RAM | 16 GB |
-| OS | Windows 11, Python 3.14.2 |
+| OS | Windows 11, Python 3.12.2 |
 
 ---
 

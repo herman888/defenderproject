@@ -1,15 +1,23 @@
-pybullet
-numpy
-matplotlib
-pymavlink
-pyqtgraph>=0.13
-PyQt6>=6.4
-gymnasium>=1.0
-stable-baselines3>=2.4
-tensorboard>=2.18
-rich>=13.0
+# Core runtime for the simulator and the test suite.
+#
+# Pinned deliberately. Unpinned ranges made this a "works on my machine" build:
+# a contributor installing next month would get a different NumPy or PyBullet
+# than the one every published measurement was taken on.
+#
+# `pyproject.toml` is the source of truth; this file mirrors its core
+# dependency set so `pip install -r requirements.txt` keeps working.
+# `requirements.lock` is the exact, fully-resolved environment.
+#
+# Optional stacks - none are needed to run the simulator or the tests:
+#   pip install -e .[ml]      guidance-policy training (deferred - see AGENTS.md)
+#   pip install -e .[vision]  camera detection pipeline
+#   pip install -e .[docs]    MkDocs site
+#   pip install -e .[dev]     pytest
 
-# InnoMaker USB camera + YOLO threat detection (run_camera_detect.sh)
-opencv-python
-ultralytics
-huggingface_hub
+pybullet==3.2.7
+numpy==2.4.6
+gymnasium==1.3.0
+matplotlib==3.11.0
+pymavlink==2.4.49
+pyqtgraph==0.14.0
+PyQt6==6.11.0
