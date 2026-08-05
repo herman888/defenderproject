@@ -7,8 +7,8 @@ from guidance.setpoint import ned_to_enu
 
 
 class APNController:
-    def __init__(self):
-        self.guidance = PurePursuitGuidance()
+    def __init__(self, terminal_law: str = "pd"):
+        self.guidance = PurePursuitGuidance(terminal_law=terminal_law)
 
     def predict(self, observation, env):
         state = env.controller_state()

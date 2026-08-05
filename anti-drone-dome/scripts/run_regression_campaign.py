@@ -119,6 +119,10 @@ def main():
         default="scenario_data/regression_campaign_v1.json",
     )
     parser.add_argument("--repeats", type=int, default=100)
+    parser.add_argument(
+        "--terminal-law", default="pd", choices=("pd", "zem", "auto"),
+        help="Terminal guidance law under test.",
+    )
     parser.add_argument("--seed", type=int, default=1000)
     parser.add_argument("--output", default="validation_reports/regression_campaign")
     args = parser.parse_args()
@@ -126,7 +130,7 @@ def main():
         parser.error("--repeats must be positive")
 
     campaign = load_campaign(args.campaign)
-    controller = APNController()
+    controller = APNController(terminal_law=args.terminal_law)
     episodes = []
     for case_index, case in enumerate(campaign["cases"]):
         for repeat in range(args.repeats):

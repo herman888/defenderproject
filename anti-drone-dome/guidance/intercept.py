@@ -92,6 +92,22 @@ def time_to_go(rng: float, closing_speed: float, command_speed: float) -> float:
     return float(min(max(t_go, _ZEM_MIN_TGO), _ZEM_MAX_TGO))
 
 
+# Terminal stall detection for the "auto" law.
+#
+# The PD terminal controller is robust but has a stable failure mode: it can
+# settle into an orbit a few metres out and hold it for the rest of the episode
+# (measured: 87% of a 120 s run inside TERMINAL, range pinned at 8-9 m). ZEM
+# escapes that, but is fragile when its forecast of target motion is wrong -
+# it regressed every evasive and sensor-degraded scenario in the campaign.
+#
+# So run PD, and escalate to ZEM only once PD is *demonstrably* stuck: the
+# engagement has been in the terminal region for a while and the best range
+# achieved has stopped improving. That exposes ZEM's weakness only in states
+# where the alternative has already failed.
+_STALL_TICKS      = 40     # guidance calls without progress before escalating
+_STALL_PROGRESS_M = 0.15   # improvement in best range that counts as progress
+
+
 def _cap_accel(a_enu: np.ndarray) -> np.ndarray:
     """Saturate an acceleration vector to the guidance MAX_ACCEL envelope."""
     mag = float(np.linalg.norm(a_enu))
@@ -117,8 +133,8 @@ class PurePursuitGuidance:
         self._N_prime = float(N_prime)
         self._design_speed_mps = float(design_speed_mps)
         self._adaptive = bool(adaptive)
-        if terminal_law not in ("zem", "pd"):
-            raise ValueError("terminal_law must be 'zem' or 'pd'")
+        if terminal_law not in ("zem", "pd", "auto"):
+            raise ValueError("terminal_law must be 'zem', 'pd', or 'auto'")
         # Measured over the full 800-episode campaign, the two laws trade -
         # neither dominates, so the incumbent stays the default:
         #
@@ -144,7 +160,12 @@ class PurePursuitGuidance:
         # so "pd" remains the default and "zem" is selectable. The real fix is
         # a hybrid that selects on measured track quality - see
         # docs-internal/PROGRAM_PLAN.md section 2.8.
+        # "auto" resolves per engagement: fly PD, and escalate to ZEM only once
+        # PD is demonstrably stuck. See _terminal_is_stalled.
         self._terminal_law = terminal_law
+        self._terminal_best_range = float("inf")
+        self._terminal_stall_ticks = 0
+        self._terminal_escalated = False
         self.last_diagnostics = {
             "mode": "WAITING",
             "navigation_gain": self._N_prime,
@@ -409,6 +430,35 @@ class PurePursuitGuidance:
             taper_range,
         )
 
+    def _resolve_terminal_law(self, rng: float, taper_range: float) -> str:
+        """Which terminal law to fly this call.
+
+        For ``"auto"``: start on PD and escalate to ZEM only once PD has stopped
+        making progress inside the terminal region. Escalation latches for the
+        rest of the engagement - alternating laws would just produce a different
+        limit cycle - and resets when the engagement does.
+        """
+        if self._terminal_law != "auto":
+            return self._terminal_law
+
+        outside_terminal = rng > taper_range * 1.5
+        if outside_terminal:
+            # New or re-opened engagement: forget the previous stall history.
+            self._terminal_best_range = float("inf")
+            self._terminal_stall_ticks = 0
+            self._terminal_escalated = False
+            return "pd"
+
+        if rng < self._terminal_best_range - _STALL_PROGRESS_M:
+            self._terminal_best_range = rng
+            self._terminal_stall_ticks = 0
+        else:
+            self._terminal_stall_ticks += 1
+
+        if self._terminal_stall_ticks >= _STALL_TICKS:
+            self._terminal_escalated = True
+        return "zem" if self._terminal_escalated else "pd"
+
     def compute_guidance(
         self,
         interceptor_state: dict,
@@ -517,10 +567,12 @@ class PurePursuitGuidance:
             0.0,
             1.0,
         ))
+        active_law = self._resolve_terminal_law(rng, taper_range)
+
         t_go = None
         zem_magnitude = None
         desired_closing = 0.0
-        if self._terminal_law == "zem":
+        if active_law == "zem":
             t_go = time_to_go(contact_error, signed_closing, command_speed)
             zem_vec = zero_effort_miss(r_vec, v_rel, a_est, t_go)
             zem_magnitude = float(np.linalg.norm(zem_vec))
@@ -572,7 +624,9 @@ class PurePursuitGuidance:
             "terminal_blend": blend,
             "terminal_desired_closing_mps": desired_closing,
             "terminal_contact_radius_m": _CONTACT_RADIUS_M,
-            "terminal_law": self._terminal_law,
+            "terminal_law": active_law,
+            "terminal_law_mode": self._terminal_law,
+            "terminal_stall_ticks": self._terminal_stall_ticks,
             "lead_time_s": lead_time,
             "lead_angle_deg": lead_angle,
         }

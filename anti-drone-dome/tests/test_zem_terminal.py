@@ -168,3 +168,67 @@ def test_pd_law_remains_available_for_comparison():
     guidance = PurePursuitGuidance(terminal_law="pd")
     assert _terminal_accel(guidance, 8.0, 15.0, 6.0) > 0.0
     assert guidance.last_diagnostics["terminal_law"] == "pd"
+
+
+# --------------------------------------------------------------------------
+# "auto" — escalate to ZEM only once PD has demonstrably stalled
+# --------------------------------------------------------------------------
+
+def _drive(guidance, separation, steps, closing=12.0, lateral=10.0):
+    """Hold a fixed terminal geometry for `steps` calls; return the laws used."""
+    used = []
+    for _ in range(steps):
+        _terminal_accel(guidance, separation, closing, lateral)
+        used.append(guidance.last_diagnostics["terminal_law"])
+    return used
+
+
+def test_auto_starts_on_the_pd_law():
+    guidance = PurePursuitGuidance(terminal_law="auto")
+    assert _drive(guidance, separation=9.0, steps=3) == ["pd", "pd", "pd"]
+
+
+def test_auto_escalates_to_zem_when_range_stops_improving():
+    """The measured pathology: range pinned at 8-9 m for the rest of the run."""
+    guidance = PurePursuitGuidance(terminal_law="auto")
+    used = _drive(guidance, separation=9.0, steps=80)
+    assert used[0] == "pd"
+    assert used[-1] == "zem"
+
+
+def test_auto_does_not_escalate_while_still_closing():
+    """Steady progress must never trigger escalation."""
+    guidance = PurePursuitGuidance(terminal_law="auto")
+    laws = []
+    separation = 24.0
+    for _ in range(60):
+        _terminal_accel(guidance, separation, closing=12.0, lateral=4.0)
+        laws.append(guidance.last_diagnostics["terminal_law"])
+        separation = max(separation - 0.3, 1.2)   # closing steadily
+    assert set(laws) == {"pd"}
+
+
+def test_auto_escalation_latches_within_an_engagement():
+    """Alternating laws would just produce a different limit cycle."""
+    guidance = PurePursuitGuidance(terminal_law="auto")
+    _drive(guidance, separation=9.0, steps=80)
+    assert guidance.last_diagnostics["terminal_law"] == "zem"
+    # Even a momentary improvement must not drop back to PD mid-engagement.
+    _terminal_accel(guidance, 4.0, closing=12.0, lateral=10.0)
+    assert guidance.last_diagnostics["terminal_law"] == "zem"
+
+
+def test_auto_resets_for_a_new_engagement():
+    guidance = PurePursuitGuidance(terminal_law="auto")
+    _drive(guidance, separation=9.0, steps=80)
+    assert guidance.last_diagnostics["terminal_law"] == "zem"
+    # A far-off target is a fresh engagement; stall history must not carry over.
+    _terminal_accel(guidance, 400.0, closing=100.0, lateral=5.0)
+    assert guidance.last_diagnostics["terminal_law"] == "pd"
+
+
+def test_auto_reports_its_mode_separately_from_the_active_law():
+    guidance = PurePursuitGuidance(terminal_law="auto")
+    _terminal_accel(guidance, 9.0, closing=12.0, lateral=10.0)
+    assert guidance.last_diagnostics["terminal_law_mode"] == "auto"
+    assert guidance.last_diagnostics["terminal_law"] in ("pd", "zem")

@@ -133,9 +133,35 @@ The limit cycle *is* broken — `crosswind-crossing` went 19% → 100% and its p
 
 **+0.9 points net does not justify regressing six of eight scenarios**, so the incumbent stays the default. This is the honest reading; picking ZEM on the strength of the total, or on the crosswind headline alone, would be selecting the framing that flatters the change.
 
-**A failed attempt worth recording.** Gating ZEM on track confidence — shortening the horizon and discounting `a_target` when confidence is low — produced *byte-identical* campaign results. The gate was inert: terminal-phase `t_go` is ~0.7 s, far below the ~3 s cap the gate imposed, so it never bound. It was removed rather than left in as code that appears to do something. A real hybrid has to act on the horizon that terminal guidance actually uses.
+**A failed attempt worth recording.** Gating ZEM on track confidence — shortening the horizon and discounting `a_target` when confidence is low — produced *byte-identical* campaign results. The gate was inert: terminal-phase `t_go` is ~0.7 s, far below the ~3 s cap the gate imposed, so it never bound. It was removed rather than left in as code that appears to do something.
 
-**Next on this thread:** a hybrid selecting on measured track quality (the above, done correctly); break-off and re-attack for the timeout cases; and tuning `N` and the `t_go` clamps, since terminal action saturation is still only 0.14–0.28 — neither law is using the available envelope.
+### Third law: `auto` — escalate only when PD has stalled
+
+A second hybrid attempt, built on the actual failure signal rather than a proxy. Fly PD; count guidance calls inside the terminal region where best-achieved range stops improving; once stalled for 40 calls, latch to ZEM for the rest of the engagement. That exposes ZEM's fragility *only* in states where the alternative has already demonstrably failed. All three laws measured over the same 800 episodes:
+
+| Scenario | PD | ZEM | AUTO | tags |
+|---|---|---|---|---|
+| `terrain-mask-low` | **100%** | 92% | **100%** | low-altitude, terrain-mask |
+| `baseline-direct` | 92% | **100%** | 95% | baseline, clear |
+| `agile-pop-up` | **45%** | 20% | 22% | pop-up, **evasive** |
+| `remote-launch` | **43%** | 31% | 17% | geometry, remote-launch |
+| `degraded-track` | **37%** | 28% | 28% | **sensor-degraded**, dropout, latency |
+| `spiral-noisy` | **33%** | 15% | 20% | spiral, **sensor-degraded** |
+| `crosswind-crossing` | 19% | **100%** | 99% | crossing, high-wind |
+| `compound-edge` | **11%** | 1% | 6% | compound, **sensor-degraded**, **evasive** |
+| **Total** | 47.5% | **48.4%** | **48.4%** | |
+
+`auto` does what it was designed to do — it keeps `terrain-mask-low` at 100% (which pure ZEM lost) while capturing 99% of the crosswind win. But it lands on the *same* 48.4% total as pure ZEM, and it makes `remote-launch` worse than either law alone (17% vs 43%/31%), most likely because the mid-engagement switch is itself disruptive.
+
+**Conclusion: no terminal law dominates, and the totals are within a point of each other.** `pd` stays the default — it wins six of eight scenarios and is the most robust across scenario classes. `zem` and `auto` are selectable via `PurePursuitGuidance(terminal_law=...)` and `run_regression_campaign.py --terminal-law`.
+
+### The more important finding
+
+**All three laws converge on the sensor-degraded scenarios** — `degraded-track` 37/28/28, `spiral-noisy` 33/15/20, `compound-edge` 11/1/6. Changing the terminal law moves those by a few points at most, in either direction.
+
+That says the binding constraint in the hard scenarios is **track quality, not guidance**. No terminal law can null a miss it cannot see. Further terminal-guidance tuning is chasing a variable that is not the limiter; the leverage is in §2.1 (real multi-target sensing) and in estimation quality — which is exactly what S1 is for.
+
+**Still open on this thread, in priority order:** real sensing (S1) before more guidance work; break-off and re-attack for the timeout cases; and only then tuning `N` and the `t_go` clamps, since terminal action saturation remains 0.14–0.28 — no law is using the available envelope.
 
 **Still open:**
 2. **Break-off and re-attack.** Orbiting for 100 s after an overshoot is not a behaviour any real system would have. This is what `compound-edge` most likely needs.
