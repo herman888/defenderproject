@@ -57,6 +57,40 @@ _R_TAPER           = 25.0    # m — nominal APN/terminal blend start
 _R_TERM            = 15.0    # m — nominal pure-terminal distance
 _TERM_THRUST_ACCEL = 130.0   # m/s² nominal terminal acceleration
 
+# Zero-effort-miss terminal law.
+_ZEM_GAIN     = 3.0    # N in a = N * ZEM / t_go^2; 3 is the PN-equivalent value
+_ZEM_MIN_TGO  = 0.06   # s — floor on t_go, since the command diverges as t_go->0
+_ZEM_MAX_TGO  = 6.0    # s — cap, so a barely-closing geometry cannot dilute ZEM
+
+
+def zero_effort_miss(r_vec, v_rel, a_target, t_go: float) -> np.ndarray:
+    """Predicted relative position at intercept if neither body manoeuvres.
+
+    ``ZEM = r + v_rel * t_go + 0.5 * a_target * t_go^2``
+
+    Nulling this vector *is* nulling the miss distance, which is the property
+    proportional navigation loses in a slow, high-line-of-sight-rate geometry.
+    """
+    return (
+        np.asarray(r_vec, dtype=float)
+        + np.asarray(v_rel, dtype=float) * t_go
+        + 0.5 * np.asarray(a_target, dtype=float) * t_go * t_go
+    )
+
+
+def time_to_go(rng: float, closing_speed: float, command_speed: float) -> float:
+    """Estimated time to intercept, clamped away from both singularities.
+
+    When the range is opening, ``rng / closing_speed`` is negative or undefined,
+    so fall back to the commanded closing capability - the interceptor is about
+    to reverse the geometry, not coast forever.
+    """
+    if closing_speed > 0.1:
+        t_go = rng / closing_speed
+    else:
+        t_go = rng / max(command_speed, 1.0)
+    return float(min(max(t_go, _ZEM_MIN_TGO), _ZEM_MAX_TGO))
+
 
 def _cap_accel(a_enu: np.ndarray) -> np.ndarray:
     """Saturate an acceleration vector to the guidance MAX_ACCEL envelope."""
@@ -78,10 +112,39 @@ class PurePursuitGuidance:
         N_prime: float = _N_PRIME_DEFAULT,
         design_speed_mps: float = _V_INT,
         adaptive: bool = True,
+        terminal_law: str = "pd",
     ):
         self._N_prime = float(N_prime)
         self._design_speed_mps = float(design_speed_mps)
         self._adaptive = bool(adaptive)
+        if terminal_law not in ("zem", "pd"):
+            raise ValueError("terminal_law must be 'zem' or 'pd'")
+        # Measured over the full 800-episode campaign, the two laws trade -
+        # neither dominates, so the incumbent stays the default:
+        #
+        #   scenario              PD    ZEM   delta
+        #   crosswind-crossing    19%  100%    +81
+        #   baseline-direct       92%  100%     +8
+        #   terrain-mask-low     100%   92%     -8
+        #   degraded-track        37%   28%     -9
+        #   compound-edge         11%    1%    -10
+        #   remote-launch         43%   31%    -12
+        #   spiral-noisy          33%   15%    -18
+        #   agile-pop-up          45%   20%    -25
+        #   TOTAL               47.5% 48.4%   +0.9
+        #
+        # ZEM decisively fixes the terminal limit cycle in a clean crossing
+        # geometry, and is decisively worse wherever its forecast of target
+        # motion is unreliable: every regression carries an `evasive` or
+        # `sensor-degraded`/`dropout`/`latency` tag. The acceleration term
+        # enters as 0.5*a_target*t_go^2, so an error in a_target is amplified
+        # quadratically and then chased hard by N/t_go^2.
+        #
+        # +0.9 points net does not justify regressing six of eight scenarios,
+        # so "pd" remains the default and "zem" is selectable. The real fix is
+        # a hybrid that selects on measured track quality - see
+        # docs-internal/PROGRAM_PLAN.md section 2.8.
+        self._terminal_law = terminal_law
         self.last_diagnostics = {
             "mode": "WAITING",
             "navigation_gain": self._N_prime,
@@ -433,28 +496,53 @@ class PurePursuitGuidance:
             longitudinal_gain * (command_speed - v_parallel) * lead_hat
         )
         a_apn = a_pn + a_aug + a_longitudinal
-        # Contact terminal controller.  It controls both relative position and
-        # relative velocity; the former LOS-only command simply flew through
-        # the target inside the old 18 m proximity radius.
+        # ── Terminal controller ────────────────────────────────────────────
+        #
+        # The relative-position PD retained below drove range to zero but did
+        # not null the *lateral* miss, and it fought itself in a slow crossing
+        # geometry: the interceptor would overshoot at high speed, then orbit
+        # the target at 8-9 m for the rest of the episode, spending 87% of the
+        # run in TERMINAL while commanding only 10-40% of available
+        # acceleration. Proportional navigation cannot recover from that state
+        # either - its command scales with closing speed, so it backs off
+        # exactly when the geometry is worst.
+        #
+        # Zero-effort-miss inverts that. It predicts where the target will be
+        # relative to the interceptor at intercept and commands
+        # a = N * ZEM / t_go^2, which *grows* as t_go shrinks. That is the
+        # property needed to close the last metre.
         contact_error = max(rng - _CONTACT_RADIUS_M, 0.0)
-        desired_closing = float(np.clip(
-            contact_error * 0.65,
-            0.35,
-            28.0,
-        ))
-        desired_relative_velocity = -r_hat * desired_closing
         terminal_progress = float(np.clip(
             (taper_range - rng) / max(taper_range - _CONTACT_RADIUS_M, 1.0),
             0.0,
             1.0,
         ))
-        terminal_kp = 1.35 + 2.65 * terminal_progress
-        terminal_kd = 2.0 * math.sqrt(terminal_kp)
-        a_terminal = _cap_accel(
-            a_est
-            + terminal_kp * r_vec
-            + terminal_kd * (v_rel - desired_relative_velocity)
-        )
+        t_go = None
+        zem_magnitude = None
+        desired_closing = 0.0
+        if self._terminal_law == "zem":
+            t_go = time_to_go(contact_error, signed_closing, command_speed)
+            zem_vec = zero_effort_miss(r_vec, v_rel, a_est, t_go)
+            zem_magnitude = float(np.linalg.norm(zem_vec))
+            # The predicted miss is also the closing rate the law implies.
+            desired_closing = contact_error / t_go
+            a_terminal = _cap_accel(
+                a_est + _ZEM_GAIN * zem_vec / (t_go * t_go)
+            )
+        else:
+            desired_closing = float(np.clip(
+                contact_error * 0.65,
+                0.35,
+                28.0,
+            ))
+            desired_relative_velocity = -r_hat * desired_closing
+            terminal_kp = 1.35 + 2.65 * terminal_progress
+            terminal_kd = 2.0 * math.sqrt(terminal_kp)
+            a_terminal = _cap_accel(
+                a_est
+                + terminal_kp * r_vec
+                + terminal_kd * (v_rel - desired_relative_velocity)
+            )
 
         if rng >= taper_range:
             blend = 0.0
@@ -484,9 +572,15 @@ class PurePursuitGuidance:
             "terminal_blend": blend,
             "terminal_desired_closing_mps": desired_closing,
             "terminal_contact_radius_m": _CONTACT_RADIUS_M,
+            "terminal_law": self._terminal_law,
             "lead_time_s": lead_time,
             "lead_angle_deg": lead_angle,
         }
+        # ZEM-only diagnostics. Emitted as keys rather than NaN placeholders,
+        # so consumers can assert every published numeric value is finite.
+        if t_go is not None:
+            self.last_diagnostics["terminal_time_to_go_s"] = t_go
+            self.last_diagnostics["zero_effort_miss_m"] = zem_magnitude
 
         if blend >= 1.0:
             return GuidanceSetpoint(

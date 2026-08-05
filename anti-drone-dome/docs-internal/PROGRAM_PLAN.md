@@ -102,10 +102,45 @@ t=66.0s  R=   9m  Vc= +11.7  LOS= 15.46 deg/s  sat=0.16  TERMINAL
 
 **The mechanism is structural to PN.** The command is `N'·Vc·λ̇`. In the orbit Vc collapses to ~10 m/s while λ̇ climbs to 20–50 deg/s, so the law commands *least* authority exactly when the geometry is worst: saturation 0.10–0.39 while missing by ~1 m, leaving ~70% of available acceleration unused. PN has no answer to a low-closure, high-LOS-rate geometry, and nothing currently breaks the cycle.
 
-**Candidate fixes, none implemented:**
-1. **Switch laws in the terminal phase** rather than continuing PN, whose λ̇ diverges as R→0 by construction. A zero-effort-miss formulation nulls predicted miss before that singularity. This is the substantive fix and is contained to `guidance/intercept.py`.
-2. **Break-off and re-attack.** Orbiting for 100 s after an overshoot is not a behaviour any real system would have.
+**Fix 1 implemented — zero-effort-miss terminal law.**
+
+The terminal controller was a relative-position PD. It drove range to zero but never nulled the *lateral* miss, and it commanded a closing speed that shrank with range — which is what made the 8–9 m orbit a stable attractor. Replaced with ZEM:
+
+```
+ZEM   = r + v_rel·t_go + ½·a_target·t_go²
+a_cmd = N · ZEM / t_go²          N = 3, t_go clamped to [0.06, 6.0] s
+```
+
+Nulling ZEM *is* nulling miss distance. Critically the command **grows** as t_go shrinks, which is the exact inverse of PN's behaviour — PN commands `N'·Vc·λ̇` and so backs off precisely when closing speed collapses and LOS rate spikes.
+
+The previous PD is retained behind `PurePursuitGuidance(terminal_law="pd")` so the two are measurable against each other rather than swapped on faith. 13 tests in `tests/test_zem_terminal.py` pin the geometry (collision course → zero miss; crossing → the crossing displacement; target acceleration entering quadratically), the t_go clamps, and the load-bearing property that ZEM out-commands the PD law in the measured orbit geometry.
+
+**Measured over the full 800-episode campaign — and the result is a trade, not a win.** `pd` therefore remains the default; `zem` is selectable.
+
+| Scenario | PD | ZEM | Δ | tags |
+|---|---|---|---|---|
+| `crosswind-crossing` | 19% | **100%** | **+81** | crossing, high-wind |
+| `baseline-direct` | 92% | 100% | +8 | baseline, clear |
+| `terrain-mask-low` | 100% | 92% | −8 | low-altitude, terrain-mask |
+| `degraded-track` | 37% | 28% | −9 | **sensor-degraded**, dropout, latency |
+| `compound-edge` | 11% | 1% | −10 | compound, **sensor-degraded**, **evasive** |
+| `remote-launch` | 43% | 31% | −12 | geometry, remote-launch |
+| `spiral-noisy` | 33% | 15% | −18 | spiral, **sensor-degraded** |
+| `agile-pop-up` | 45% | 20% | −25 | pop-up, **evasive** |
+| **Total** | **47.5%** | **48.4%** | **+0.9** | |
+
+The limit cycle *is* broken — `crosswind-crossing` went 19% → 100% and its p95 duration fell from the 120 s ceiling to 48 s, with median LOS rate collapsing from 21.9 to ~3 °/s. But **every regression carries an `evasive` or `sensor-degraded`/`dropout`/`latency` tag**, and the mechanism is clear: ZEM is a *predictive* law whose acceleration term enters as `½·a_target·t_go²`, so an error in the estimated target acceleration is amplified quadratically and then chased hard by `N/t_go²`. Against a well-tracked, steadily-moving target it is decisive; against a poorly-tracked or evading one it confidently flies at a wrong prediction.
+
+**+0.9 points net does not justify regressing six of eight scenarios**, so the incumbent stays the default. This is the honest reading; picking ZEM on the strength of the total, or on the crosswind headline alone, would be selecting the framing that flatters the change.
+
+**A failed attempt worth recording.** Gating ZEM on track confidence — shortening the horizon and discounting `a_target` when confidence is low — produced *byte-identical* campaign results. The gate was inert: terminal-phase `t_go` is ~0.7 s, far below the ~3 s cap the gate imposed, so it never bound. It was removed rather than left in as code that appears to do something. A real hybrid has to act on the horizon that terminal guidance actually uses.
+
+**Next on this thread:** a hybrid selecting on measured track quality (the above, done correctly); break-off and re-attack for the timeout cases; and tuning `N` and the `t_go` clamps, since terminal action saturation is still only 0.14–0.28 — neither law is using the available envelope.
+
+**Still open:**
+2. **Break-off and re-attack.** Orbiting for 100 s after an overshoot is not a behaviour any real system would have. This is what `compound-edge` most likely needs.
 3. **Confirm the contact radius dimensionally.** A ~0.35 m-span interceptor against a 2.5 m-span target implies a combined characteristic radius nearer 1.4 m than 1.0 m. Misses of 1.1–1.4 m may be physical hits — but this must be justified from geometry, never tuned to make the suite pass.
+4. **Tune N and the t_go clamps.** Action saturation in the terminal phase is still only 0.14–0.28, so the law is not yet using the available envelope; N = 3 is the PN-equivalent value, not necessarily the best one here.
 
 **The gates have not been recalibrated** and are now aspirational rather than achievable; `release_ready` is `false`. Re-tuning them to sit just under current performance would turn the suite green without changing anything real, so it has deliberately not been done. Someone has to choose between "improve guidance" and "restate the gates."
 
