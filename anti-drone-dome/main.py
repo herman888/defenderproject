@@ -111,6 +111,7 @@ from integration.local_sim_control import LocalSimulationControlReceiver
 from integration.mission_record import MissionRecorder
 from hardware.profile import load_hardware_profile
 from sim.airframe_profiles import get_airframe_profile
+from sim.seeding import SeedBundle
 
 # ── Global constants ──────────────────────────────────────────────────
 _TIMESTEP     = 1.0 / 240.0
@@ -483,12 +484,17 @@ def _run_one_mission(
 
     # ACMI export — start at mission begin
     acmi = ACMIWriter()
+    # Independent, name-derived RNG streams. Built before any stochastic
+    # component so every consumer draws from its own reproducible stream.
+    seeds = SeedBundle.for_mission(intruder_key, pattern_key, pad_key)
+
     mission_recorder = MissionRecorder(
         MISSION_RECORD_DIR,
         mission={
             "intruder_type": intruder_key,
             "pattern": pattern_key,
             "pad": pad_key,
+            "seeding": seeds.manifest(),
             "initial_speed": initial_speed,
             "site": site_config["name"],
             "environment": pattern.get("environment", "clear"),
@@ -645,10 +651,7 @@ def _run_one_mission(
         false_alarm_probability=environment.get(
             "radar_false_alarm_probability", 0.0
         ),
-        seed=(
-            list(INTRUDER_TYPES).index(intruder_key) * 100
-            + list(ATTACK_PATTERNS).index(pattern_key)
-        ),
+        seed=seeds.child_seed("radar"),
     )
     fusion = TrackFusion()
     camera_sensor = None
@@ -671,6 +674,7 @@ def _run_one_mission(
             model_path=CAMERA_MODEL,
             model_device=(0 if ML_DEVICE == "cuda" else None),
             renderer=world.camera_renderer,
+            seed=seeds.child_seed("camera"),
         )
         mode = f"YOLO ({CAMERA_MODEL})" if CAMERA_MODEL else "segmentation reference"
         print(f"[EO] Rendered RGB/depth perception enabled: {mode}")
@@ -709,6 +713,8 @@ def _run_one_mission(
     predicted_intercept  = None
     closest_approach     = float("inf")
     pending_events       = []
+    wind_rng             = seeds.generator("wind")
+    _last_record_sim_t   = -1.0e9   # force a sample on the first step
     mission_result       = None
     intercept_pending    = False
     _last_dome_status    = "CLEAR"
@@ -766,6 +772,7 @@ def _run_one_mission(
     # monotonic wall-clock target so the queue never sees more than ~_DASH_PUSH_HZ msg/s.
     _DASH_PUSH_HZ      = 60.0
     _DASH_PUSH_PERIOD  = 1.0 / _DASH_PUSH_HZ
+    _RECORD_PERIOD_S   = 0.1        # 10 Hz in SIM time, host-independent
     _last_dash_push    = 0.0
     _dash_push_count   = 0
     _dash_push_window  = time.perf_counter()
@@ -942,8 +949,8 @@ def _run_one_mission(
         # Wind update every ~2 sim seconds
         if (wind_gust > 0.0 or any(wind_mean)) and (step % 480 == 0):
             wind_force = [
-                wind_mean[0] + random.uniform(-wind_gust, wind_gust),
-                wind_mean[1] + random.uniform(-wind_gust, wind_gust),
+                wind_mean[0] + float(wind_rng.uniform(-wind_gust, wind_gust)),
+                wind_mean[1] + float(wind_rng.uniform(-wind_gust, wind_gust)),
                 wind_mean[2],
             ]
 
@@ -1547,9 +1554,15 @@ def _run_one_mission(
         if interceptor_engaged and radar_return.get("detected") and guidance_track:
             tti = guidance.time_to_intercept(interceptor.get_state(), guidance_track)
 
+        # The dashboard is a *display* and is paced by wall clock. The mission
+        # record is *evidence* and must be paced by simulation time, otherwise
+        # the sample sequence depends on how fast the host happened to run and
+        # two runs of the same seed produce different records. Build the state
+        # when either is due; commit each to its own cadence below.
         _now = time.perf_counter()
-        if _now - _last_dash_push >= _DASH_PUSH_PERIOD:
-            _last_dash_push = _now
+        _dash_due = (_now - _last_dash_push) >= _DASH_PUSH_PERIOD
+        _record_due = (sim_time - _last_record_sim_t) >= _RECORD_PERIOD_S
+        if _dash_due or _record_due:
             dashboard_state = {
                     "dome_status"        : status,
                     "intruder_pos"       : i_pos,
@@ -1616,9 +1629,17 @@ def _run_one_mission(
                         for key in previous_failures
                     },
                 }
-            mission_recorder.record_snapshot(dashboard_state)
-            pending_events = []
-            if EXTERNAL_VIEWER_ONLY:
+            if _record_due:
+                _last_record_sim_t = sim_time
+                # record_snapshot also drains dashboard_state["events"] into
+                # the mission event log - do not record them again here.
+                mission_recorder.record_snapshot(dashboard_state)
+                pending_events = []
+            if not _dash_due:
+                tactical_frame = None
+                tactical_overlay = {}
+            elif EXTERNAL_VIEWER_ONLY:
+                _last_dash_push = _now
                 # No Qt process is draining this queue, so a push would fill it
                 # and then raise Full on every subsequent step. The state is
                 # still built above because the mission recorder consumes it -
@@ -1627,6 +1648,7 @@ def _run_one_mission(
                 tactical_frame = None
                 tactical_overlay = {}
             else:
+                _last_dash_push = _now
                 try:
                     state_q.put_nowait(dashboard_state)
                 except Exception:

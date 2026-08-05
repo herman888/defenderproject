@@ -65,6 +65,29 @@ def _json_value(value):
     return value
 
 
+def _manifest_path(absolute: str, run_dir: str) -> str:
+    """Portable manifest path for an artifact.
+
+    Artifacts inside the run directory get a relative path, so a record stays
+    self-contained and can be moved or archived intact. Anything outside it -
+    the ACMI file, for instance, which is written to the project's own missions
+    directory - gets an absolute path.
+
+    A plain ``os.path.relpath`` produced traversals like
+    ``..\\..\\..\\..\\..\\..\\..\\..\\..\\Documents\\...`` whenever the record
+    directory and the artifact lived on different branches of the tree, which
+    breaks the moment either one moves.
+    """
+    try:
+        relative = os.path.relpath(absolute, run_dir)
+    except ValueError:
+        # Different drives on Windows; no relative path exists.
+        return absolute
+    if relative.startswith(os.pardir):
+        return absolute
+    return relative
+
+
 def _sha256(path: str) -> str:
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -193,7 +216,7 @@ class MissionRecorder:
             absolute = os.path.abspath(path)
             if os.path.isfile(absolute):
                 resolved_artifacts[name] = {
-                    "path": os.path.relpath(absolute, self.run_dir),
+                    "path": _manifest_path(absolute, self.run_dir),
                     "sha256": _sha256(absolute),
                     "bytes": os.path.getsize(absolute),
                 }
