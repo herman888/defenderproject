@@ -53,6 +53,12 @@ anti-drone-dome/models/yolo11n_drone.pt
 anti-drone-dome/models/yolov8n.pt
 anti-drone-dome/yolov8n.pt
 
+# Bench evidence keeps compact JSON metadata, never source video recordings.
+anti-drone-dome/artifacts/**/*.avi
+anti-drone-dome/artifacts/**/*.mkv
+anti-drone-dome/artifacts/**/*.mov
+anti-drone-dome/artifacts/**/*.mp4
+
 # Local Unreal backups and packaged output (canonical source/content is tracked)
 unreal/archive/
 unreal/builds/

@@ -38,6 +38,8 @@ statuses at runtime.
 | Radar tracking | One-target 9-state Kalman tracker | Implemented; not sufficient for swarm evidence | Multi-target measurements, association tests, clutter and false-track characterization |
 | EO rendered-camera observation | PyBullet rendering with configured noise/latency | Synthetic only | Camera recording replay and controlled target-range evaluation |
 | Vision model | Candidate manifest only; no checksum-locked selected model | Not validated | Frozen dataset split, held-out results, false-positive study, exact model hash, and target-device latency |
+| Perception crop mode | Full-frame resize, centre crop, or overlapping native-resolution tiles | `design-placeholder` | Recorded comparison artifact with a checksum-locked candidate model; preprocessing result is not a detection claim |
+| Perception crop size / centre / tile overlap | Configurable; no selected values | `design-placeholder` | Crop-versus-resize evidence artifact tied to a recorded camera mode and target annotations |
 | Camera crop / tile configuration | `NOT MEASURED` / not selected | `design-placeholder` | Record exact native-resolution crop/tile, resize, camera mode, and target-pixel method with each camera artifact |
 | Acoustic seeker | Not implemented | Not validated | Bench, hover, and forward-flight SNR/bearing experiment |
 
