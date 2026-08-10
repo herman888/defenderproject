@@ -9,7 +9,7 @@ from pathlib import Path
 from bench_common import NOT_MEASURED, metadata, write_artifact
 
 SCHEMA = "larp.fc-interrogation.v1"
-READ_ONLY_COMMANDS = ("version", "status", "resource", "serial", "get serialrx_provider", "dump")
+READ_ONLY_COMMANDS = ("version", "status", "resource", "serial", "get serialrx_provider", "get unique_id", "dump")
 FORBIDDEN = ("save", "defaults", "set ", "feature ", "resource ", "serial ", "motor", "arm", "bl", "dfu")
 
 
