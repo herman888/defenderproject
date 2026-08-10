@@ -1,0 +1,93 @@
+{
+  "configuration": {
+    "device_index": 1,
+    "device_name": "Innomaker-U20CAM-1080PD&N-S1",
+    "measurement_frames": 600,
+    "operation": "throughput_sweep",
+    "requested_mode": [
+      640,
+      480,
+      "YUY2",
+      30.0
+    ],
+    "warmup_frames": 60
+  },
+  "created_utc": "2026-08-10T23:35:06.914976+00:00",
+  "git_commit": "873328648d8fdeea346986a86b8bc13707be42b6",
+  "host": {
+    "hostname": "EddieGaming",
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)]"
+  },
+  "mode": {
+    "achieved_mean_fps": 30.019631435704056,
+    "actual": {
+      "height": 480,
+      "reported_fps": 30.0,
+      "width": 640
+    },
+    "backend": "ffmpeg-dshow",
+    "backend_command": [
+      "ffmpeg",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-f",
+      "dshow",
+      "-video_size",
+      "640x480",
+      "-framerate",
+      "30.0",
+      "-pixel_format",
+      "yuyv422",
+      "-i",
+      "video=Innomaker-U20CAM-1080PD&N-S1",
+      "-an",
+      "-f",
+      "rawvideo",
+      "-pix_fmt",
+      "gray",
+      "pipe:1"
+    ],
+    "cpu_utilization_percent": {
+      "python_process": 0.5,
+      "system": 38.4
+    },
+    "frame_interval_ms": {
+      "max": 73.5756,
+      "min": 0.4596,
+      "p50": 31.294,
+      "p95": 51.5026,
+      "p99": 61.9055
+    },
+    "frames": {
+      "backend_limit": "DirectShow/ffmpeg exposes neither device sequence nor drop counter.",
+      "dropped_or_duplicated": "NOT MEASURED",
+      "received": 600,
+      "requested": 600,
+      "warmup_discarded": 60
+    },
+    "measurement_status": "MEASURED",
+    "read_call_cost_ms": {
+      "p50": 31.2891,
+      "p95": 51.4981,
+      "p99": 61.9022,
+      "scope": "combined device capture, pipe transfer, and MJPEG decode when applicable; separation NOT MEASURED"
+    },
+    "requested": {
+      "advertised_fps": 30.0,
+      "height": 480,
+      "pixel_format": "YUY2",
+      "width": 640
+    }
+  },
+  "resolved_packages": {
+    "opencv-python": "4.11.0.86",
+    "psutil": "7.0.0",
+    "pyserial": "3.5",
+    "torch": "2.13.0",
+    "ultralytics": "8.3.151"
+  },
+  "schema": "larp.camera-bench.v1",
+  "schema_version": 1
+}
