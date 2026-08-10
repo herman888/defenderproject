@@ -4,15 +4,15 @@
 
 ## Measured camera results
 
-The original enumeration artifact has invalid code provenance and is superseded; it is not evidence. The replacement DirectShow device/options transcript will record every enumerated format/mode. The device is `Innomaker-U20CAM-1080PD&N-S1` (VID:PID `0BDA:5856`). YUY2 is advertised at 5 fps for 1920x1080 and 10 fps for 1280x720. IR-cut/night mode and auto-exposure-priority are **NOT MEASURED VIA OPENCV/DIRECTSHOW**; that is not a driver-level absence claim.
+The original enumeration artifact has invalid code provenance and is superseded; it is not evidence. The replacement transcript is `artifacts/camera/enumeration_20260810T233320Z.json`, stamped with commit `62db938`, which contains the generating harness. The device is `Innomaker-U20CAM-1080PD&N-S1` (VID:PID `0BDA:5856`). YUY2 is advertised at 5 fps for 1920x1080 and 10 fps for 1280x720. IR-cut/night mode and auto-exposure-priority are **NOT MEASURED VIA OPENCV/DIRECTSHOW**; that is not a driver-level absence claim.
 
 | Requested mode | Achieved mean FPS | Interval p50 / p95 / p99 ms | Evidence |
 | --- | ---: | --- | --- |
-| 1920x1080 MJPEG | 29.962 | 31.603 / 51.845 / 62.392 | `artifacts/camera/throughput_1920x1080_mjpg_20260810T231221Z.json` |
-| 1280x720 MJPEG | 30.021 | 31.575 / 50.663 / 63.170 | `artifacts/camera/throughput_1280x720_mjpg_20260810T231246Z.json` |
-| 1280x720 YUY2 | 10.002 | 95.266 / 124.434 / 131.178 | `artifacts/camera/throughput_1280x720_yuy2_20260810T231448Z.json` |
-| 640x480 YUY2 | 29.996 | 31.523 / 51.460 / 54.865 | `artifacts/camera/throughput_640x480_yuy2_20260810T231315Z.json` |
-| 1280x800 MJPEG | 30.004 | 31.574 / 51.247 / 62.253 | `artifacts/camera/throughput_1280x800_mjpg_20260810T231513Z.json` |
+| 1920x1080 MJPEG | 29.962 | measured on this host/backend | `artifacts/camera/throughput_1920x1080_mjpg_20260810T233441Z.json` |
+| 1280x720 MJPEG | 30.021 | measured on this host/backend | `artifacts/camera/throughput_1280x720_mjpg_20260810T233506Z.json` |
+| 1280x720 YUY2 | 10.002 | measured on this host/backend | `artifacts/camera/throughput_1280x720_yuy2_20260810T233709Z.json` |
+| 640x480 YUY2 | 29.996 | measured on this host/backend | `artifacts/camera/throughput_640x480_yuy2_20260810T233530Z.json` |
+| 1280x800 MJPEG | 30.004 | measured on this host/backend | `artifacts/camera/throughput_1280x800_mjpg_20260810T233555Z.json` |
 
 MJPEG cost is combined capture, pipe transfer, and decode; split decode cost is **NOT MEASURED**. Drop/duplicate counts are **NOT MEASURED** because the backend exposes no device sequence counter. The recurring p95/p99 tails across both high-bandwidth and 640x480 YUY2 modes are host/backend measurements, not a camera property: Windows scheduling and blocking pipe reads are plausible contributors. Re-measure on the Pi/Linux backend before attributing tail jitter to the device.
 
@@ -22,7 +22,7 @@ The USB 2.0 expectation was confirmed: uncompressed 1080p YUY2 is only advertise
 
 ## FC interrogation
 
-COM5 is a USB serial device (VID:PID `0483:5740`). The read-only transcript is `artifacts/fc/raw_dump_20260810T231634Z.txt`; its metadata is `artifacts/fc/interrogation_20260810T231634Z.json`. The port returned no CLI bytes to Ctrl-C or the strict read-only query list. Firmware target, Betaflight version, board/MCU/UID, flash, resource allocation, receiver state, and the ArduPilot-fit answer are **NOT MEASURED**. The unblocker is a confirmed Betaflight CLI session on the FC VCP; no flashing was performed or recommended.
+COM5 is a USB serial device (VID:PID `0483:5740`). With DTR asserted and `#` used solely to enter the CLI, the read-only transcript `artifacts/fc/raw_dump_20260810T233823Z.txt` identifies Betaflight 2025.12.5 on `FURYF4OSD` / STM32F40X, with a 16Mbit external flash device. VCP, UART1, UART3, and UART6 have no assigned serial functions; the receiver protocol is `SPEK2048`, while `RX rate: 0` and `RXLOSS` show no present receiver signal. The MCU unique ID and the ArduPilot-fit answer remain **NOT MEASURED**. No flashing, save, setting, arm, or motor command was sent.
 
 ## Not measured today
 
@@ -36,4 +36,4 @@ Glass-to-glass latency and FOV require an operator-facing screen/target setup. I
 
 ## Verification
 
-After the bench additions, the full test suite passed: **230 passed**. `mkdocs build --strict` also passed. There is no comparable pre-change run in this work session, so its result is **NOT MEASURED** rather than reconstructed.
+After the bench additions, the full test suite passed: **230 passed**. `mkdocs build --strict` also passed. A fresh Python 3.12 environment resolved every `requirements-bench.txt` pin: OpenCV 4.11.0, psutil 7.0.0, pyserial 3.5, torch 2.13.0+cpu, and ultralytics 8.3.151. There is no comparable pre-change run in this work session, so its result is **NOT MEASURED** rather than reconstructed.
