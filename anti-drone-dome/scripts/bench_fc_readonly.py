@@ -59,7 +59,14 @@ def interrogate(port: str, baud: int) -> tuple[dict, str]:
         if not found:
             return NOT_MEASURED
         return (found.group(1) if found.lastindex else found.group(0)).strip()
-    summary = {"firmware_target": match(r"#\s*Betaflight\s*/\s*([^\s]+)"), "betaflight_version": match(r"Betaflight\s*/\s*[^\s]+\s+([^\s]+)"), "board_identifier": match(r"Board:\s*([^\s]+)"), "mcu_identifier": match(r"MCU\s+([^,\r\n]+)"), "unique_id": match(r"unique id:\s*([^\r\n]+)"), "flash_total_or_free": match(r"(?:flash|Flash)[^\r\n]*")}
+    summary = {
+        "firmware_target": match(r"Betaflight\s*/\s*([^\s]+)"),
+        "betaflight_version": match(r"Betaflight\s*/.*?\)\s+(\d+\.\d+\.\d+)"),
+        "board_identifier": match(r"board_name:\s*([^,\s]+)"),
+        "mcu_identifier": match(r"MCU:\s*([^\s]+)"),
+        "unique_id": match(r"unique id:\s*([^\r\n]+)"),
+        "flash_total_or_free": match(r"(?:flash|Flash)[^\r\n]*"),
+    }
     return summary, raw
 
 
