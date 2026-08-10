@@ -5,8 +5,8 @@
   "artifact": {
     "path": "../yolo11n_drone.pt",
     "format": "pytorch",
-    "size_bytes": null,
-    "sha256": null
+    "size_bytes": 5470746,
+    "sha256": "311b8bea0a5a9f2b2dd407ade666a91831bbcb4dcd9d4b6580dbe33aac3123be"
   },
   "input": {
     "width": 640,
@@ -27,8 +27,9 @@
     "iou_threshold": 0.7
   },
   "provenance": {
-    "dataset_id": "not-selected",
-    "training_run": "upstream-candidate",
+    "dataset_id": "NOT MEASURED",
+    "training_run": "NOT MEASURED",
+    "retrieval_location": "Existing local workspace file; original retrieval URL is NOT MEASURED.",
     "validation_status": "not-validated"
   }
 }

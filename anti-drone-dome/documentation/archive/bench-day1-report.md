@@ -4,15 +4,15 @@
 
 ## Measured camera results
 
-The original enumeration artifact has invalid code provenance and is superseded; it is not evidence. The replacement transcript is `artifacts/camera/enumeration_20260810T233320Z.json`, stamped with commit `62db938`, which contains the generating harness. The device is `Innomaker-U20CAM-1080PD&N-S1` (VID:PID `0BDA:5856`). YUY2 is advertised at 5 fps for 1920x1080 and 10 fps for 1280x720. IR-cut/night mode and auto-exposure-priority are **NOT MEASURED VIA OPENCV/DIRECTSHOW**; that is not a driver-level absence claim.
+The current enumeration transcript is `artifacts/camera/enumeration_20260810T233320Z.json`, stamped with commit `62db938`, which contains the generating harness. The device is `Innomaker-U20CAM-1080PD&N-S1` (VID:PID `0BDA:5856`). YUY2 is advertised at 5 fps for 1920x1080 and 10 fps for 1280x720. The portable OpenCV control list does not establish the presence or absence of vendor IR-cut/night-mode controls.
 
 | Requested mode | Achieved mean FPS | Interval p50 / p95 / p99 ms | Evidence |
 | --- | ---: | --- | --- |
-| 1920x1080 MJPEG | 29.962 | measured on this host/backend | `artifacts/camera/throughput_1920x1080_mjpg_20260810T233441Z.json` |
-| 1280x720 MJPEG | 30.021 | measured on this host/backend | `artifacts/camera/throughput_1280x720_mjpg_20260810T233506Z.json` |
-| 1280x720 YUY2 | 10.002 | measured on this host/backend | `artifacts/camera/throughput_1280x720_yuy2_20260810T233709Z.json` |
-| 640x480 YUY2 | 29.996 | measured on this host/backend | `artifacts/camera/throughput_640x480_yuy2_20260810T233530Z.json` |
-| 1280x800 MJPEG | 30.004 | measured on this host/backend | `artifacts/camera/throughput_1280x800_mjpg_20260810T233555Z.json` |
+| 1920x1080 MJPEG | 30.004 | 31.493 / 53.142 / 74.390 | `artifacts/camera/throughput_1920x1080_mjpg_20260810T233441Z.json` |
+| 1280x720 MJPEG | 30.020 | 31.429 / 51.393 / 62.824 | `artifacts/camera/throughput_1280x720_mjpg_20260810T233506Z.json` |
+| 1280x720 YUY2 | 10.006 | 94.794 / 124.706 / 131.156 | `artifacts/camera/throughput_1280x720_yuy2_20260810T233709Z.json` |
+| 640x480 YUY2 | 30.020 | 31.294 / 51.503 / 61.906 | `artifacts/camera/throughput_640x480_yuy2_20260810T233530Z.json` |
+| 1280x800 MJPEG | 29.998 | 31.359 / 52.175 / 62.920 | `artifacts/camera/throughput_1280x800_mjpg_20260810T233555Z.json` |
 
 MJPEG cost is combined capture, pipe transfer, and decode; split decode cost is **NOT MEASURED**. Drop/duplicate counts are **NOT MEASURED** because the backend exposes no device sequence counter. The recurring p95/p99 tails across both high-bandwidth and 640x480 YUY2 modes are host/backend measurements, not a camera property: Windows scheduling and blocking pipe reads are plausible contributors. Re-measure on the Pi/Linux backend before attributing tail jitter to the device.
 
@@ -31,7 +31,7 @@ Glass-to-glass latency and FOV require an operator-facing screen/target setup. I
 ## Human decisions
 
 1. Perform the displayed-flash and two-distance FOV procedures with an operator.
-2. Resolve why COM5 provides no Betaflight CLI response before identifying an ArduPilot target or considering firmware changes.
+2. Inventory each FC and all Spektrum hardware to identify a physically present, bound receiver pairing before purchasing new RC hardware.
 3. Record non-held-out development clips, then run the candidate-model crop/resize/tile comparison. It is not a detector-performance claim.
 
 ## Verification
