@@ -66,20 +66,27 @@ def interrogate(port: str, baud: int) -> tuple[dict, str]:
         "mcu_identifier": match(r"MCU:\s*([^\s]+)"),
         "unique_id": match(r"unique id:\s*([^\r\n]+)"),
         "flash_total_or_free": match(r"(?:flash|Flash)[^\r\n]*"),
+        "internal_flash_bytes": NOT_MEASURED,
+        "external_dataflash": match(r"FLASH:\s*([^\r\n]+)"),
+        "serialrx_provider": match(r"serialrx_provider\s*=\s*([^\r\n]+)"),
+        "receiver_signal": "ABSENT (RXLOSS, RX rate 0)" if "RXLOSS" in raw and re.search(r"RX rate:\s*0", raw) else NOT_MEASURED,
     }
     return summary, raw
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--port", default="COM5"); parser.add_argument("--baud", type=int, default=115200)
+    parser.add_argument("--port", required=True); parser.add_argument("--baud", type=int, default=115200)
+    parser.add_argument("--airframe-id", default=NOT_MEASURED)
+    parser.add_argument("--receiver-physical-presence", choices=("PRESENT", "ABSENT", NOT_MEASURED), default=NOT_MEASURED)
     parser.add_argument("--confirm-props-removed-no-battery", action="store_true", required=True)
     args = parser.parse_args()
-    config = {"operation": "Betaflight CLI interrogation", "port": args.port, "baud": args.baud, "commands": READ_ONLY_COMMANDS, "actuation_enabled": False}
+    config = {"operation": "Betaflight CLI interrogation", "port": args.port, "baud": args.baud, "commands": READ_ONLY_COMMANDS, "actuation_enabled": False, "airframe_id": args.airframe_id}
     summary, raw = interrogate(args.port, args.baud)
-    record = {"schema": SCHEMA, **metadata(root_path(), config), "safety": {"props_removed_and_no_battery_confirmed": True, "write_commands_sent": False, "actuation_enabled": False}, "serial_ports": ports(), "fc": summary, "ardupilot_fit": {"status": NOT_MEASURED, "reason": "Requires the measured board target/flash result and a separately cited target-build size check; no flashing is performed by this tool."}}
+    board_key = f"mcu-uid-{summary['unique_id']}" if summary["unique_id"] != NOT_MEASURED else "mcu-uid-NOT-MEASURED"
+    record = {"schema": SCHEMA, **metadata(root_path(), config), "safety": {"props_removed_and_no_battery_confirmed": True, "write_commands_sent": False, "actuation_enabled": False}, "board_key": board_key, "serial_ports": ports(), "fc": {**summary, "airframe_id": args.airframe_id, "receiver_physical_presence": args.receiver_physical_presence}, "ardupilot_fit": {"status": NOT_MEASURED, "reason": "Requires the measured board target/flash result and a separately cited target-build size check; no flashing is performed by this tool."}}
     raw_path = root_path() / "artifacts" / "fc"; raw_path.mkdir(parents=True, exist_ok=True)
-    path = write_artifact(root_path(), "fc", "interrogation", record)
+    path = write_artifact(root_path(), "fc", f"interrogation_{board_key}", record)
     dump_path = path.with_name(path.stem.replace("interrogation", "raw_dump") + ".txt"); dump_path.write_text(raw, encoding="utf-8")
     print(path); print(dump_path); return 0
 

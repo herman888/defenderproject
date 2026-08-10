@@ -70,11 +70,10 @@ def controls(device_index: int) -> list[dict]:
             found.append({"name": name, "opencv_property": prop, "current_value": value if value is not None and value >= 0 else NOT_MEASURED, "range": NOT_MEASURED, "step": NOT_MEASURED, "default": NOT_MEASURED, "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata."})
     finally:
         capture.release()
-    names = " ".join(item["name"].lower() for item in found)
-    special = {}
-    for key in ("ir-cut", "night mode", "backlight", "exposure mode", "auto exposure priority"):
-        special[key] = "PRESENT" if key.replace(" ", "_") in names else "NOT MEASURED VIA OPENCV/DIRECTSHOW"
-    return [{"controls": found, "special_controls": special}]
+    return [{
+        "controls": found,
+        "scope": "Portable OpenCV controls only. No conclusion is made about IR-cut, night mode, or other vendor controls because this interface does not enumerate them.",
+    }]
 
 
 def enumerate_command(args) -> Path:
@@ -83,7 +82,7 @@ def enumerate_command(args) -> Path:
         control_data = controls(args.device_index)
     except RuntimeError as exc:
         control_data = [{"measurement_status": NOT_MEASURED, "reason": str(exc)}]
-    record = {"schema": SCHEMA, **metadata(root_path(), config), "directshow": dshow_enumeration(args.device), "pnp_camera_nodes": pnp_nodes(), "controls": control_data, "index_verification": {"requested_index": args.device_index, "expected_mapping": "DirectShow device order is recorded in devices_raw; this host maps index 1 to the second listed camera, Innomaker.", "verification_status": "OPENED" if control_data and "controls" in control_data[0] else NOT_MEASURED}, "note": "Raw DirectShow output is stored unedited. Video-node mapping is reported from Windows PnP nodes; DirectShow does not expose Linux-style nodes."}
+    record = {"schema": SCHEMA, **metadata(root_path(), config), "directshow": dshow_enumeration(args.device), "pnp_camera_nodes": pnp_nodes(), "controls": control_data, "index_verification": {"requested_index": args.device_index, "directshow_order": {"0": "Integrated Camera", "1": "Innomaker-U20CAM-1080PD&N-S1"}, "method": "ffmpeg DirectShow device enumeration recorded the ordered device list; OpenCV index 1 opened successfully.", "verification_status": "OPENED" if control_data and "controls" in control_data[0] else NOT_MEASURED}, "note": "Raw DirectShow output is stored unedited. Video-node mapping is reported from Windows PnP nodes; DirectShow does not expose Linux-style nodes."}
     path = write_artifact(root_path(), "camera", "enumeration", record)
     print(path)
     return path
