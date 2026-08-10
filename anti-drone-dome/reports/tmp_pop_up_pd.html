@@ -1,0 +1,29 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>AEGIS regression campaign</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:1200px;margin:32px auto;color:#17212b}
+table{border-collapse:collapse;width:100%;margin:12px 0 28px}
+th,td{border:1px solid #b8c0c8;padding:7px;text-align:left}
+th{background:#e8edf1} .decision{font-size:1.4rem;font-weight:bold}
+</style></head><body>
+<h1>AEGIS Synthetic Regression Campaign</h1>
+<p>Campaign: <strong>cuas-operational-stress-v1</strong><br>
+Controller: APN &middot; Seeds: 1000 onward &middot;
+Repeats per case: 10</p>
+<p class="decision">Release gate: FAIL</p>
+<h2>Scenario gates</h2>
+<table><tr><th>Scenario</th><th>Status</th><th>Intercept</th>
+<th>Wilson lower 95%</th><th>Duration p95</th><th>Energy p95</th>
+<th>Saturation</th><th>Tags</th></tr>
+<tr><td>compound-edge</td><td>FAIL</td><td>0.0%</td><td>0.0%</td><td>120.00s</td><td>45.73</td><td>6.7%</td><td>compound, high-wind, sensor-degraded, evasive</td></tr><tr><td>crosswind-crossing</td><td>FAIL</td><td>20.0%</td><td>5.7%</td><td>120.00s</td><td>35.00</td><td>5.2%</td><td>crossing, high-wind</td></tr><tr><td>spiral-noisy</td><td>FAIL</td><td>30.0%</td><td>10.8%</td><td>120.00s</td><td>43.91</td><td>2.2%</td><td>spiral, sensor-degraded</td></tr><tr><td>agile-pop-up</td><td>FAIL</td><td>40.0%</td><td>16.8%</td><td>35.43s</td><td>12.84</td><td>4.8%</td><td>pop-up, evasive</td></tr><tr><td>degraded-track</td><td>FAIL</td><td>50.0%</td><td>23.7%</td><td>61.76s</td><td>21.97</td><td>4.3%</td><td>sensor-degraded, dropout, latency</td></tr><tr><td>remote-launch</td><td>FAIL</td><td>50.0%</td><td>23.7%</td><td>27.20s</td><td>8.49</td><td>5.5%</td><td>geometry, remote-launch</td></tr><tr><td>terrain-mask-low</td><td>FAIL</td><td>100.0%</td><td>72.2%</td><td>15.78s</td><td>3.96</td><td>5.2%</td><td>low-altitude, terrain-mask</td></tr><tr><td>baseline-direct</td><td>FAIL</td><td>100.0%</td><td>72.2%</td><td>9.26s</td><td>2.69</td><td>6.4%</td><td>baseline, clear</td></tr></table>
+<h2>Performance-margin watchlist</h2>
+<p>Highest utilization of any duration, energy, or saturation limit.</p>
+<table><tr><th>Scenario</th><th>Limit utilization</th><th>Duration p95</th>
+<th>Energy p95</th></tr><tr><td>spiral-noisy</td><td>548.9%</td><td>120.00s</td><td>43.91</td></tr><tr><td>crosswind-crossing</td><td>437.5%</td><td>120.00s</td><td>35.00</td></tr><tr><td>compound-edge</td><td>381.1%</td><td>120.00s</td><td>45.73</td></tr></table>
+<h2>Observed stress-factor correlation</h2>
+<p>Stress factors are measured correlations and do not prove root cause.</p>
+<table><tr><th>Factor</th><th>Episodes</th><th>Failures</th>
+<th>Failure rate</th></tr><tr><td>high_wind</td><td>20</td><td>18</td><td>90.0%</td></tr><tr><td>agile_target</td><td>20</td><td>16</td><td>80.0%</td></tr><tr><td>high_measurement_noise</td><td>30</td><td>22</td><td>73.3%</td></tr><tr><td>high_sensor_dropout</td><td>30</td><td>22</td><td>73.3%</td></tr><tr><td>high_sensor_latency</td><td>30</td><td>22</td><td>73.3%</td></tr><tr><td>slow_actuator</td><td>16</td><td>9</td><td>56.2%</td></tr><tr><td>high_mass</td><td>11</td><td>4</td><td>36.4%</td></tr></table>
+<h2>Reproduction</h2>
+<p>Every episode stores its scenario ID and seed in the JSON artifact.</p>
+</body></html>

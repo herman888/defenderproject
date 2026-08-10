@@ -5,6 +5,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Math/RotationMatrix.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -56,6 +57,8 @@ AAegisTacticalSiteActor::AAegisTacticalSiteActor()
     RadarAntenna->SetupAttachment(SceneRoot);
     RadarPulse = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RadarPulse"));
     RadarPulse->SetupAttachment(SceneRoot);
+    SensorSightline = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("SensorSightline"));
+    SensorSightline->SetupAttachment(SceneRoot);
     PerimeterMarker = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PerimeterMarker"));
     PerimeterMarker->SetupAttachment(SceneRoot);
     SiteLabel = CreateDefaultSubobject<UTextRenderComponent>(TEXT("SiteLabel"));
@@ -64,6 +67,8 @@ AAegisTacticalSiteActor::AAegisTacticalSiteActor()
     InterceptMarker->SetupAttachment(SceneRoot);
     InterceptBeacon = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("InterceptBeacon"));
     InterceptBeacon->SetupAttachment(SceneRoot);
+    InterceptLadder = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("InterceptLadder"));
+    InterceptLadder->SetupAttachment(SceneRoot);
     CompoundBuildings = CreateDefaultSubobject<UInstancedStaticMeshComponent>(
         TEXT("CompoundBuildings"));
     CompoundBuildings->SetupAttachment(SceneRoot);
@@ -89,8 +94,16 @@ AAegisTacticalSiteActor::AAegisTacticalSiteActor()
         ConfigureStatic(SensorDome, Sphere.Object, BasicMaterial.Object, FLinearColor(0.12f, 0.65f, 0.68f));
         ConfigureStatic(RadarAntenna, Cube.Object, BasicMaterial.Object, FLinearColor(0.14f, 0.76f, 0.78f));
         ConfigureStatic(RadarPulse, Sphere.Object, BasicMaterial.Object, FLinearColor(0.12f, 0.85f, 0.76f));
+        ConfigureInstances(SensorSightline, Cylinder.Object, BasicMaterial.Object,
+            FLinearColor(0.10f, 0.95f, 0.58f));
+        SensorSightline->SetCastShadow(false);
+        SensorSightline->SetVisibility(false);
+        SightlineMaterial = Cast<UMaterialInstanceDynamic>(SensorSightline->GetMaterial(0));
         ConfigureStatic(InterceptMarker, Sphere.Object, BasicMaterial.Object, FLinearColor(1.0f, 0.72f, 0.10f));
         ConfigureStatic(InterceptBeacon, Cube.Object, BasicMaterial.Object, FLinearColor(1.0f, 0.72f, 0.10f));
+        ConfigureInstances(InterceptLadder, Cube.Object, BasicMaterial.Object, FLinearColor(1.0f, 0.72f, 0.10f));
+        InterceptLadder->SetCastShadow(false);
+        LadderMaterial = Cast<UMaterialInstanceDynamic>(InterceptLadder->GetMaterial(0));
         InterceptMaterial = Cast<UMaterialInstanceDynamic>(InterceptMarker->GetMaterial(0));
         InterceptBeacon->SetMaterial(0, InterceptMaterial);
     }
@@ -202,6 +215,7 @@ AAegisTacticalSiteActor::AAegisTacticalSiteActor()
     SiteLabel->SetRelativeLocation(FVector(0.0f, 0.0f, 1450.0f));
     InterceptMarker->SetVisibility(false);
     InterceptBeacon->SetVisibility(false);
+    InterceptLadder->SetVisibility(false);
 }
 
 void AAegisTacticalSiteActor::Tick(float DeltaSeconds)
@@ -222,7 +236,10 @@ void AAegisTacticalSiteActor::Tick(float DeltaSeconds)
     }
     if (bMarkerVisible && InterceptMarker != nullptr)
     {
-        const float Pulse = 3.2f + 0.55f * FMath::Sin(MarkerPulseSeconds * 5.0f);
+        // A small steady reticle. The previous 3.2 m pulsing sphere occluded
+        // the engagement it was annotating; the dotted ladder below carries
+        // the position cue instead, which reads cleanly against terrain.
+        const float Pulse = 0.55f + 0.06f * FMath::Sin(MarkerPulseSeconds * 4.0f);
         InterceptMarker->SetRelativeScale3D(FVector(Pulse));
         InterceptBeacon->AddLocalRotation(FRotator(0.0f, 65.0f * DeltaSeconds, 0.0f));
     }
@@ -233,6 +250,65 @@ void AAegisTacticalSiteActor::SetSensorPresentationState(
 {
     bRadarLocked = bInRadarLocked;
     bRadarFailed = bInRadarFailed;
+    UpdateSensorSightline();
+}
+
+void AAegisTacticalSiteActor::SetSensorTrackPresentation(
+    const FVector& PositionEnuMetres)
+{
+    // ENU metres to the viewer's local centimetre frame. This is intentionally
+    // only a presentation cue: the sightline is shown *after* Python declares
+    // radar lock and it never feeds state back to the simulation.
+    SensorTrackWorld = FVector(
+        PositionEnuMetres.Y * 100.0f,
+        PositionEnuMetres.X * 100.0f,
+        PositionEnuMetres.Z * 100.0f);
+    bHasSensorTrack = true;
+    UpdateSensorSightline();
+}
+
+void AAegisTacticalSiteActor::UpdateSensorSightline()
+{
+    if (SensorSightline == nullptr)
+    {
+        return;
+    }
+    SensorSightline->ClearInstances();
+    const bool bVisible = bRadarLocked && !bRadarFailed && bHasSensorTrack;
+    SensorSightline->SetVisibility(bVisible);
+    if (!bVisible || RadarAntenna == nullptr)
+    {
+        return;
+    }
+
+    const FVector Origin = RadarAntenna->GetRelativeLocation();
+    const FVector Delta = SensorTrackWorld - Origin;
+    const float Distance = Delta.Length();
+    if (Distance < KINDA_SMALL_NUMBER)
+    {
+        SensorSightline->SetVisibility(false);
+        return;
+    }
+
+    // A dotted link reads as a tracked line of sight instead of the old opaque
+    // green/orange balls. It is deliberately thick enough to survive a range
+    // observer shot, while the bounded instance count stays appropriate for
+    // the 4 GB target.
+    const int32 DashCount = FMath::Clamp(FMath::RoundToInt(Distance / 2200.0f), 8, 30);
+    const float Spacing = Distance / static_cast<float>(DashCount + 1);
+    const float DashLength = FMath::Clamp(Spacing * 0.50f, 90.0f, 420.0f);
+    const FRotator Rotation = FRotationMatrix::MakeFromZ(Delta.GetSafeNormal()).Rotator();
+    for (int32 Index = 1; Index <= DashCount; ++Index)
+    {
+        const FVector Location = Origin + Delta.GetSafeNormal() * (Spacing * Index);
+        SensorSightline->AddInstance(FTransform(
+            Rotation, Location, FVector(0.55f, 0.55f, DashLength / 100.0f)));
+    }
+    if (SightlineMaterial != nullptr)
+    {
+        SightlineMaterial->SetVectorParameterValue(TEXT("Color"),
+            FLinearColor(0.10f, 0.95f, 0.58f));
+    }
 }
 
 void AAegisTacticalSiteActor::SetPredictedIntercept(
@@ -243,6 +319,8 @@ void AAegisTacticalSiteActor::SetPredictedIntercept(
     InterceptBeacon->SetVisibility(bVisible);
     if (!bVisible)
     {
+        InterceptLadder->SetVisibility(false);
+        InterceptLadder->ClearInstances();
         return;
     }
     const FVector WorldPosition(
@@ -252,6 +330,41 @@ void AAegisTacticalSiteActor::SetPredictedIntercept(
     InterceptMarker->SetRelativeLocation(WorldPosition);
     InterceptBeacon->SetRelativeLocation(WorldPosition + FVector(0, 0, 450.0f));
     InterceptBeacon->SetRelativeScale3D(FVector(0.10f, 0.10f, 5.0f));
+
+    // Dotted column from ground level up to the predicted intercept point.
+    // Discrete dashes read as an altitude scale and stay legible against
+    // terrain, where a solid column or a large sphere does not.
+    InterceptLadder->SetVisibility(true);
+    InterceptLadder->ClearInstances();
+    {
+        const float TopZ = WorldPosition.Z;
+        const float Step = 250.0f;                      // 2.5 m between dashes
+        const int32 MaxDashes = 48;                     // bounded work per frame
+        const float DashHalfHeight = 40.0f;             // 0.8 m dash
+        int32 Placed = 0;
+        for (float Z = Step; Z < TopZ && Placed < MaxDashes; Z += Step, ++Placed)
+        {
+            // Taper toward the top so the column reads as a direction, not a wall.
+            const float Fraction = TopZ > KINDA_SMALL_NUMBER ? (Z / TopZ) : 0.0f;
+            const float Width = FMath::Lerp(0.30f, 0.12f, Fraction);
+            FTransform Dash;
+            Dash.SetLocation(FVector(WorldPosition.X, WorldPosition.Y, Z));
+            Dash.SetScale3D(FVector(Width, Width, DashHalfHeight / 50.0f));
+            InterceptLadder->AddInstance(Dash);
+        }
+    }
+
+    if (LadderMaterial != nullptr)
+    {
+        const FLinearColor LadderColor =
+            Status.Equals(TEXT("INTERCEPTED"), ESearchCase::IgnoreCase)
+                ? FLinearColor(0.15f, 1.0f, 0.42f)
+                : (Status.Equals(TEXT("BREACH"), ESearchCase::IgnoreCase)
+                    ? FLinearColor(1.0f, 0.12f, 0.08f)
+                    : FLinearColor(1.0f, 0.72f, 0.10f));
+        LadderMaterial->SetVectorParameterValue(TEXT("Color"), LadderColor);
+    }
+
     if (InterceptMaterial != nullptr)
     {
         const FLinearColor Color = Status.Equals(TEXT("INTERCEPTED"), ESearchCase::IgnoreCase)

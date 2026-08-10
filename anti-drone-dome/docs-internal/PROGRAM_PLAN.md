@@ -55,7 +55,12 @@ State these explicitly in every external document:
 
 These block handing documentation to any specialist. If a reviewer finds them first, the room is lost.
 
-**2.1 — The swarm runs on omniscient sensors.** `main.py:2095-2100` and `swarm/runner.py:135-138,195` feed **ground-truth** positions and velocities straight into `coordinator.plan()`. The cause is structural: `sensors/radar.py:RadarNode.scan()` handles exactly one target — one `self._tracker`, one `_locked`/`_hits`/`_miss_count` state machine. The headline "coordinated swarm vs saturation attack" claim currently has no sensing in the loop. **No swarm claim belongs in any document until this is fixed.** Status: OPEN.
+**2.1 — RESOLVED IN THE SYNTHETIC SWARM PATH.** `sensors/radar_batch.py:MultiTargetRadar` now creates noisy measurements, predicts all tracks, uses Mahalanobis-gated Hungarian association, and returns anonymous `radar-*` track IDs. Both `main.py` and `swarm/runner.py` pass only these tracks into `coordinator.plan()` and guidance; scenario object IDs, type, and priority do not cross the sensor boundary. The temporary conservative classification is `unclassified` / `MEDIUM` until a real classifier is modeled.
+
+This closes the omniscient-input defect, not the evidence gap. The radar budget,
+measurement covariance, airframe profiles, and contact geometry remain synthetic
+or placeholder; re-run a sensor-in-loop Monte Carlo campaign before quoting any
+swarm result. Status: IMPLEMENTED, AWAITING CALIBRATED CAMPAIGN.
 
 **2.2 — Test count stated three ways.** `implementation-status.md:31` says 99; `results/current-evidence.md:7` says 42; the suite is now **136**. Fix: CI emits the count as an artifact; docs cite the artifact, never a hand-typed number. Status: OPEN.
 

@@ -1,0 +1,104 @@
+﻿{
+	"devices": [
+		{
+			"deviceName": "EDDIEGAMING",
+			"instance": "A3E1678A4EDAE07364248797A1E3A1A4",
+			"instanceName": "EDDIEGAMING-2520",
+			"platform": "WindowsEditor",
+			"oSVersion": "Windows 11 (25H2) [10.0.26200.8973] ",
+			"model": "Default",
+			"gPU": "NVIDIA GeForce GTX 1650",
+			"cPUModel": "Intel(R) Core(TM) i5-9300HF CPU @ 2.40GHz",
+			"rAMInGB": 16,
+			"renderMode": "SM6",
+			"rHI": "",
+			"appInstanceLog": ""
+		}
+	],
+	"reportCreatedOn": "2026.08.09-05.20.19",
+	"succeeded": 5,
+	"succeededWithWarnings": 0,
+	"failed": 0,
+	"notRun": 0,
+	"inProcess": 0,
+	"totalDuration": 0.084486596286296844,
+	"comparisonExported": false,
+	"comparisonExportDirectory": "",
+	"tests": [
+		{
+			"testDisplayName": "CoordinateConversion",
+			"fullTestPath": "Aegis.TacticalViewer.Protocol.CoordinateConversion",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"A3E1678A4EDAE07364248797A1E3A1A4"
+			],
+			"duration": 0.016193900257349014,
+			"dateTime": "2026.08.09-05.20.19",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "OrientationConversion",
+			"fullTestPath": "Aegis.TacticalViewer.Protocol.OrientationConversion",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"A3E1678A4EDAE07364248797A1E3A1A4"
+			],
+			"duration": 0.016409300267696381,
+			"dateTime": "2026.08.09-05.20.19",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "StaleAndLossHealth",
+			"fullTestPath": "Aegis.TacticalViewer.Protocol.StaleAndLossHealth",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"A3E1678A4EDAE07364248797A1E3A1A4"
+			],
+			"duration": 0.016443498432636261,
+			"dateTime": "2026.08.09-05.20.19",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "StrictPacketValidation",
+			"fullTestPath": "Aegis.TacticalViewer.Protocol.StrictPacketValidation",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"A3E1678A4EDAE07364248797A1E3A1A4"
+			],
+			"duration": 0.016589298844337463,
+			"dateTime": "2026.08.09-05.20.19",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "AssetFallback",
+			"fullTestPath": "Aegis.TacticalViewer.Visuals.AssetFallback",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"A3E1678A4EDAE07364248797A1E3A1A4"
+			],
+			"duration": 0.018850602209568024,
+			"dateTime": "2026.08.09-05.20.19",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		}
+	]
+}

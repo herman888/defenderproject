@@ -75,12 +75,18 @@ class KalmanTracker:
         self.R = np.eye(3) * (meas_std**2)
         self._acceleration_alpha = float(acceleration_alpha)
 
-    def step(self, meas: np.ndarray | None):
-        """Advance one filter interval, optionally applying a measurement."""
+    def predict(self):
+        """Advance the state one interval without a measurement."""
         self.x = self.F @ self.x
         self.P = self.F @ self.P @ self.F.T + self.Q
-        if meas is None:
-            return
+
+    def update(self, meas: np.ndarray):
+        """Apply one position measurement after :meth:`predict`.
+
+        Splitting this from ``step`` lets a multi-target tracker predict every
+        live track before it performs data association.  The original
+        single-target public API remains unchanged below.
+        """
 
         meas = np.asarray(meas, dtype=float)
         y = meas - self.H @ self.x
@@ -95,6 +101,12 @@ class KalmanTracker:
             + K @ self.R @ K.T
         )
         self.P = 0.5 * (self.P + self.P.T)
+
+    def step(self, meas: np.ndarray | None):
+        """Advance one filter interval, optionally applying a measurement."""
+        self.predict()
+        if meas is not None:
+            self.update(meas)
 
     @property
     def pos(self) -> tuple: return tuple(self.x[:3])

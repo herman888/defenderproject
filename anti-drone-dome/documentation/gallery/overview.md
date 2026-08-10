@@ -32,17 +32,12 @@ visual evidence, not concept art.
 
 ![Interceptor chase](../assets/interceptor-chase.png)
 
-## Hardware
+## Future evidence categories
 
-*Add FC, wiring, and radio photos here.*
-
-## Detection
-
-*Add YOLO overlay / Roboflow label examples here.*
-
-## Field and demonstration
-
-*Add flight or demo stills here.*
+Hardware photographs, held-out detection overlays, and field-demonstration
+stills are intentionally absent until they are accompanied by provenance,
+permissions, and the relevant validation record. They must not be replaced with
+concept art or unlabeled images.
 
 ---
 

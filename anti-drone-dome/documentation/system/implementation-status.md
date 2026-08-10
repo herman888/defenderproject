@@ -10,7 +10,7 @@ This page separates running code from validated evidence and future work.
 | Operator interface | Qt/PyQtGraph integrated command center |
 | Tactical rendering | Embedded PyBullet camera using OpenGL or Tiny Renderer |
 | Environment | Collision terrain from cached elevation, with procedural fallback, plus cached OSM |
-| Sensors | Simulated radar, rendered EO/segmentation, optional YOLO, fusion |
+| Sensors | Single-engagement radar/EO fusion plus synthetic multi-target radar with anonymous-track association for swarm simulation |
 | Guidance | APN default with command limits |
 | ML | Optional bounded residual PPO and Gymnasium training environment |
 | Vision training | Capture, extract, auto-label, merge, fine-tune, and live YOLO scripts |
@@ -19,7 +19,7 @@ This page separates running code from validated evidence and future work.
 | Evidence | Mission JSONL, event log, hashes, ACMI, JSON/CSV/HTML reports |
 | External integration | Validated, georeferenced `aegis.tactical.v1` UDP telemetry with deterministic JSONL replay |
 | Presentation bridge | `aegis.unreal-bridge.v1` UDP bridge enriching tactical telemetry with WGS84 geodetic, heading, and speed for Unreal/Cesium clients |
-| Swarm coordination | Airborne coordinator directing an interceptor swarm vs a saturation attack: one-way RF link model, priority-greedy/Hungarian assignment, autonomous re-tasking, headless runner, live command-center view (`--swarm-live` / in-menu SWARM buttons), `aegis.swarm-coordination.v1` telemetry |
+| Swarm coordination | Sensor-in-loop experimental swarm: synthetic multi-target radar, anonymous-track assignment, one-way RF link model, headless runner, live command-center view, and `aegis.swarm-coordination.v1` telemetry |
 | Flight envelope | Realistic turn-g / climb-rate / minimum-airspeed limits (fixed-wing bank-to-turn vs multirotor hover) applied to swarm motion, grounded in per-airframe profile values |
 | Hardware posture | SIL/SITL and read-only Betaflight profiles |
 | Airframe fidelity | Versioned physical/presentation profiles, profile-synchronized mass/inertia, actuator lag, stall, turbulence, energy use, and voltage sag |
@@ -28,7 +28,8 @@ This page separates running code from validated evidence and future work.
 
 ## Verified in the current repository
 
-- 167 automated tests pass.
+- The current headless automated suite passes; CI publishes its exact count as
+  an artifact rather than relying on this page.
 - The strict MkDocs build passes.
 - The Unreal editor target compiles cleanly against UE 5.8.
 - The eight-case APN campaign completed 380/800 synthetic interceptions (47.5%),
@@ -54,7 +55,8 @@ They do not establish real-world interception reliability.
 
 ## Not implemented or not validated
 
-- Unreal Engine/Cesium presentation client (the renderer/consumer; the georeferenced telemetry bridge that feeds it is implemented)
+- Cesium geospatial integration (the local packaged Unreal presentation client
+  and its receive-only telemetry path are implemented)
 - authenticated production telemetry or command transport
 - Betaflight/MSP actuation bridge
 - physical interceptor actuation
@@ -83,8 +85,9 @@ that the core has already migrated to Unreal.
 
 The project has two complementary training tracks:
 
-- **Guidance ML:** procedural scenarios and APN expert data train and evaluate
-  bounded residual policies against a classical baseline.
+- **Guidance ML:** procedural scenarios and APN expert data support offline
+  research, but residual-policy comparisons from before the 1 m contact fix are
+  archived rather than current decision evidence.
 - **Camera ML:** real day/IR camera recordings train a detector that can run in
   the live hardware pipeline or the rendered-camera simulation path.
 

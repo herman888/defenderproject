@@ -157,7 +157,7 @@ def enrich_packet(packet: dict) -> dict:
 
 
 def swarm_to_tactical_packet(packet: dict) -> dict:
-    """Adapt an authoritative swarm snapshot into the viewer's two-track feed.
+    """Adapt a swarm snapshot into the viewer's focused + formation feed.
 
     This is presentation-only: it selects the leading active threat and its
     assigned (or first available) interceptor. The full swarm remains
@@ -178,13 +178,28 @@ def swarm_to_tactical_packet(packet: dict) -> dict:
     )
 
     def make_track(source: dict, *, role: str, asset_id: str, track_type: str) -> dict:
+        heading, _ground_speed, _speed = _heading_and_speed(source["velocity_enu_mps"])
         return {
             "id": source["id"], "role": role, "asset_id": asset_id,
             "type": track_type,
             "position_enu_m": source["position_enu_m"],
             "velocity_enu_mps": source["velocity_enu_mps"],
             "orientation_xyzw": [0.0, 0.0, 0.0, 1.0],
+            "heading_deg": heading,
         }
+
+    # The focused pair preserves the tactical viewer's current mission HUD and
+    # camera contract. The sidecar carries every active member for the world
+    # view only; it never participates in a control or sensor decision.
+    formation_tracks = [
+        make_track(threat, role="intruder", asset_id=f"intruder/{threat['type']}",
+                   track_type=threat["type"])
+        for threat in threats
+    ] + [
+        make_track(interceptor, role="interceptor", asset_id="interceptor_quad",
+                   track_type="quadcopter")
+        for interceptor in interceptors
+    ]
 
     return {
         "schema": "aegis.tactical.v1",
@@ -203,6 +218,11 @@ def swarm_to_tactical_packet(packet: dict) -> dict:
             "interceptor": None if interceptor_source is None else make_track(
                 interceptor_source, role="interceptor", asset_id="interceptor_quad",
                 track_type="quadcopter"),
+        },
+        "swarm_presentation": {
+            "kind": "coordination_simulation",
+            "label": "SWARM PLANNING SIMULATION — SENSOR VALIDATION PENDING",
+            "tracks": formation_tracks,
         },
     }
 

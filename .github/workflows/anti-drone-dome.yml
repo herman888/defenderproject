@@ -52,6 +52,13 @@ jobs:
           python -m pytest -q --no-header -m "not perf" \
             --junitxml=test-results.xml
 
+      - name: Verify seeded sensor-in-loop determinism
+        env:
+          OMP_NUM_THREADS: "1"
+          MPLBACKEND: Agg
+          QT_QPA_PLATFORM: offscreen
+        run: python scripts/check_determinism.py --scenario saturation_6v4 --seed 42
+
       - name: Publish test count
         if: always()
         run: |

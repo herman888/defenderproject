@@ -1,9 +1,14 @@
-# Autonomous swarm coordination
+# Experimental swarm coordination
 
 The swarm layer adds an **airborne coordinator** — a higher-compute, longer-range RF
-node — that directs a swarm of interceptors to autonomously defeat a **saturation
-attack** of many simultaneous threats. It sits on top of the single-target
-interception core without changing it.
+node — that coordinates multiple interceptors against a synthetic saturation
+scenario. It sits on top of the single-target interception core without changing
+it.
+
+The coordinator receives anonymous tracks from `MultiTargetRadar`, not scenario
+truth state. This is a meaningful software-in-the-loop boundary, but the radar
+budget, tracking covariance, vehicle profiles, and contact geometry are still
+synthetic. **Do not interpret a swarm outcome as field-performance evidence.**
 
 The coordination brain is **substrate independent**: it operates only on ENU state
 dicts (the same shape as `Drone.get_state()`) and never imports PyBullet. The same
@@ -18,11 +23,11 @@ brain runs in the fast headless point-mass runner and in the PyBullet mission.
   (`20·log10(range)`), a logistic margin→packet-loss curve, a hard maximum range, and
   range-dependent latency with a per-interceptor delayed-delivery queue. Deterministic
   given a seed.
-- **Weapon-target assignment** (`swarm/assignment.py`). A cost matrix of expected
+- **Track-target assignment** (`swarm/assignment.py`). A cost matrix of expected
   time-to-intercept (reusing `PurePursuitGuidance.time_to_intercept`) feeds a
-  priority-greedy allocator (highest-value threats covered first, so a saturation
-  attack degrades by leaking the *least* dangerous threats). A numpy-only Hungarian
-  solver is included as a cost-optimal alternative.
+  deterministic greedy allocator. Until a classification sensor exists, tracks
+  are conservatively unclassified and receive equal priority. A numpy-only
+  Hungarian solver is included as a cost-optimal alternative.
 - **Autonomous re-tasking** (`swarm/coordinator.py`). Each interceptor is `ASSIGNED`,
   `COASTING` (link stale, still pursuing its last order), `AUTONOMOUS_LOCAL` (link lost
   and last target gone — self-selects the nearest threat), or `RESERVE`. The
@@ -77,8 +82,8 @@ FPV 8 g, interceptor 12 g.
 `scenario_data/swarm_scenarios_v1.json` (schema `aegis.swarm-scenarios.v1`, validated by
 `swarm/scenario.py`):
 
-- **`saturation_6v4`** — six mixed threats vs four interceptors; the four highest-value
-  threats are neutralised and the two lowest-value leak.
+- **`saturation_6v4`** — six mixed threats vs four interceptors; a baseline
+  sensor-in-loop saturation composition.
 - **`overwhelm_8v3`** — a deliberate over-saturation (eight threats, three
   interceptors) that exercises priority triage and leakage reporting.
 
@@ -92,5 +97,7 @@ of [`aegis.tactical.v1`](../operations/mission-recording.md), reusing its valida
 ## Boundaries
 
 Representative, unvalidated envelopes — not a validated device or doctrine. RF,
-compute, and airframe parameters are placeholders to be replaced with measured data.
-The feed is local research telemetry, not an authenticated command channel.
+compute, radar, and airframe parameters are placeholders to be replaced with
+measured data. The physical contact criterion is 1 m, not the former 18 m
+cinematic proximity gate. The feed is local research telemetry, not an
+authenticated command channel.

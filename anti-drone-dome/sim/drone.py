@@ -25,6 +25,11 @@ from guidance.setpoint import GuidanceSetpoint, ned_to_enu
 from sim.airframe_profiles import get_airframe_profile
 
 _TIMESTEP    = 1.0 / 240.0
+
+# Fixed-wing attitude presentation.
+_BANK_TURN_RATE_TAU_S   = 0.45   # s - low-pass on turn rate before banking
+_GUST_TAU_S             = 0.9    # s - turbulence attitude correlation time
+_GUST_ATTITUDE_FRACTION = 0.55   # how much of the gust angle reaches attitude
 _ROTOR_SPEED = 20.0   # rad/s visual spin (quadrotor interceptor)
 _RHO         = 1.225  # kg/m³ air density (shared constant)
 
@@ -919,6 +924,44 @@ class LoiteringMunition:
         s     = math.sin(half)
         return (axis[0]*s, axis[1]*s, axis[2]*s, math.cos(half))
 
+    def _gust_attitude_offsets(self, dt: float):
+        """Small correlated roll/pitch perturbations from atmospheric turbulence.
+
+        The profile already carries ``disturbance.turbulence_force_std_n`` and
+        the force model already applies it - but attitude was derived purely
+        from the velocity vector, so the airframe translated through gusty air
+        with a perfectly rigid attitude. Real aircraft are continuously
+        buffeted, and its absence is what reads as "sliding, not flying".
+
+        Modelled as an Ornstein-Uhlenbeck process: gusts are temporally
+        correlated, not white, so the airframe wallows rather than vibrating.
+        Amplitude scales with the profile's own turbulence intensity divided by
+        mass, so a heavier airframe is visibly less affected. Attitude only -
+        it does not feed back into the trajectory.
+        """
+        if self._turbulence_std_n <= 0.0:
+            return 0.0, 0.0
+
+        # Angular scale: a gust force over one mass gives a lateral
+        # acceleration; expressed against gravity that is an attitude offset.
+        scale = math.atan2(
+            self._turbulence_std_n / max(self._mass, 0.1), 9.81
+        ) * _GUST_ATTITUDE_FRACTION
+
+        tau = _GUST_TAU_S
+        decay = math.exp(-dt / tau)
+        diffusion = math.sqrt(max(1.0 - decay * decay, 0.0)) * scale
+
+        self._gust_roll = (
+            decay * getattr(self, "_gust_roll", 0.0)
+            + diffusion * float(self._rng.normal())
+        )
+        self._gust_pitch = (
+            decay * getattr(self, "_gust_pitch", 0.0)
+            + diffusion * float(self._rng.normal()) * 0.6  # pitch is stiffer
+        )
+        return self._gust_roll, self._gust_pitch
+
     def _coordinated_bank_angle(self, velocity, dt: float) -> float:
         """Roll angle for a coordinated turn, rate-limited, in radians.
 
@@ -943,17 +986,30 @@ class LoiteringMunition:
         previous = getattr(self, "_bank_prev_horizontal_velocity", None)
         self._bank_prev_horizontal_velocity = horizontal.copy()
 
-        target_bank = 0.0
+        instantaneous_turn_rate = 0.0
         if previous is not None and speed > 1.0 and dt > 1e-9:
             previous_speed = float(np.linalg.norm(previous))
             if previous_speed > 1.0:
                 # Signed heading change gives turn rate; a_lat = omega * V.
                 cross = float(previous[0] * horizontal[1] - previous[1] * horizontal[0])
                 dot = float(previous @ horizontal)
-                heading_change = math.atan2(cross, dot)
-                turn_rate = heading_change / dt
-                lateral_accel = turn_rate * speed
-                target_bank = math.atan2(lateral_accel, 9.81)
+                instantaneous_turn_rate = math.atan2(cross, dot) / dt
+
+        # Differentiating heading over a single 1/240 s step amplifies velocity
+        # jitter enormously: a straight-line profile whose true turn demand is
+        # ~7 degrees of bank produced swings to 44 degrees, driven almost
+        # entirely by noise. Low-pass the turn rate first. This is also the
+        # physical behaviour - an airframe rolls in response to a *sustained*
+        # turn demand, not to every gust.
+        tau = _BANK_TURN_RATE_TAU_S
+        alpha = dt / max(tau, dt)
+        self._bank_turn_rate = (
+            (1.0 - alpha) * getattr(self, "_bank_turn_rate", 0.0)
+            + alpha * instantaneous_turn_rate
+        )
+
+        lateral_accel = self._bank_turn_rate * speed
+        target_bank = math.atan2(lateral_accel, 9.81)
 
         limit = getattr(self, "_max_bank_rad", math.radians(45.0))
         target_bank = max(-limit, min(limit, target_bank))
@@ -963,6 +1019,20 @@ class LoiteringMunition:
         delta = max(-max_step, min(max_step, target_bank - current))
         self._bank_rad = current + delta
         return self._bank_rad
+
+    @staticmethod
+    def _pitch_about_y(quaternion, pitch_rad: float):
+        """Compose ``quaternion`` (xyzw) with a pitch about the body +Y axis."""
+        half = 0.5 * pitch_rad
+        p = (0.0, math.sin(half), 0.0, math.cos(half))
+        x1, y1, z1, w1 = quaternion
+        x2, y2, z2, w2 = p
+        return (
+            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+        )
 
     @staticmethod
     def _roll_about_x(quaternion, roll_rad: float):
@@ -1048,9 +1118,13 @@ class LoiteringMunition:
         if self._fixed_wing:
             # A winged airframe banks to turn; the minimum-rotation alignment
             # above carries no roll, which reads as a flat weathervaning slide.
-            orn = self._roll_about_x(
-                orn, self._coordinated_bank_angle(vel, _TIMESTEP)
-            )
+            # Gust response is added on top so the airframe visibly sits in
+            # moving air rather than translating rigidly through it.
+            gust_roll, gust_pitch = self._gust_attitude_offsets(_TIMESTEP)
+            bank = self._coordinated_bank_angle(vel, _TIMESTEP)
+            orn = self._roll_about_x(orn, bank + gust_roll)
+            if abs(gust_pitch) > 1e-9:
+                orn = self._pitch_about_y(orn, gust_pitch)
         pybullet.resetBasePositionAndOrientation(
             self._body, list(pos), list(orn), physicsClientId=self._client)
         pybullet.resetBaseVelocity(

@@ -39,7 +39,7 @@ from main import _coalesce_dashboard_messages
 from dome.killzone import DomeKillZone
 from guidance.intercept import PurePursuitGuidance
 from guidance.setpoint import GuidanceSetpoint
-from viz.dashboard import SimControl, _altitude_time_window
+from viz.dashboard import SimControl, _altitude_time_window, _evidence_status_label
 from scripts.benchmark_controllers import paired_comparison, summarize
 from scripts.validate_unreal_motion_recording import (
     motion_is_valid,
@@ -481,6 +481,15 @@ def test_dashboard_queue_coalescing_preserves_lifecycle_and_all_events():
         "Radar track acquired",
         "Radar/EO fusion confirmed",
     ]
+
+
+def test_dashboard_evidence_label_preserves_model_limitations():
+    assert _evidence_status_label(
+        "design-placeholder", "ADAPTIVE APN AUTONOMY"
+    ) == "SYNTHETIC / DESIGN-PLACEHOLDER / BASELINE"
+    assert _evidence_status_label(
+        "representative-unvalidated", "BOUNDED RESIDUAL AI + ADAPTIVE APN"
+    ) == "SYNTHETIC / REPRESENTATIVE-UNVALIDATED / EXPERIMENTAL"
 
 
 def test_predicted_intercept_is_a_future_lead_point():

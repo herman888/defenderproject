@@ -21,6 +21,7 @@ function Stop-AegisDemoHelpers {
 if (!(Test-Path -LiteralPath $python) -or !(Test-Path -LiteralPath $viewer)) {
     throw 'Python environment or packaged viewer was not found. Build the packaged viewer first.'
 }
+New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 
 Stop-AegisDemoHelpers
 Start-Sleep -Milliseconds 500
@@ -85,4 +86,4 @@ if ($coreCount -ge 4) {
     }
 }
 
-Write-Host 'Packaged local demo started (viewer capped at 60 fps, below-normal priority).'
+Write-Host 'Packaged local demo started (viewer capped at 30 fps, idle priority).'

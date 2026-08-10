@@ -2,146 +2,178 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://projectlarp.vercel.app/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/contributing/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/deploy-vercel/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
+    </url>
+    <url>
+         <loc>https://projectlarp.vercel.app/briefing/partner-investor-brief/</loc>
+         <lastmod>2026-08-10</lastmod>
+    </url>
+    <url>
+         <loc>https://projectlarp.vercel.app/briefing/presentation-kit/</loc>
+         <lastmod>2026-08-10</lastmod>
+    </url>
+    <url>
+         <loc>https://projectlarp.vercel.app/briefing/stakeholder-reassessment-pack/</loc>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/development/gpu-setup/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/development/testing/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/firmware/flashing/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/firmware/recovery/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/gallery/overview/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/getting-started/installation/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/hardware/flight-controllers/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/hardware/overview/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/hardware/radio/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/hardware/raspberry-pi-companion/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/hardware/safety/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/integration/external-renderers/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/integration/unreal-bridge/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/ml-training/evaluation/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/ml-training/training/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/ml-training/vision-training/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/operations/mission-recording/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/reference/detection-pipeline-reference/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/reference/firmware-legacy/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
+    </url>
+    <url>
+         <loc>https://projectlarp.vercel.app/results/claims-register/</loc>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/results/current-evidence/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/simulation/fidelity-and-controls/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/simulation/rendering/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/simulation/scenarios/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/simulation/swarm-coordination/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/software/detection-pipeline/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/software/overview/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/software/simulation/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/system/architecture/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/system/data-contracts/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
+    </url>
+    <url>
+         <loc>https://projectlarp.vercel.app/system/edge-platform-and-integration/</loc>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/system/implementation-status/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
+    </url>
+    <url>
+         <loc>https://projectlarp.vercel.app/system/parameter-register/</loc>
+         <lastmod>2026-08-10</lastmod>
+    </url>
+    <url>
+         <loc>https://projectlarp.vercel.app/system/roadmap/</loc>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/validation/hardware-readiness/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/validation/overview/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
     </url>
     <url>
          <loc>https://projectlarp.vercel.app/validation/regression-campaign/</loc>
-         <lastmod>2026-08-05</lastmod>
+         <lastmod>2026-08-10</lastmod>
+    </url>
+    <url>
+         <loc>https://projectlarp.vercel.app/validation/verification-matrix/</loc>
+         <lastmod>2026-08-10</lastmod>
     </url>
 </urlset>

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ProcessPoolExecutor
 import csv
 from datetime import datetime, timezone
 import html
@@ -16,6 +17,52 @@ from ml.controllers import APNController
 from ml.stress_scenarios import load_campaign
 from scripts.benchmark_controllers import run_episode
 from validation.failure_analysis import analyze_campaign
+
+
+def _run_episode_job(job: tuple) -> dict:
+    """Run one independently seeded campaign episode.
+
+    Kept at module scope so it is picklable by Windows process workers.
+    """
+    case, terminal_law, seed = job
+    controller = APNController(terminal_law=terminal_law)
+    episode = run_episode(
+        controller,
+        pattern=case.scenario.profile,
+        intruder_type=case.scenario.intruder_type,
+        seed=seed,
+        observation_version="v2",
+        fixed_scenario=case.scenario,
+    )
+    episode["case_label"] = case.label
+    episode["case_tags"] = list(case.tags)
+    return episode
+
+
+def run_campaign(
+    campaign: dict,
+    *,
+    terminal_law: str,
+    seed: int,
+    repeats: int,
+    workers: int = 1,
+) -> list[dict]:
+    """Return a deterministically ordered set of independently seeded episodes."""
+    if repeats <= 0:
+        raise ValueError("repeats must be positive")
+    if workers <= 0:
+        raise ValueError("workers must be positive")
+
+    jobs = [
+        (case, terminal_law, seed + case_index * 10000 + repeat)
+        for case_index, case in enumerate(campaign["cases"])
+        for repeat in range(repeats)
+    ]
+    if workers == 1:
+        return [_run_episode_job(job) for job in jobs]
+    # map preserves input order, so worker scheduling cannot alter the artifact.
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        return list(executor.map(_run_episode_job, jobs))
 
 
 def _write_report(report: dict, output_stem: str) -> tuple[str, str, str]:
@@ -124,28 +171,23 @@ def main():
         help="Terminal guidance law under test.",
     )
     parser.add_argument("--seed", type=int, default=1000)
+    parser.add_argument(
+        "--workers", type=int, default=1,
+        help="Independent process workers; output ordering remains deterministic.",
+    )
     parser.add_argument("--output", default="validation_reports/regression_campaign")
     args = parser.parse_args()
-    if args.repeats <= 0:
-        parser.error("--repeats must be positive")
+    if args.repeats <= 0 or args.workers <= 0:
+        parser.error("--repeats and --workers must be positive")
 
     campaign = load_campaign(args.campaign)
-    controller = APNController(terminal_law=args.terminal_law)
-    episodes = []
-    for case_index, case in enumerate(campaign["cases"]):
-        for repeat in range(args.repeats):
-            seed = args.seed + case_index * 10000 + repeat
-            episode = run_episode(
-                controller,
-                pattern=case.scenario.profile,
-                intruder_type=case.scenario.intruder_type,
-                seed=seed,
-                observation_version="v2",
-                fixed_scenario=case.scenario,
-            )
-            episode["case_label"] = case.label
-            episode["case_tags"] = list(case.tags)
-            episodes.append(episode)
+    episodes = run_campaign(
+        campaign,
+        terminal_law=args.terminal_law,
+        seed=args.seed,
+        repeats=args.repeats,
+        workers=args.workers,
+    )
     analysis = analyze_campaign(episodes, campaign["cases"])
     report = {
         "schema": "aegis.regression-report.v1",
@@ -155,6 +197,7 @@ def main():
         "controller": "APN",
         "seed_start": args.seed,
         "repeats_per_case": args.repeats,
+        "worker_count": args.workers,
         "total_episodes": len(episodes),
         "analysis": analysis,
         "episodes": episodes,

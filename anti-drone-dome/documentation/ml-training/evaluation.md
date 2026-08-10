@@ -15,15 +15,16 @@ approach, duration, energy, reward, and action saturation.
 
 ## Current interpretation
 
-The included curriculum policy completed 106,496 transitions. APN and residual
-PPO both intercepted 100/100 held-out maximum-difficulty procedural scenarios.
-A larger paired 100-seed analysis found residual PPO slightly slower and more
-energy-intensive than APN with non-overlapping bootstrap intervals.
+The included curriculum policy completed 106,496 transitions. The archived APN
+and residual-PPO comparisons used the former broad proximity criterion, so their
+100/100 result is not current controller evidence after the physical 1 m contact
+criterion was adopted.
 
 Therefore:
 
-- residual PPO preserves the tested APN interception baseline;
-- no ML performance advantage is claimed;
+- no current ML performance advantage is claimed;
+- residual-PPO training is deferred until a calibrated sensor-in-loop scenario
+  demonstrates a repeatable APN limitation;
 - training reward alone is not accepted as deployment evidence;
 - APN remains the nominal safety controller.
 

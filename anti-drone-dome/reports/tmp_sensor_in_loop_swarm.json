@@ -1,0 +1,65 @@
+{
+  "schema": "aegis.swarm-run-report.v1",
+  "scenario_id": "saturation_6v4",
+  "seed": 42,
+  "policy": "greedy",
+  "sim_time_s": 20.9,
+  "threats_total": 6,
+  "interceptors_total": 4,
+  "neutralized": 4,
+  "breached": 1,
+  "leaked": 1,
+  "interceptors_expended": 4,
+  "retasking_events": 8,
+  "link_health": {
+    "packets_delivered": 483,
+    "packets_dropped": 0,
+    "delivery_ratio": 1.0,
+    "interceptors_in_link": 1,
+    "interceptors_lost_link": 0
+  },
+  "threat_outcomes": [
+    {
+      "id": "thr-1",
+      "type": "shahed136",
+      "threat_level": "HIGH",
+      "status": "BREACHED",
+      "resolved_time_s": 15.6
+    },
+    {
+      "id": "thr-2",
+      "type": "shahed136",
+      "threat_level": "HIGH",
+      "status": "NEUTRALIZED",
+      "resolved_time_s": 9.65
+    },
+    {
+      "id": "thr-3",
+      "type": "fpv_attack",
+      "threat_level": "HIGH",
+      "status": "NEUTRALIZED",
+      "resolved_time_s": 12.65
+    },
+    {
+      "id": "thr-4",
+      "type": "fpv_attack",
+      "threat_level": "HIGH",
+      "status": "NEUTRALIZED",
+      "resolved_time_s": 20.9
+    },
+    {
+      "id": "thr-5",
+      "type": "consumer_quad",
+      "threat_level": "MEDIUM",
+      "status": "NEUTRALIZED",
+      "resolved_time_s": 14.2
+    },
+    {
+      "id": "thr-6",
+      "type": "consumer_quad",
+      "threat_level": "MEDIUM",
+      "status": "LEAKER",
+      "resolved_time_s": null
+    }
+  ]
+}

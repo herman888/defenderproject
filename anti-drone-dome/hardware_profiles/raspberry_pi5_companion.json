@@ -1,12 +1,12 @@
 {
   "schema": "aegis.hardware-profile.v1",
   "profile_id": "raspberry-pi5-companion-v1",
-  "label": "Raspberry Pi 5 companion computer (telemetry-only)",
+  "label": "Raspberry Pi 5 + Hailo companion computer (read-only measurement)",
   "mode": "hardware_readonly",
   "autopilot": {
-    "protocol": "udp",
-    "firmware": "companion-perception-only",
-    "endpoint": "127.0.0.1:49100"
+    "protocol": "mavlink",
+    "firmware": "Mamba F405-class flight control",
+    "endpoint": "UART — NOT MEASURED"
   },
   "vehicle": {
     "name": "Lab quadrotor - measurements required",
@@ -19,21 +19,21 @@
     "board": "Raspberry Pi 5",
     "architecture": "aarch64",
     "memory_gb": 8,
-    "accelerator_hat": "not-selected",
+    "accelerator_hat": "Pi AI HAT+ / AI Kit, Hailo-8/8L — NOT MEASURED",
     "power_and_thermal_validation_required": true
   },
   "sensors": [
     {
-      "name": "InnoMaker U20CAM",
+      "name": "InnoMaker U20CAM-1080PD&N-S1",
       "protocol": "usb-uvc",
       "calibration_required": true
     }
   ],
   "links": [
     {
-      "name": "Companion perception telemetry",
-      "protocol": "udp",
-      "rate_hz": 15.0,
+      "name": "Pi companion to Mamba F405-class telemetry",
+      "protocol": "uart-mavlink",
+      "rate_hz": 0.0,
       "schema": "aegis.companion-perception.v1"
     }
   ],

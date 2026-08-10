@@ -54,7 +54,7 @@ private:
     void OpenSocket();
     void CloseSocket();
     bool HandlePacket(const FString& Json);
-    void UpdateTrack(const FTacticalTrackSnapshot& Snapshot);
+    void UpdateTrack(const FTacticalTrackSnapshot& Snapshot, bool bUpdateCamera = true);
     void MarkRoleAbsent(const FString& Role);
     AAegisTacticalTrackActor* GetOrCreateTrack(const FTacticalTrackSnapshot& Snapshot);
     void HideStaticTrackDuplicates();
@@ -63,6 +63,7 @@ private:
     float StaticPreviewSweepSeconds = 0.0f;
     TMap<FString, TObjectPtr<AAegisTacticalTrackActor>> TrackActors;
     TMap<FString, FTacticalTrackSnapshot> LatestSnapshotsByRole;
+    TSet<FString> SwarmPresentationTrackIds;
     TObjectPtr<AAegisTacticalCameraActor> TacticalCamera;
     TObjectPtr<AAegisTacticalSiteActor> TacticalSite;
     TObjectPtr<AAegisTacticalEffectsManager> EffectsManager;

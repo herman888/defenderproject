@@ -1607,6 +1607,9 @@ def _run_one_mission(
                     ),
                     "hardware_profile"   : HARDWARE_PROFILE.label,
                     "hardware_mode"      : HARDWARE_PROFILE.mode.upper(),
+                    "interceptor_profile_evidence": interceptor_profile[
+                        "evidence"
+                    ]["status"],
                     "mission_run_id"     : mission_recorder.run_id,
                     "airframe_profiles"  : {
                         "intruder": intruder.get_state().get(
@@ -1980,6 +1983,8 @@ def _run_swarm_mission(scenario_id, *, telemetry_udp=None,
     from swarm.rf_link import RfLinkModel
     from swarm.scenario import get_swarm_scenario
     from swarm.telemetry import SwarmTelemetryPublisher, build_swarm_packet
+    from sensors.radar_batch import MultiTargetRadar
+    from sim.seeding import SeedBundle
 
     try:
         scenario = get_swarm_scenario(scenario_id)
@@ -2018,16 +2023,29 @@ def _run_swarm_mission(scenario_id, *, telemetry_udp=None,
         for spec in scenario.threats
     ]
 
+    dt = 1.0 / 240.0
     coordinator = SwarmCoordinator(
         RfLinkModel(coord_spec.rf_link, seed=scenario.seed),
         protected_center=tuple(center), guidance=guidance, policy=coord_spec.policy,
+    )
+    seeds = SeedBundle.for_mission("swarm", scenario.scenario_id, seed=scenario.seed)
+    # Scenario state is used only to generate synthetic radar measurements.
+    # The coordinator and guidance consume anonymous sensor tracks below, so
+    # no truth position, velocity, type, or priority crosses the boundary.
+    radar = MultiTargetRadar(
+        station_pos=(center[0], center[1], center[2] + 3.0),
+        max_range=1500.0,
+        noise_std=1.5,
+        confirmation_hits=3,
+        max_misses=10,
+        dt=dt,
+        seed=seeds.child_seed("radar"),
     )
 
     publisher = None
     if telemetry_udp:
         publisher = SwarmTelemetryPublisher.from_endpoint(telemetry_udp)
 
-    dt = 1.0 / 240.0
     max_steps = int(scenario.duration_limit_s / dt)
     intercept_r = scenario.intercept_radius_m
     breach_r = scenario.breach_radius_m
@@ -2127,12 +2145,19 @@ def _run_swarm_mission(scenario_id, *, telemetry_udp=None,
                 state = it["drone"].get_state()
                 state["id"] = it["spec"].id
                 interceptor_states.append(state)
-            threat_tracks = [{
-                "id": th["spec"].id, "type": th["spec"].type,
-                "threat_level": th["spec"].threat_level,
-                "position_estimate": list(th["munition"].get_position()),
-                "velocity": list(th["munition"].get_velocity()),
-            } for th in active_threats]
+            threat_tracks = radar.scan([
+                {
+                    "position": th["munition"].get_position(),
+                    "rcs_m2": INTRUDER_TYPES.get(th["spec"].type, {}).get("rcs", 0.01),
+                }
+                for th in active_threats
+            ], timestamp_s=t)
+            # Classification is an explicit future sensor problem.  Passing
+            # scenario metadata here would recreate the omniscient swarm path
+            # through a less obvious side channel.
+            for track in threat_tracks:
+                track["type"] = "unclassified"
+                track["threat_level"] = "MEDIUM"
 
             coord_state = {
                 "position": list(coordinator_body.get_position()),
@@ -2140,18 +2165,13 @@ def _run_swarm_mission(scenario_id, *, telemetry_udp=None,
             }
             plan = coordinator.plan(coord_state, interceptor_states, threat_tracks, t)
 
-            threat_by_id = {th["spec"].id: th for th in active_threats}
+            track_by_id = {track["id"]: track for track in threat_tracks}
             for it in active_interceptors:
                 order = plan.orders.get(it["spec"].id)
-                target = threat_by_id.get(order.assigned_threat_id) if order else None
+                target = track_by_id.get(order.assigned_threat_id) if order else None
                 if target is not None:
-                    track = {
-                        "detected": True,
-                        "position_estimate": list(target["munition"].get_position()),
-                        "velocity": list(target["munition"].get_velocity()),
-                    }
                     it["drone"].apply_setpoint(
-                        guidance.compute_guidance(it["drone"].get_state(), track)
+                        guidance.compute_guidance(it["drone"].get_state(), target)
                     )
                 else:
                     hold = it["drone"].get_position()

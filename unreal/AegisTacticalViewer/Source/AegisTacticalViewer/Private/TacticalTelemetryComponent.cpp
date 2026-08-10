@@ -534,6 +534,7 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
     if (TacticalSite != nullptr)
     {
         TacticalSite->SetSensorPresentationState(bRadarLocked, bRadarFailure);
+        TacticalSite->SetSensorTrackPresentation(Intruder.PositionEnuMetres);
         TacticalSite->SetPredictedIntercept(
             PredictedIntercept, bHasPredictedIntercept, Status);
     }
@@ -550,6 +551,66 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
         {
             TacticalCamera->ClearTrack(TEXT("interceptor"));
         }
+    }
+
+    // A swarm packet is bridged into the normal focused pair above, then adds
+    // its active formation as a presentation-only sidecar. These extra actors
+    // make the saturation geometry visible while the primary pair remains the
+    // sole camera/HUD focus and no viewer path can affect simulation state.
+    const TSharedPtr<FJsonObject>* SwarmPresentation = nullptr;
+    if (Root->TryGetObjectField(TEXT("swarm_presentation"), SwarmPresentation)
+        && SwarmPresentation != nullptr && SwarmPresentation->IsValid())
+    {
+        const TArray<TSharedPtr<FJsonValue>>* SwarmTracks = nullptr;
+        if (!(*SwarmPresentation)->TryGetArrayField(TEXT("tracks"), SwarmTracks)
+            || SwarmTracks == nullptr)
+        {
+            ++Health.RejectedPackets;
+            RejectedPacketCount = static_cast<int32>(Health.RejectedPackets);
+            return false;
+        }
+        TSet<FString> IncomingSwarmTrackIds;
+        for (const TSharedPtr<FJsonValue>& TrackValue : *SwarmTracks)
+        {
+            const TSharedPtr<FJsonObject> TrackObject = TrackValue->AsObject();
+            FTacticalTrackSnapshot SwarmTrack;
+            if (!ParseTrack(TrackObject, SwarmTrack))
+            {
+                ++Health.RejectedPackets;
+                RejectedPacketCount = static_cast<int32>(Health.RejectedPackets);
+                return false;
+            }
+            IncomingSwarmTrackIds.Add(SwarmTrack.Id);
+            UpdateTrack(SwarmTrack, false);
+        }
+        for (const FString& PreviousId : SwarmPresentationTrackIds)
+        {
+            if (!IncomingSwarmTrackIds.Contains(PreviousId))
+            {
+                if (TObjectPtr<AAegisTacticalTrackActor>* Actor = TrackActors.Find(PreviousId))
+                {
+                    if (Actor->Get() != nullptr)
+                    {
+                        (*Actor)->MarkAbsent();
+                    }
+                }
+            }
+        }
+        SwarmPresentationTrackIds = MoveTemp(IncomingSwarmTrackIds);
+    }
+    else if (!SwarmPresentationTrackIds.IsEmpty())
+    {
+        for (const FString& PreviousId : SwarmPresentationTrackIds)
+        {
+            if (TObjectPtr<AAegisTacticalTrackActor>* Actor = TrackActors.Find(PreviousId))
+            {
+                if (Actor->Get() != nullptr)
+                {
+                    (*Actor)->MarkAbsent();
+                }
+            }
+        }
+        SwarmPresentationTrackIds.Reset();
     }
 
     if (bTransitionedToIntercepted)
@@ -571,14 +632,15 @@ bool UTacticalTelemetryComponent::HandlePacket(const FString& Json)
     return true;
 }
 
-void UTacticalTelemetryComponent::UpdateTrack(const FTacticalTrackSnapshot& Snapshot)
+void UTacticalTelemetryComponent::UpdateTrack(
+    const FTacticalTrackSnapshot& Snapshot, const bool bUpdateCamera)
 {
     LatestSnapshotsByRole.Add(Snapshot.Role.ToLower(), Snapshot);
     if (AAegisTacticalTrackActor* Actor = GetOrCreateTrack(Snapshot))
     {
         Actor->ApplySnapshot(Snapshot);
     }
-    if (TacticalCamera != nullptr)
+    if (bUpdateCamera && TacticalCamera != nullptr)
     {
         TacticalCamera->SetTrackSnapshot(Snapshot);
     }

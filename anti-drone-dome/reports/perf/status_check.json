@@ -1,0 +1,62 @@
+{
+  "schema": "aegis.perf-baseline.v1",
+  "label": "full-run-check",
+  "generated_utc": "2026-08-04T14:32:43.289540+00:00",
+  "host": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 158 Stepping 13, GenuineIntel",
+    "python": "3.12.2",
+    "numpy": "2.4.6"
+  },
+  "host_normalization_us": 46.95605000597425,
+  "units": "microseconds per call unless noted",
+  "numpy_primitives_us": {
+    "np_clip_scalar": 7.864955000695772,
+    "python_clamp_scalar": 0.504860499931965,
+    "np_cross_3vec": 60.88935000007041,
+    "np_cross_1000x3": 85.67320002475753,
+    "np_norm_3vec": 3.9044000004651025,
+    "math_norm_3vec": 0.180207000230439,
+    "np_norm_1000rows": 46.95605000597425
+  },
+  "guidance_us": {
+    "compute_guidance": 635.531899984926,
+    "time_to_intercept": 122.26543999277055
+  },
+  "kalman_us": {
+    "kalman_step_update": 108.2566799945198,
+    "kalman_step_coast": 13.34373000136111
+  },
+  "assignment_us": {
+    "shape": [
+      20,
+      50
+    ],
+    "build_cost_matrix": 125412.49999776483,
+    "hungarian_assignment": 97848.46665570512,
+    "greedy_priority_assignment": 1154.524998855777,
+    "threat_priority_per_call": 12.980455000069924
+  },
+  "pybullet_us": {
+    "bodies": 70,
+    "step_simulation": 293.6960000079125,
+    "api_2calls_per_body_total": 389.78900003712624,
+    "per_api_roundtrip": 2.7842071431223303
+  },
+  "scenarios": {
+    "saturation_6v4": {
+      "threats": 6,
+      "interceptors": 4,
+      "wall_s": 1.2852857999969274,
+      "sim_s": 10.350000000000012,
+      "real_time_factor": 8.052683691070698
+    },
+    "overwhelm_8v3": {
+      "threats": 8,
+      "interceptors": 3,
+      "wall_s": 1.1636459000292234,
+      "sim_s": 8.249999999999982,
+      "real_time_factor": 7.089785646812999
+    }
+  }
+}

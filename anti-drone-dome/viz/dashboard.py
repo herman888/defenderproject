@@ -154,6 +154,14 @@ def _altitude_time_window(sim_time: float) -> tuple[float, float, list[tuple[flo
     return start, end, ticks
 
 
+def _evidence_status_label(profile_status: object, guidance_mode: object) -> str:
+    """Return a compact, conservative evidence label for the operator display."""
+    profile = str(profile_status or "design-placeholder").upper().replace("_", " ")
+    guidance = str(guidance_mode or "").upper()
+    controller = "EXPERIMENTAL" if "RESIDUAL" in guidance else "BASELINE"
+    return f"SYNTHETIC / {profile} / {controller}"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 class _FadingTrail:
     """Phosphor-decay PPI trail. Holds (x, y, t_birth) tuples and renders as a
@@ -337,6 +345,7 @@ class Dashboard(QtWidgets.QMainWindow):
         self._build_timeline(root)
         self._build_mission_panel(root)
         self._build_controls_row(root)
+        self._refresh_mission_brief()
 
         # Sweep / blink animation tied to a 60 Hz QTimer (independent of state push).
         self._anim_timer = QtCore.QTimer(self)
@@ -450,13 +459,15 @@ class Dashboard(QtWidgets.QMainWindow):
             button.clicked.connect(lambda _, mode=key: self._on_camera_view(mode))
             self._view_btns[key] = button
             video_header_layout.addWidget(button)
-        self._video = QtWidgets.QLabel("WAITING FOR MISSION TELEMETRY")
+        self._video = QtWidgets.QLabel()
         self._video.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self._video.setMinimumSize(560, 315)
         self._video.setStyleSheet(
             f"color: {C['textdim']}; background-color: #05090d; "
             "font-size: 11px; letter-spacing: 1px;"
         )
+        self._video.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        self._video.setWordWrap(True)
         self._video.setScaledContents(False)
         video_layout.addWidget(video_header)
         video_layout.addWidget(self._video, 1)
@@ -812,6 +823,7 @@ class Dashboard(QtWidgets.QMainWindow):
             f"color: {C['textdim']}; font-size: 8px; "
             f"font-family: 'DejaVu Sans Mono';")
         hint.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self._mission_brief = hint
         grid.addWidget(hint, 1, 10, 1, 3)
 
         # Row 2: swarm engagements (launch immediately, no pad/pattern needed)
@@ -1217,9 +1229,15 @@ class Dashboard(QtWidgets.QMainWindow):
         self._ctrl.pending_intruder = key
         for k, b in self._mission_btns.items():
             b.setChecked(k == key)
+        self._refresh_mission_brief()
 
     def _on_start(self):
         self._ctrl.selected_mission = self._ctrl.pending_intruder
+        self._video.setText(
+            "<span style='color:#4fa66a; font-size:16px; font-weight:700;'>"
+            "MISSION LAUNCH REQUESTED</span><br><br>"
+            "Loading physics, sensor fusion, and the 3-D tactical view…"
+        )
 
     def _on_swarm_select(self, scenario_id: str):
         # Launch a swarm engagement immediately (no pad/pattern/START needed).
@@ -1229,17 +1247,46 @@ class Dashboard(QtWidgets.QMainWindow):
         self._ctrl.selected_pattern = key
         for k, b in self._pattern_btns.items():
             b.setChecked(k == key)
+        self._refresh_mission_brief()
 
     def _on_speed_select(self, speed: float):
         self._ctrl.selected_speed = speed
         self._ctrl.runtime_speed = speed
         for s, b in self._speed_btns.items():
             b.setChecked(s == speed)
+        self._refresh_mission_brief()
 
     def _on_pad_select(self, key: str):
         self._ctrl.selected_pad = key
         for k, b in self._pad_btns.items():
             b.setChecked(k == key)
+        self._refresh_mission_brief()
+
+    def _refresh_mission_brief(self) -> None:
+        """Keep the standby view and launch summary tied to selected controls."""
+        intruder = dict(_INTRUDER_LABELS).get(
+            self._ctrl.pending_intruder, self._ctrl.pending_intruder.upper()
+        )
+        pattern = dict(_PATTERN_LABELS).get(
+            self._ctrl.selected_pattern, self._ctrl.selected_pattern.upper()
+        )
+        pad = dict(_PADS).get(self._ctrl.selected_pad, self._ctrl.selected_pad.upper())
+        speed = f"{self._ctrl.selected_speed:g}×"
+        self._mission_brief.setText(
+            "READY TO LAUNCH\n"
+            f"{intruder}  /  {pattern}\n{pad}  /  {speed}\n"
+            "Press START"
+        )
+        if not self._mission_active:
+            self._video.setText(
+                "<span style='color:#4fa66a; font-size:18px; font-weight:700;'>"
+                "MISSION READY</span><br><br>"
+                "<span style='color:#aebbc3;'>1&nbsp;&nbsp;SELECT A THREAT PROFILE</span><br>"
+                "<span style='color:#aebbc3;'>2&nbsp;&nbsp;SET ROUTE, LAUNCH RANGE, AND SIMULATION RATE</span><br>"
+                "<span style='color:#aebbc3;'>3&nbsp;&nbsp;PRESS START TO OPEN THE LIVE 3-D TACTICAL VIEW</span><br><br>"
+                "<span style='color:#7f8a91;'>The common operating picture, sensor fusion, "
+                "and camera controls activate with the mission.</span>"
+            )
 
     # ── State helpers ─────────────────────────────────────────────────────
     def _clear_trails(self):
@@ -1434,6 +1481,7 @@ class Dashboard(QtWidgets.QMainWindow):
             self._debrief_text.setVisible(False)
             self._mission_active = False
             self._mission_panel.setVisible(True)
+            self._refresh_mission_brief()
             return
         if msg_type == "debrief":
             self._show_debrief(sim_state)
@@ -1668,12 +1716,16 @@ class Dashboard(QtWidgets.QMainWindow):
             f"  WEATHER  {environment_name}\n"
             f"  WIND  {wind_speed:.1f}m/s      VIS  {visibility/1000:.1f}km"
         )
+        evidence_label = _evidence_status_label(
+            sim_state.get("interceptor_profile_evidence"), guidance_mode
+        )
         self._telem_recording.setText(
             "MISSION DATA\n"
             "  REC  ACTIVE      ACMI  STREAMING\n"
             f"  BUS  LOCAL IPC   MODEL  {guidance_mode}\n"
             f"  RENDER  {sim_state.get('render_backend', 'PYBULLET CPU PREVIEW')}\n"
             f"  COMPUTE  {sim_state.get('compute_backend', 'CLASSICAL APN / CPU')}\n"
+            f"  EVIDENCE  {evidence_label}\n"
             f"  MODE  {sim_state.get('hardware_mode', 'SIL')}  "
             f"PROFILE  {sim_state.get('hardware_profile', 'REFERENCE')}"
         )

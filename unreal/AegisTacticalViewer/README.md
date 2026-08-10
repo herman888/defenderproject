@@ -36,15 +36,9 @@ silhouette until a suitable attributed model is added. These are presentation
 assets rather than claims about a real aircraft or location. The telemetry,
 physics, and display-only safety boundary do not change.
 
-For the final art pass, add only free/verified-license Fab or Quixel content:
-
-1. A stylized or generic fixed-wing UAV mesh and a quadcopter mesh.
-2. A tiled sand/rock ground material plus a small rock and scrub set.
-3. Optional generic training-range props such as a radar mast, service road,
-   and non-identifying utility buildings.
-
-Keep textures at 2K and use scalable materials; this project is tuned for a
-GTX 1650 with 4 GB VRAM.
+The viewer is frozen at its current presentation quality. It must remain
+asset-independent, receive-only, and suitable for replaying validated local
+telemetry; new art, rendering, and content-pipeline work is deferred.
 
 ## One-click repeating demo
 
@@ -78,6 +72,26 @@ The packaged viewer also provides loopback-only training controls:
 Every live run records JSONL and ACMI evidence. Run
 `anti-drone-dome/scripts/launch_packaged_unreal_replay.ps1` to replay the most
 recent validated JSONL mission at 2x.
+
+### Creating a distributable viewer release
+
+The checked-in project is source; `unreal/builds/` is intentionally ignored and
+is not a distribution channel. Build a versioned Windows release ZIP and its
+SHA-256 manifest with:
+
+```powershell
+cd anti-drone-dome
+.\scripts\package_unreal_release.ps1 -Version 0.1.0
+```
+
+Upload the resulting ZIP and adjacent `.release.json` manifest to the chosen
+private release channel. Recipients should verify the ZIP hash before extracting
+it, then use the packaged replay script with a recorded JSONL mission. The
+viewer remains local, receive-only research telemetry; it is not a web service
+and should not be hosted on Vercel.
+
+Before packaging a release, run `anti-drone-dome/scripts/test_unreal_viewer.ps1`
+to produce and check the editor automation report.
 
 The default controller is adaptive APN: navigation gain, command speed,
 terminal blend, and target-acceleration compensation respond to the live

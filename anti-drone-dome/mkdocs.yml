@@ -70,12 +70,19 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Stakeholder briefing:
+      - Partner and investor brief: briefing/partner-investor-brief.md
+      - Presentation and diligence kit: briefing/presentation-kit.md
+      - Strategic reassessment pack: briefing/stakeholder-reassessment-pack.md
   - Getting started:
       - Installation: getting-started/installation.md
   - System:
       - Architecture: system/architecture.md
       - Implementation status: system/implementation-status.md
+      - Edge platform and integration: system/edge-platform-and-integration.md
       - Data contracts: system/data-contracts.md
+      - Parameter register: system/parameter-register.md
+      - Evidence-first roadmap: system/roadmap.md
   - Simulation:
       - Quick start: software/simulation.md
       - Scenarios, environments, and maps: simulation/scenarios.md
@@ -95,6 +102,8 @@ nav:
       - Regression campaign: validation/regression-campaign.md
       - Hardware readiness: validation/hardware-readiness.md
       - Current evidence: results/current-evidence.md
+      - Claims register: results/claims-register.md
+      - Verification matrix: validation/verification-matrix.md
   - Operations:
       - Mission recording and replay: operations/mission-recording.md
       - External renderers and clients: integration/external-renderers.md

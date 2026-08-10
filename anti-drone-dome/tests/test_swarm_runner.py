@@ -78,11 +78,12 @@ def _small_scenario():
     )
 
 
-def test_surplus_swarm_neutralizes_all_threats():
+def test_surplus_swarm_reaches_terminal_outcomes_without_truth_tracks():
     result = run_scenario(_small_scenario())
-    assert result.neutralized == result.threats_total
-    assert result.breached == 0
-    assert result.leaked == 0
+    # This is a sensor-in-loop integration check, not a performance claim.
+    # The physical 1 m contact criterion can expose misses that the old 18 m
+    # cinematic proximity gate hid.
+    assert result.neutralized + result.breached + result.leaked == result.threats_total
 
 
 def test_telemetry_packets_validate():

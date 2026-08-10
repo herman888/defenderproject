@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -34,20 +35,54 @@ def main() -> int:
         action="store_true",
         help="Send packets immediately while preserving their timestamps",
     )
+    parser.add_argument(
+        "--loop",
+        type=int,
+        default=1,
+        metavar="N",
+        help=(
+            "Replay the recording N times; 0 repeats indefinitely. A single "
+            "mission is only a few seconds of playback, so a continuous "
+            "display needs this (default: 1)"
+        ),
+    )
+    parser.add_argument(
+        "--loop-gap",
+        type=float,
+        default=1.5,
+        metavar="SECONDS",
+        help="Pause between repeats, so the final state is readable (default: 1.5)",
+    )
     args = parser.parse_args()
     if args.rate <= 0:
         parser.error("--rate must be positive")
+    if args.loop < 0:
+        parser.error("--loop must be zero or positive")
+
     try:
         endpoint = UdpEndpoint.parse(args.udp)
-        sent = replay_tactical_recording(
-            args.input,
-            endpoint,
-            rate=args.rate,
-            wait=not args.no_wait,
-        )
+        total = 0
+        passes = 0
+        while args.loop == 0 or passes < args.loop:
+            total += replay_tactical_recording(
+                args.input,
+                endpoint,
+                rate=args.rate,
+                wait=not args.no_wait,
+            )
+            passes += 1
+            if args.loop == 0 or passes < args.loop:
+                time.sleep(max(args.loop_gap, 0.0))
+    except KeyboardInterrupt:
+        print(f"\nStopped after {passes} pass(es), {total} packets.")
+        return 0
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
-    print(f"Replayed {sent} validated tactical packets to {args.udp}")
+
+    print(
+        f"Replayed {total} validated tactical packets to {args.udp} "
+        f"over {passes} pass(es)"
+    )
     return 0
 
 

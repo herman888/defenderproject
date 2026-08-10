@@ -19,6 +19,7 @@ function Stop-AegisReplayHelpers {
 if (!(Test-Path -LiteralPath $python) -or !(Test-Path -LiteralPath $viewer)) {
     throw 'Python environment or packaged viewer was not found.'
 }
+New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 $recording = Get-ChildItem -LiteralPath $recordingRoot -Filter 'unreal-demo*.jsonl' |
     Sort-Object LastWriteTime -Descending |
     Select-Object -First 1
@@ -37,10 +38,21 @@ Start-Process -FilePath $python -ArgumentList @(
 Start-Process -FilePath $viewer -WorkingDirectory (Split-Path $viewer)
 Start-Sleep -Seconds 4
 Start-Process -FilePath $python -ArgumentList @(
-    'scripts\replay_tactical_stream.py', '--input', $recording.FullName,
-    '--udp', '127.0.0.1:8787', '--rate', '2'
+    # The recording path MUST be quoted. Passed bare, any directory containing
+    # a space - "...\Side Projects\..." here - splits into separate arguments
+    # and replay_tactical_stream.py dies with "unrecognized arguments" before
+    # sending a single packet, leaving the viewer stuck on
+    # "WAITING FOR LOCAL TELEMETRY" with no obvious cause.
+    'scripts\replay_tactical_stream.py',
+    "--input=`"$($recording.FullName)`"",
+    # A 0.5x replay gives the range-observer camera enough time to show real
+    # world-space transit and makes the engagement intelligible at a glance.
+    '--udp', '127.0.0.1:8787', '--rate', '0.5',
+    # One mission is only a few seconds of playback; loop so the display stays
+    # live instead of going stale a moment after launch.
+    '--loop', '0'
 ) -WorkingDirectory $demoRoot -WindowStyle Hidden `
     -RedirectStandardOutput (Join-Path $logRoot 'unreal-replay.log') `
     -RedirectStandardError (Join-Path $logRoot 'unreal-replay.error.log')
 
-Write-Host "Replaying $($recording.Name) at 2x in the packaged viewer."
+Write-Host "Replaying $($recording.Name) at 0.5x in the packaged viewer."

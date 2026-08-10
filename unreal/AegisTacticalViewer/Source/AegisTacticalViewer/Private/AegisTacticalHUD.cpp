@@ -212,8 +212,11 @@ void AAegisTacticalHUD::DrawHUD()
             && ScreenPosition.Y > 28.0f && ScreenPosition.Y < ScreenH - 28.0f;
         if (bOnScreen)
         {
-            constexpr float BoxSize = 30.0f;
-            constexpr float BracketSize = BoxSize * 0.3f;
+            // In the default clean replay view the physical aircraft is the
+            // subject. Keep the telemetry gate compact so it identifies the
+            // validated track without obscuring the model beneath it.
+            const float BoxSize = bCleanCinematicMode ? 16.0f : 30.0f;
+            const float BracketSize = BoxSize * 0.3f;
             DrawCornerBracket(ScreenPosition.X - BoxSize, ScreenPosition.Y - BoxSize, 1.0f, 1.0f, BracketSize, Color, 1.7f);
             DrawCornerBracket(ScreenPosition.X + BoxSize, ScreenPosition.Y - BoxSize, -1.0f, 1.0f, BracketSize, Color, 1.7f);
             DrawCornerBracket(ScreenPosition.X + BoxSize, ScreenPosition.Y + BoxSize, -1.0f, -1.0f, BracketSize, Color, 1.7f);

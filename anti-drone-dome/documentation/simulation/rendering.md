@@ -21,7 +21,7 @@ platform's own label where it would obscure the model.
 |---|---|
 | `opengl` | Preferred accelerated tactical camera |
 | `tiny` | CPU compatibility and deterministic headless preview |
-| Unreal/Cesium client | Future production-grade geospatial presentation |
+| Unreal viewer | Packaged local Windows presentation client; Cesium remains a future geospatial option |
 
 OpenGL improved tactical-frame throughput on the tested Quadro T2000, but it
 does not move PyBullet physics to the GPU. CUDA applies only to PyTorch-backed

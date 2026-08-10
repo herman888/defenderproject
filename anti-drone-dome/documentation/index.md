@@ -6,6 +6,11 @@ This site is the living technical record for the AEGIS counter-UAS research
 stack: simulation, sensor fusion, guidance, machine learning, validation,
 hardware integration, Betaflight firmware, and YOLO detection.
 
+!!! note "For investors and technical partners"
+    Start with the [stakeholder brief](briefing/partner-investor-brief.md),
+    then use the [presentation and diligence kit](briefing/presentation-kit.md)
+    to review the evidence, limitations, and next validation gate.
+
 !!! info "Real implementation versus roadmap"
     The [implementation status](system/implementation-status.md) identifies
     running code, verified evidence, environment-dependent features, and future

@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from ml.controllers import APNController
 from ml.stress_scenarios import load_campaign
 from scripts.benchmark_controllers import run_episode
+from scripts.run_regression_campaign import run_campaign
 from validation.failure_analysis import analyze_campaign, classify_episode
 
 
@@ -52,6 +53,22 @@ def test_campaign_rejects_duplicate_scenario_ids(tmp_path):
     path.write_text(json.dumps(data), encoding="utf-8")
     with pytest.raises(ValueError, match="unique"):
         load_campaign(str(path))
+
+
+def test_campaign_runner_uses_stable_case_seed_schedule():
+    campaign = load_campaign(CATALOG)
+    episodes = run_campaign(
+        campaign,
+        terminal_law="pd",
+        seed=77,
+        repeats=1,
+    )
+    assert [episode["scenario_id"] for episode in episodes] == [
+        case.case_id for case in campaign["cases"]
+    ]
+    assert [episode["seed"] for episode in episodes] == [
+        77 + index * 10000 for index, _ in enumerate(campaign["cases"])
+    ]
 
 
 def test_failure_analysis_reports_correlations_without_causal_claim():

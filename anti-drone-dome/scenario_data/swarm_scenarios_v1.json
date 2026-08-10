@@ -8,7 +8,7 @@
       "protected_center_enu_m": [0.0, 0.0, 0.0],
       "duration_limit_s": 90.0,
       "breach_radius_m": 12.0,
-      "intercept_radius_m": 18.0,
+      "intercept_radius_m": 1.0,
       "coordinator": {
         "id": "coordinator-01",
         "start_enu_m": [0.0, -110.0, 150.0],
@@ -48,7 +48,7 @@
       "protected_center_enu_m": [0.0, 0.0, 0.0],
       "duration_limit_s": 90.0,
       "breach_radius_m": 12.0,
-      "intercept_radius_m": 18.0,
+      "intercept_radius_m": 1.0,
       "coordinator": {
         "id": "coordinator-01",
         "start_enu_m": [0.0, -120.0, 160.0],

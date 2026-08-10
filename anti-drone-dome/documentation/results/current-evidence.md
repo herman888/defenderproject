@@ -4,17 +4,18 @@
 
 | Area | Evidence |
 |---|---|
-| Tests | 167 tests passed (`venv312\Scripts\python.exe -m pytest -q` from `anti-drone-dome/`) |
+| Tests | The headless suite passes locally; CI publishes the exact current count as a JUnit artifact |
 | Live mission | OpenGL tactical mission intercepted at approximately T+15.7 s |
 | Visual dynamics | Timestamped frames changed 14.5% then 25.6% |
 | Stress campaign | 380/800 APN synthetic interceptions across eight cases (47.5%), 1 of 8 gates passed |
 | Campaign confidence | Wilson 95% lower bound per case ranges 6.3% (`compound-edge`) to 96.3% (`terrain-mask-low`) |
 | Contact criterion | 1.0 m physical contact radius, replacing an inherited 18 m proximity gate |
-| ML comparison | PPO preserved interception but did not outperform APN |
+| ML comparison | Archived PPO comparison used the former broad proximity criterion and is not current controller evidence |
 | Recording | Raw camera arrays removed from JSONL telemetry |
 | External renderer | Georeferenced `aegis.tactical.v1` validation, JSONL capture, and exact UDP replay implemented |
 | Fidelity smoke | Profile-driven 200 kg representative Shahed intercepted at T+60.6 s in a headless 8x mission |
 | Companion contract | 10,000 read-only perception packets serialized at 41,274/s on the AMD64 development host |
+| Swarm sensing | Synthetic multi-target radar with anonymous-track association replaces swarm ground-truth inputs; calibration remains outstanding |
 
 ## Environment-specific findings
 
@@ -48,6 +49,6 @@ per-scenario curve and the gate status.
 - hardware-in-loop command latency and loss behavior
 - Betaflight actuation
 - outdoor safety and regulatory approvals
-- photorealistic Unreal/Cesium client
+- Cesium geospatial integration (the local packaged Unreal viewer is available)
 
 The project is a capable lab validation platform, not a certified field system.

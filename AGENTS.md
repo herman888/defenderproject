@@ -92,10 +92,16 @@ pipelines to it.
 - **Never commit secrets.** `anti-drone-dome/.env` is gitignored and must stay
   that way.
 
-## Known open defects
+## Known constraints
 
-See `docs-internal/PROGRAM_PLAN.md` §2. The most important: the swarm path
-currently feeds **ground-truth** target state into the coordinator
-(`main.py:2095-2100`, `swarm/runner.py:135-138`), because `RadarNode` is
-structurally single-target. **No swarm performance claim belongs in any document
-until that is fixed.**
+See the program plan's credibility section. The swarm paths now use
+`sensors/radar_batch.py:MultiTargetRadar`: scenario state is used only to create
+noisy measurements, and the coordinator receives anonymous, Mahalanobis-gated
+sensor tracks. Target type and threat priority are deliberately `unclassified` /
+`MEDIUM` until a real classification path exists.
+
+That removes the previous ground-truth injection, but it does **not** validate
+swarm performance: the radar budget, measurement covariance, airframe profiles,
+and contact geometry remain synthetic or placeholder evidence. Do not make a
+field-performance claim from swarm results until a calibrated sensor-in-loop
+campaign is published.

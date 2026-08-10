@@ -26,6 +26,8 @@ from guidance.setpoint import ned_to_enu  # noqa: E402
 from scenarios import INTRUDER_TYPES  # noqa: E402
 from sim.airframe_profiles import get_airframe_profile  # noqa: E402
 from sim.flight_envelope import FlightEnvelope, limit_acceleration  # noqa: E402
+from sim.seeding import SeedBundle  # noqa: E402
+from sensors.radar_batch import MultiTargetRadar  # noqa: E402
 from swarm.coordinator import SwarmCoordinator  # noqa: E402
 from swarm.rf_link import RfLinkModel  # noqa: E402
 from swarm.scenario import SwarmScenario, get_swarm_scenario  # noqa: E402
@@ -131,11 +133,12 @@ class SwarmRunResult:
         }
 
 
-def _guide(guidance, interceptor: _Interceptor, threat: _Threat) -> np.ndarray:
+def _guide(guidance, interceptor: _Interceptor, target_track: dict) -> np.ndarray:
+    """Guide against a sensor track, never the scenario's true threat state."""
     track = {
         "detected": True,
-        "position_estimate": threat.position.tolist(),
-        "velocity": threat.velocity.tolist(),
+        "position_estimate": target_track["position_estimate"],
+        "velocity": target_track.get("velocity", (0.0, 0.0, 0.0)),
     }
     setpoint = guidance.compute_guidance(
         {"position": interceptor.position.tolist(),
@@ -172,6 +175,19 @@ def run_scenario(
 
     interceptors = [_Interceptor(spec) for spec in scenario.interceptors]
     threats = [_Threat(spec, center) for spec in scenario.threats]
+    seeds = SeedBundle.for_mission("swarm", scenario.scenario_id, seed=seed)
+    # Ground truth below is allowed only inside this sensor model to generate
+    # measurements.  The coordinator and guidance path consume its anonymous,
+    # noisy tracks, not scenario threat IDs or true state.
+    radar = MultiTargetRadar(
+        station_pos=(center[0], center[1], center[2] + 3.0),
+        max_range=1500.0,
+        noise_std=1.5,
+        confirmation_hits=3,
+        max_misses=10,
+        dt=_DT,
+        seed=seeds.child_seed("radar"),
+    )
 
     max_time_s = float(max_time_s or scenario.duration_limit_s)
     intercept_r = scenario.intercept_radius_m
@@ -188,10 +204,24 @@ def run_scenario(
         if not active_threats or not active_interceptors:
             break
 
+        sensor_tracks = radar.scan([
+            {
+                "position": threat.position,
+                "rcs_m2": INTRUDER_TYPES.get(threat.type, {}).get("rcs", 0.01),
+            }
+            for threat in active_threats
+        ], timestamp_s=t)
+        # Classification and priority are deliberately conservative until a
+        # real classifier is in the loop.  Propagating scenario type/priority
+        # would simply reintroduce truth through metadata.
+        for track in sensor_tracks:
+            track["type"] = "unclassified"
+            track["threat_level"] = "MEDIUM"
+
         plan = coordinator.plan(
             coord_state,
             [it.state_dict() for it in active_interceptors],
-            [th.track_dict() for th in active_threats],
+            sensor_tracks,
             t,
         )
 
@@ -201,10 +231,10 @@ def run_scenario(
                 retasking_events += 1
             prev_states[iid] = order.state
 
-        threat_by_id = {th.id: th for th in active_threats}
+        track_by_id = {track["id"]: track for track in sensor_tracks}
         for interceptor in active_interceptors:
             order = plan.orders.get(interceptor.id)
-            target = threat_by_id.get(order.assigned_threat_id) if order else None
+            target = track_by_id.get(order.assigned_threat_id) if order else None
             if target is not None:
                 cmd = _guide(guidance, interceptor, target)
             else:

@@ -1,0 +1,3766 @@
+{
+  "schema": "aegis.regression-report.v1",
+  "created_at_utc": "2026-08-06T17:39:10.376912+00:00",
+  "campaign_id": "cuas-operational-stress-v1",
+  "campaign_schema": "aegis.regression-campaign.v1",
+  "controller": "APN",
+  "seed_start": 1000,
+  "repeats_per_case": 10,
+  "total_episodes": 80,
+  "analysis": {
+    "scenario_results": [
+      {
+        "scenario_id": "compound-edge",
+        "label": "Compound maximum-stress edge case",
+        "tags": [
+          "compound",
+          "high-wind",
+          "sensor-degraded",
+          "evasive"
+        ],
+        "episodes": 10,
+        "intercept_rate": 0.0,
+        "intercept_rate_wilson_95": [
+          0.0,
+          0.2775327998628892
+        ],
+        "duration_p95_s": 120.0,
+        "energy_p95": 30.345933170214167,
+        "mean_action_saturation_fraction": 0.021249999999999998,
+        "outcomes": {
+          "timeout": 10
+        },
+        "gates": [
+          {
+            "id": "intercept-rate-wilson-lower-95",
+            "passed": false,
+            "actual": 0.0,
+            "limit": 0.7,
+            "operator": ">="
+          },
+          {
+            "id": "duration-p95",
+            "passed": false,
+            "actual": 120.0,
+            "limit": 55.0,
+            "operator": "<="
+          },
+          {
+            "id": "energy-p95",
+            "passed": false,
+            "actual": 30.345933170214167,
+            "limit": 12.0,
+            "operator": "<="
+          },
+          {
+            "id": "action-saturation",
+            "passed": true,
+            "actual": 0.021249999999999998,
+            "limit": 0.4,
+            "operator": "<="
+          }
+        ],
+        "passed": false,
+        "performance_limit_utilization": 2.528827764184514
+      },
+      {
+        "scenario_id": "spiral-noisy",
+        "label": "Noisy spiral approach",
+        "tags": [
+          "spiral",
+          "sensor-degraded"
+        ],
+        "episodes": 10,
+        "intercept_rate": 0.2,
+        "intercept_rate_wilson_95": [
+          0.05668215145437519,
+          0.5098375284633583
+        ],
+        "duration_p95_s": 120.0,
+        "energy_p95": 32.97327920490559,
+        "mean_action_saturation_fraction": 0.032186789498301914,
+        "outcomes": {
+          "intercepted": 2,
+          "timeout": 8
+        },
+        "gates": [
+          {
+            "id": "intercept-rate-wilson-lower-95",
+            "passed": false,
+            "actual": 0.05668215145437519,
+            "limit": 0.8,
+            "operator": ">="
+          },
+          {
+            "id": "duration-p95",
+            "passed": false,
+            "actual": 120.0,
+            "limit": 35.0,
+            "operator": "<="
+          },
+          {
+            "id": "energy-p95",
+            "passed": false,
+            "actual": 32.97327920490559,
+            "limit": 8.0,
+            "operator": "<="
+          },
+          {
+            "id": "action-saturation",
+            "passed": true,
+            "actual": 0.032186789498301914,
+            "limit": 0.3,
+            "operator": "<="
+          }
+        ],
+        "passed": false,
+        "performance_limit_utilization": 4.121659900613198
+      },
+      {
+        "scenario_id": "remote-launch",
+        "label": "Remote interceptor launch point",
+        "tags": [
+          "geometry",
+          "remote-launch"
+        ],
+        "episodes": 10,
+        "intercept_rate": 0.2,
+        "intercept_rate_wilson_95": [
+          0.05668215145437519,
+          0.5098375284633583
+        ],
+        "duration_p95_s": 27.200000000000003,
+        "energy_p95": 10.739648116667341,
+        "mean_action_saturation_fraction": 0.1696435740133611,
+        "outcomes": {
+          "breach": 8,
+          "intercepted": 2
+        },
+        "gates": [
+          {
+            "id": "intercept-rate-wilson-lower-95",
+            "passed": false,
+            "actual": 0.05668215145437519,
+            "limit": 0.95,
+            "operator": ">="
+          },
+          {
+            "id": "duration-p95",
+            "passed": true,
+            "actual": 27.200000000000003,
+            "limit": 48.0,
+            "operator": "<="
+          },
+          {
+            "id": "energy-p95",
+            "passed": false,
+            "actual": 10.739648116667341,
+            "limit": 8.0,
+            "operator": "<="
+          },
+          {
+            "id": "action-saturation",
+            "passed": true,
+            "actual": 0.1696435740133611,
+            "limit": 0.3,
+            "operator": "<="
+          }
+        ],
+        "passed": false,
+        "performance_limit_utilization": 1.3424560145834177
+      },
+      {
+        "scenario_id": "degraded-track",
+        "label": "Intermittent degraded sensor track",
+        "tags": [
+          "sensor-degraded",
+          "dropout",
+          "latency"
+        ],
+        "episodes": 10,
+        "intercept_rate": 0.3,
+        "intercept_rate_wilson_95": [
+          0.10779126740630099,
+          0.6032218525388546
+        ],
+        "duration_p95_s": 61.755,
+        "energy_p95": 19.785031177186326,
+        "mean_action_saturation_fraction": 0.12713333639732968,
+        "outcomes": {
+          "breach": 7,
+          "intercepted": 3
+        },
+        "gates": [
+          {
+            "id": "intercept-rate-wilson-lower-95",
+            "passed": false,
+            "actual": 0.10779126740630099,
+            "limit": 0.8,
+            "operator": ">="
+          },
+          {
+            "id": "duration-p95",
+            "passed": false,
+            "actual": 61.755,
+            "limit": 35.0,
+            "operator": "<="
+          },
+          {
+            "id": "energy-p95",
+            "passed": false,
+            "actual": 19.785031177186326,
+            "limit": 8.0,
+            "operator": "<="
+          },
+          {
+            "id": "action-saturation",
+            "passed": true,
+            "actual": 0.12713333639732968,
+            "limit": 0.3,
+            "operator": "<="
+          }
+        ],
+        "passed": false,
+        "performance_limit_utilization": 2.4731288971482908
+      },
+      {
+        "scenario_id": "agile-pop-up",
+        "label": "Agile pop-up attack",
+        "tags": [
+          "pop-up",
+          "evasive"
+        ],
+        "episodes": 10,
+        "intercept_rate": 0.3,
+        "intercept_rate_wilson_95": [
+          0.10779126740630099,
+          0.6032218525388546
+        ],
+        "duration_p95_s": 35.620000000000005,
+        "energy_p95": 15.234446387104006,
+        "mean_action_saturation_fraction": 0.22599536786728014,
+        "outcomes": {
+          "intercepted": 3,
+          "breach": 7
+        },
+        "gates": [
+          {
+            "id": "intercept-rate-wilson-lower-95",
+            "passed": false,
+            "actual": 0.10779126740630099,
+            "limit": 0.85,
+            "operator": ">="
+          },
+          {
+            "id": "duration-p95",
+            "passed": false,
+            "actual": 35.620000000000005,
+            "limit": 35.0,
+            "operator": "<="
+          },
+          {
+            "id": "energy-p95",
+            "passed": false,
+            "actual": 15.234446387104006,
+            "limit": 8.0,
+            "operator": "<="
+          },
+          {
+            "id": "action-saturation",
+            "passed": true,
+            "actual": 0.22599536786728014,
+            "limit": 0.3,
+            "operator": "<="
+          }
+        ],
+        "passed": false,
+        "performance_limit_utilization": 1.9043057983880007
+      },
+      {
+        "scenario_id": "crosswind-crossing",
+        "label": "High-crosswind crossing target",
+        "tags": [
+          "crossing",
+          "high-wind"
+        ],
+        "episodes": 10,
+        "intercept_rate": 1.0,
+        "intercept_rate_wilson_95": [
+          0.7224672001371107,
+          0.9999999999999999
+        ],
+        "duration_p95_s": 45.727500000000006,
+        "energy_p95": 14.53297257867531,
+        "mean_action_saturation_fraction": 0.18135298513777848,
+        "outcomes": {
+          "intercepted": 10
+        },
+        "gates": [
+          {
+            "id": "intercept-rate-wilson-lower-95",
+            "passed": false,
+            "actual": 0.7224672001371107,
+            "limit": 0.95,
+            "operator": ">="
+          },
+          {
+            "id": "duration-p95",
+            "passed": false,
+            "actual": 45.727500000000006,
+            "limit": 35.0,
+            "operator": "<="
+          },
+          {
+            "id": "energy-p95",
+            "passed": false,
+            "actual": 14.53297257867531,
+            "limit": 8.0,
+            "operator": "<="
+          },
+          {
+            "id": "action-saturation",
+            "passed": true,
+            "actual": 0.18135298513777848,
+            "limit": 0.3,
+            "operator": "<="
+          }
+        ],
+        "passed": false,
+        "performance_limit_utilization": 1.8166215723344137
+      },
+      {
+        "scenario_id": "terrain-mask-low",
+        "label": "Low-altitude terrain-mask approach",
+        "tags": [
+          "low-altitude",
+          "terrain-mask"
+        ],
+        "episodes": 10,
+        "intercept_rate": 1.0,
+        "intercept_rate_wilson_95": [
+          0.7224672001371107,
+          0.9999999999999999
+        ],
+        "duration_p95_s": 17.842499999999998,
+        "energy_p95": 4.449889254811206,
+        "mean_action_saturation_fraction": 0.05167012800340713,
+        "outcomes": {
+          "intercepted": 10
+        },
+        "gates": [
+          {
+            "id": "intercept-rate-wilson-lower-95",
+            "passed": false,
+            "actual": 0.7224672001371107,
+            "limit": 0.95,
+            "operator": ">="
+          },
+          {
+            "id": "duration-p95",
+            "passed": true,
+            "actual": 17.842499999999998,
+            "limit": 35.0,
+            "operator": "<="
+          },
+          {
+            "id": "energy-p95",
+            "passed": true,
+            "actual": 4.449889254811206,
+            "limit": 8.0,
+            "operator": "<="
+          },
+          {
+            "id": "action-saturation",
+            "passed": true,
+            "actual": 0.05167012800340713,
+            "limit": 0.3,
+            "operator": "<="
+          }
+        ],
+        "passed": false,
+        "performance_limit_utilization": 0.5562361568514007
+      },
+      {
+        "scenario_id": "baseline-direct",
+        "label": "Baseline direct approach",
+        "tags": [
+          "baseline",
+          "clear"
+        ],
+        "episodes": 10,
+        "intercept_rate": 1.0,
+        "intercept_rate_wilson_95": [
+          0.7224672001371107,
+          0.9999999999999999
+        ],
+        "duration_p95_s": 9.255,
+        "energy_p95": 2.69146573063848,
+        "mean_action_saturation_fraction": 0.06376908706369487,
+        "outcomes": {
+          "intercepted": 10
+        },
+        "gates": [
+          {
+            "id": "intercept-rate-wilson-lower-95",
+            "passed": false,
+            "actual": 0.7224672001371107,
+            "limit": 0.95,
+            "operator": ">="
+          },
+          {
+            "id": "duration-p95",
+            "passed": true,
+            "actual": 9.255,
+            "limit": 35.0,
+            "operator": "<="
+          },
+          {
+            "id": "energy-p95",
+            "passed": true,
+            "actual": 2.69146573063848,
+            "limit": 8.0,
+            "operator": "<="
+          },
+          {
+            "id": "action-saturation",
+            "passed": true,
+            "actual": 0.06376908706369487,
+            "limit": 0.3,
+            "operator": "<="
+          }
+        ],
+        "passed": false,
+        "performance_limit_utilization": 0.33643321632981
+      }
+    ],
+    "stress_factor_summary": [
+      {
+        "factor": "control_saturation",
+        "episodes": 1,
+        "failures": 1,
+        "failure_rate": 1.0,
+        "outcomes": {
+          "breach": 1
+        }
+      },
+      {
+        "factor": "agile_target",
+        "episodes": 20,
+        "failures": 17,
+        "failure_rate": 0.85,
+        "outcomes": {
+          "intercepted": 3,
+          "breach": 7,
+          "timeout": 10
+        }
+      },
+      {
+        "factor": "high_measurement_noise",
+        "episodes": 30,
+        "failures": 25,
+        "failure_rate": 0.8333333333333334,
+        "outcomes": {
+          "breach": 7,
+          "intercepted": 5,
+          "timeout": 18
+        }
+      },
+      {
+        "factor": "high_sensor_dropout",
+        "episodes": 30,
+        "failures": 25,
+        "failure_rate": 0.8333333333333334,
+        "outcomes": {
+          "breach": 7,
+          "intercepted": 5,
+          "timeout": 18
+        }
+      },
+      {
+        "factor": "high_sensor_latency",
+        "episodes": 30,
+        "failures": 25,
+        "failure_rate": 0.8333333333333334,
+        "outcomes": {
+          "breach": 7,
+          "intercepted": 5,
+          "timeout": 18
+        }
+      },
+      {
+        "factor": "high_wind",
+        "episodes": 20,
+        "failures": 10,
+        "failure_rate": 0.5,
+        "outcomes": {
+          "intercepted": 10,
+          "timeout": 10
+        }
+      },
+      {
+        "factor": "slow_actuator",
+        "episodes": 16,
+        "failures": 6,
+        "failure_rate": 0.375,
+        "outcomes": {
+          "intercepted": 10,
+          "breach": 3,
+          "timeout": 3
+        }
+      },
+      {
+        "factor": "high_mass",
+        "episodes": 11,
+        "failures": 3,
+        "failure_rate": 0.2727272727272727,
+        "outcomes": {
+          "intercepted": 8,
+          "breach": 2,
+          "timeout": 1
+        }
+      }
+    ],
+    "failed_scenarios": [
+      "compound-edge",
+      "spiral-noisy",
+      "remote-launch",
+      "degraded-track",
+      "agile-pop-up",
+      "crosswind-crossing",
+      "terrain-mask-low",
+      "baseline-direct"
+    ],
+    "performance_watchlist": [
+      {
+        "scenario_id": "spiral-noisy",
+        "performance_limit_utilization": 4.121659900613198,
+        "duration_p95_s": 120.0,
+        "energy_p95": 32.97327920490559
+      },
+      {
+        "scenario_id": "compound-edge",
+        "performance_limit_utilization": 2.528827764184514,
+        "duration_p95_s": 120.0,
+        "energy_p95": 30.345933170214167
+      },
+      {
+        "scenario_id": "degraded-track",
+        "performance_limit_utilization": 2.4731288971482908,
+        "duration_p95_s": 61.755,
+        "energy_p95": 19.785031177186326
+      }
+    ],
+    "release_ready": false,
+    "interpretation": "Stress factors are measured correlations and do not prove root cause."
+  },
+  "episodes": [
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 1000,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 8.15,
+      "minimum_separation_m": 0.9495776891708374,
+      "energy_used": 2.4484837840433076,
+      "battery_remaining": 0.9766811068186354,
+      "reward": 184.9109090829466,
+      "scenario_id": "baseline-direct",
+      "sensor_latency_s": 0.03,
+      "sensor_dropout_probability": 0.01,
+      "radar_noise_std_m": 0.5,
+      "evasion_mps": 0.0,
+      "wind_speed_mps": 1.1180340051651,
+      "mass_factor": 1.044195867329277,
+      "actuator_time_constant_s": 0.23699888022164567,
+      "maximum_sensor_age_s": 0.1,
+      "mean_track_confidence": 0.5381686080519746,
+      "final_intruder_radius_m": 470.7627868652344,
+      "mean_controller_action_norm": 0.3065270592881355,
+      "action_saturation_fraction": 0.13496932515337423,
+      "mean_applied_acceleration_mps2": 22.104958696507968,
+      "case_label": "Baseline direct approach",
+      "case_tags": [
+        "baseline",
+        "clear"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 1001,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 8.3,
+      "minimum_separation_m": 0.7011288404464722,
+      "energy_used": 2.3295838920846528,
+      "battery_remaining": 0.9778134867420513,
+      "reward": 184.91288796133654,
+      "scenario_id": "baseline-direct",
+      "sensor_latency_s": 0.03,
+      "sensor_dropout_probability": 0.01,
+      "radar_noise_std_m": 0.5,
+      "evasion_mps": 0.0,
+      "wind_speed_mps": 1.1180340051651,
+      "mass_factor": 1.083415819285079,
+      "actuator_time_constant_s": 0.0840821216332862,
+      "maximum_sensor_age_s": 0.1,
+      "mean_track_confidence": 0.5376838128009956,
+      "final_intruder_radius_m": 463.36572265625,
+      "mean_controller_action_norm": 0.26627277195767823,
+      "action_saturation_fraction": 0.04819277108433735,
+      "mean_applied_acceleration_mps2": 21.24660245409931,
+      "case_label": "Baseline direct approach",
+      "case_tags": [
+        "baseline",
+        "clear"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 1002,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 8.4,
+      "minimum_separation_m": 0.6140166521072388,
+      "energy_used": 2.4081868791633347,
+      "battery_remaining": 0.9770648868651115,
+      "reward": 184.89688300094576,
+      "scenario_id": "baseline-direct",
+      "sensor_latency_s": 0.03,
+      "sensor_dropout_probability": 0.01,
+      "radar_noise_std_m": 0.5,
+      "evasion_mps": 0.0,
+      "wind_speed_mps": 1.1180340051651,
+      "mass_factor": 0.9837530985777398,
+      "actuator_time_constant_s": 0.1728692277944462,
+      "maximum_sensor_age_s": 0.1,
+      "mean_track_confidence": 0.5427661153691761,
+      "final_intruder_radius_m": 458.43414306640625,
+      "mean_controller_action_norm": 0.2785319343550197,
+      "action_saturation_fraction": 0.05357142857142857,
+      "mean_applied_acceleration_mps2": 23.293737109484418,
+      "case_label": "Baseline direct approach",
+      "case_tags": [
+        "baseline",
+        "clear"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 1003,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 8.5,
+      "minimum_separation_m": 0.8028486967086792,
+      "energy_used": 2.3003792077316643,
+      "battery_remaining": 0.9780916265930311,
+      "reward": 184.86446825677154,
+      "scenario_id": "baseline-direct",
+      "sensor_latency_s": 0.03,
+      "sensor_dropout_probability": 0.01,
+      "radar_noise_std_m": 0.5,
+      "evasion_mps": 0.0,
+      "wind_speed_mps": 1.1180340051651,
+      "mass_factor": 0.9007356683555124,
+      "actuator_time_constant_s": 0.14674351065689373,
+      "maximum_sensor_age_s": 0.1,
+      "mean_track_confidence": 0.5443448117601941,
+      "final_intruder_radius_m": 453.5023193359375,
+      "mean_controller_action_norm": 0.2458143785212408,
+      "action_saturation_fraction": 0.047058823529411764,
+      "mean_applied_acceleration_mps2": 22.885413447723668,
+      "case_label": "Baseline direct approach",
+      "case_tags": [
+        "baseline",
+        "clear"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 1004,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 8.55,
+      "minimum_separation_m": 0.9491193890571594,
+      "energy_used": 2.173561162610709,
+      "battery_remaining": 0.9792994174989454,
+      "reward": 184.84745027024388,
+      "scenario_id": "baseline-direct",
+      "sensor_latency_s": 0.03,
+      "sensor_dropout_probability": 0.01,
+      "radar_noise_std_m": 0.5,
+      "evasion_mps": 0.0,
+      "wind_speed_mps": 1.1180340051651,
+      "mass_factor": 0.8203785946785075,
+      "actuator_time_constant_s": 0.11383934115318417,
+      "maximum_sensor_age_s": 0.1,
+      "mean_track_confidence": 0.5422593095274859,
+      "final_intruder_radius_m": 451.0363464355469,
+      "mean_controller_action_norm": 0.21236507826531034,
+      "action_saturation_fraction": 0.03508771929824561,
+      "mean_applied_acceleration_mps2": 22.128379603575546,
+      "case_label": "Baseline direct approach",
+      "case_tags": [
+        "baseline",
+        "clear"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 1005,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 9.3,
+      "minimum_separation_m": 0.9052855968475342,
+      "energy_used": 2.7097125884369593,
+      "battery_remaining": 0.974193213443457,
+      "reward": 184.66966456391532,
+      "scenario_id": "baseline-direct",
+      "sensor_latency_s": 0.03,
+      "sensor_dropout_probability": 0.01,
+      "radar_noise_std_m": 0.5,
+      "evasion_mps": 0.0,
+      "wind_speed_mps": 1.1180340051651,
+      "mass_factor": 0.8553542444191944,
+      "actuator_time_constant_s": 0.3219461310210369,
+      "maximum_sensor_age_s": 0.1,
+      "mean_track_confidence": 0.5578756826446656,
+      "final_intruder_radius_m": 414.0380554199219,
+      "mean_controller_action_norm": 0.28806438969300496,
+      "action_saturation_fraction": 0.07526881720430108,
+      "mean_applied_acceleration_mps2": 25.16053128074254,
+      "case_label": "Baseline direct approach",
+      "case_tags": [
+        "baseline",
+        "clear"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 1006,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 8.35,
+      "minimum_separation_m": 0.9318529963493347,
+      "energy_used": 2.4687960852664093,
+      "battery_remaining": 0.976487656330796,
+      "reward": 184.87146281415536,
+      "scenario_id": "baseline-direct",
+      "sensor_latency_s": 0.03,
+      "sensor_dropout_probability": 0.01,
+      "radar_noise_std_m": 0.5,
+      "evasion_mps": 0.0,
+      "wind_speed_mps": 1.1180340051651,
+      "mass_factor": 0.9648762164363145,
+      "actuator_time_constant_s": 0.23622280538791024,
+      "maximum_sensor_age_s": 0.1,
+      "mean_track_confidence": 0.5394338915745417,
+      "final_intruder_radius_m": 460.89996337890625,
+      "mean_controller_action_norm": 0.2968209393065936,
+      "action_saturation_fraction": 0.07784431137724551,
+      "mean_applied_acceleration_mps2": 24.26911316713887,
+      "case_label": "Baseline direct approach",
+      "case_tags": [
+        "baseline",
+        "clear"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 1007,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 9.200000000000001,
+      "minimum_separation_m": 0.9843708872795105,
+      "energy_used": 2.595729915675449,
+      "battery_remaining": 0.9752787627078522,
+      "reward": 184.6885949952378,
+      "scenario_id": "baseline-direct",
+      "sensor_latency_s": 0.03,
+      "sensor_dropout_probability": 0.01,
+      "radar_noise_std_m": 0.5,
+      "evasion_mps": 0.0,
+      "wind_speed_mps": 1.1180340051651,
+      "mass_factor": 0.8506267231081809,
+      "actuator_time_constant_s": 0.2921548897462652,
+      "maximum_sensor_age_s": 0.05,
+      "mean_track_confidence": 0.5595464977058204,
+      "final_intruder_radius_m": 418.97222900390625,
+      "mean_controller_action_norm": 0.26927186473546066,
+      "action_saturation_fraction": 0.05434782608695652,
+      "mean_applied_acceleration_mps2": 24.41844104493604,
+      "case_label": "Baseline direct approach",
+      "case_tags": [
+        "baseline",
+        "clear"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 1008,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 9.200000000000001,
+      "minimum_separation_m": 0.9909716248512268,
+      "energy_used": 2.6691640155514493,
+      "battery_remaining": 0.9745793903280809,
+      "reward": 184.68352887548804,
+      "scenario_id": "baseline-direct",
+      "sensor_latency_s": 0.03,
+      "sensor_dropout_probability": 0.01,
+      "radar_noise_std_m": 0.5,
+      "evasion_mps": 0.0,
+      "wind_speed_mps": 1.1180340051651,
+      "mass_factor": 0.8919186820934861,
+      "actuator_time_constant_s": 0.2913931944094825,
+      "maximum_sensor_age_s": 0.1,
+      "mean_track_confidence": 0.556166326677477,
+      "final_intruder_radius_m": 418.97222900390625,
+      "mean_controller_action_norm": 0.2855367741975225,
+      "action_saturation_fraction": 0.07065217391304347,
+      "mean_applied_acceleration_mps2": 24.63185559508755,
+      "case_label": "Baseline direct approach",
+      "case_tags": [
+        "baseline",
+        "clear"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 1009,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 8.6,
+      "minimum_separation_m": 0.897061824798584,
+      "energy_used": 2.275522795562157,
+      "battery_remaining": 0.9783283543279795,
+      "reward": 184.83653832869268,
+      "scenario_id": "baseline-direct",
+      "sensor_latency_s": 0.03,
+      "sensor_dropout_probability": 0.01,
+      "radar_noise_std_m": 0.5,
+      "evasion_mps": 0.0,
+      "wind_speed_mps": 1.1180340051651,
+      "mass_factor": 0.844295198682979,
+      "actuator_time_constant_s": 0.16499805279494406,
+      "maximum_sensor_age_s": 0.1,
+      "mean_track_confidence": 0.5470866009679144,
+      "final_intruder_radius_m": 448.5703125,
+      "mean_controller_action_norm": 0.23351238767865526,
+      "action_saturation_fraction": 0.040697674418604654,
+      "mean_applied_acceleration_mps2": 23.07814912272747,
+      "case_label": "Baseline direct approach",
+      "case_tags": [
+        "baseline",
+        "clear"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "nap_earth",
+      "intruder_type": "fpv_attack",
+      "seed": 11000,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 12.950000000000001,
+      "minimum_separation_m": 0.9120321869850159,
+      "energy_used": 3.2278193514579625,
+      "battery_remaining": 0.969258863319447,
+      "reward": 204.08389226865148,
+      "scenario_id": "terrain-mask-low",
+      "sensor_latency_s": 0.12,
+      "sensor_dropout_probability": 0.08,
+      "radar_noise_std_m": 1.8,
+      "evasion_mps": 5.0,
+      "wind_speed_mps": 4.4721360206604,
+      "mass_factor": 1.093461775627325,
+      "actuator_time_constant_s": 0.32479144035126767,
+      "maximum_sensor_age_s": 0.2,
+      "mean_track_confidence": 0.42481561990884636,
+      "final_intruder_radius_m": 638.2357788085938,
+      "mean_controller_action_norm": 0.2022474150058299,
+      "action_saturation_fraction": 0.08108108108108109,
+      "mean_applied_acceleration_mps2": 12.653488643150993,
+      "case_label": "Low-altitude terrain-mask approach",
+      "case_tags": [
+        "low-altitude",
+        "terrain-mask"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "nap_earth",
+      "intruder_type": "fpv_attack",
+      "seed": 11001,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 15.450000000000001,
+      "minimum_separation_m": 0.8899673223495483,
+      "energy_used": 3.9694516343933612,
+      "battery_remaining": 0.9621956987200632,
+      "reward": 203.54160081813893,
+      "scenario_id": "terrain-mask-low",
+      "sensor_latency_s": 0.12,
+      "sensor_dropout_probability": 0.08,
+      "radar_noise_std_m": 1.8,
+      "evasion_mps": 5.0,
+      "wind_speed_mps": 4.4721360206604,
+      "mass_factor": 1.2156846514949493,
+      "actuator_time_constant_s": 0.1969137137961284,
+      "maximum_sensor_age_s": 0.25,
+      "mean_track_confidence": 0.4465123882216792,
+      "final_intruder_radius_m": 569.631591796875,
+      "mean_controller_action_norm": 0.21787657813940645,
+      "action_saturation_fraction": 0.08090614886731391,
+      "mean_applied_acceleration_mps2": 14.202184118306366,
+      "case_label": "Low-altitude terrain-mask approach",
+      "case_tags": [
+        "low-altitude",
+        "terrain-mask"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_mass"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "nap_earth",
+      "intruder_type": "fpv_attack",
+      "seed": 11002,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 14.100000000000001,
+      "minimum_separation_m": 0.9787405729293823,
+      "energy_used": 3.2630098192281416,
+      "battery_remaining": 0.9689237160073509,
+      "reward": 203.8451100019908,
+      "scenario_id": "terrain-mask-low",
+      "sensor_latency_s": 0.12,
+      "sensor_dropout_probability": 0.08,
+      "radar_noise_std_m": 1.8,
+      "evasion_mps": 5.0,
+      "wind_speed_mps": 4.4721360206604,
+      "mass_factor": 1.0588144528222092,
+      "actuator_time_constant_s": 0.11569371021142039,
+      "maximum_sensor_age_s": 0.2,
+      "mean_track_confidence": 0.4298074365504639,
+      "final_intruder_radius_m": 606.7676391601562,
+      "mean_controller_action_norm": 0.16590832995336688,
+      "action_saturation_fraction": 0.031914893617021274,
+      "mean_applied_acceleration_mps2": 12.984711326711567,
+      "case_label": "Low-altitude terrain-mask approach",
+      "case_tags": [
+        "low-altitude",
+        "terrain-mask"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "nap_earth",
+      "intruder_type": "fpv_attack",
+      "seed": 11003,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 15.0,
+      "minimum_separation_m": 0.9803111553192139,
+      "energy_used": 3.614955854494683,
+      "battery_remaining": 0.9655718490048116,
+      "reward": 203.64383618163583,
+      "scenario_id": "terrain-mask-low",
+      "sensor_latency_s": 0.12,
+      "sensor_dropout_probability": 0.08,
+      "radar_noise_std_m": 1.8,
+      "evasion_mps": 5.0,
+      "wind_speed_mps": 4.4721360206604,
+      "mass_factor": 1.15041451230314,
+      "actuator_time_constant_s": 0.12746692736582801,
+      "maximum_sensor_age_s": 0.2,
+      "mean_track_confidence": 0.44164657790795514,
+      "final_intruder_radius_m": 582.071044921875,
+      "mean_controller_action_norm": 0.1854253247116382,
+      "action_saturation_fraction": 0.05333333333333334,
+      "mean_applied_acceleration_mps2": 12.9610364286229,
+      "case_label": "Low-altitude terrain-mask approach",
+      "case_tags": [
+        "low-altitude",
+        "terrain-mask"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "nap_earth",
+      "intruder_type": "fpv_attack",
+      "seed": 11004,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 19.8,
+      "minimum_separation_m": 0.9180750846862793,
+      "energy_used": 4.842974580607626,
+      "battery_remaining": 0.9538764325656396,
+      "reward": 202.6163786651324,
+      "scenario_id": "terrain-mask-low",
+      "sensor_latency_s": 0.12,
+      "sensor_dropout_probability": 0.08,
+      "radar_noise_std_m": 1.8,
+      "evasion_mps": 5.0,
+      "wind_speed_mps": 4.4721360206604,
+      "mass_factor": 1.218527443726576,
+      "actuator_time_constant_s": 0.11332137892004379,
+      "maximum_sensor_age_s": 0.2,
+      "mean_track_confidence": 0.4756531006743385,
+      "final_intruder_radius_m": 450.2340087890625,
+      "mean_controller_action_norm": 0.19275621716562197,
+      "action_saturation_fraction": 0.05808080808080808,
+      "mean_applied_acceleration_mps2": 12.035768743002354,
+      "case_label": "Low-altitude terrain-mask approach",
+      "case_tags": [
+        "low-altitude",
+        "terrain-mask"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_mass"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "nap_earth",
+      "intruder_type": "fpv_attack",
+      "seed": 11005,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 13.9,
+      "minimum_separation_m": 0.9722661375999451,
+      "energy_used": 3.326643806862753,
+      "battery_remaining": 0.9683176780298781,
+      "reward": 203.8819394062657,
+      "scenario_id": "terrain-mask-low",
+      "sensor_latency_s": 0.12,
+      "sensor_dropout_probability": 0.08,
+      "radar_noise_std_m": 1.8,
+      "evasion_mps": 5.0,
+      "wind_speed_mps": 4.4721360206604,
+      "mass_factor": 1.1746574444757922,
+      "actuator_time_constant_s": 0.12180449999012728,
+      "maximum_sensor_age_s": 0.2,
+      "mean_track_confidence": 0.4259563385372093,
+      "final_intruder_radius_m": 612.3698120117188,
+      "mean_controller_action_norm": 0.18202201933047246,
+      "action_saturation_fraction": 0.046762589928057555,
+      "mean_applied_acceleration_mps2": 12.994568753799946,
+      "case_label": "Low-altitude terrain-mask approach",
+      "case_tags": [
+        "low-altitude",
+        "terrain-mask"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "nap_earth",
+      "intruder_type": "fpv_attack",
+      "seed": 11006,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 14.15,
+      "minimum_separation_m": 0.9622529149055481,
+      "energy_used": 3.3394014461437247,
+      "battery_remaining": 0.9681961767033914,
+      "reward": 203.8321752701783,
+      "scenario_id": "terrain-mask-low",
+      "sensor_latency_s": 0.12,
+      "sensor_dropout_probability": 0.08,
+      "radar_noise_std_m": 1.8,
+      "evasion_mps": 5.0,
+      "wind_speed_mps": 4.4721360206604,
+      "mass_factor": 0.8208307974598146,
+      "actuator_time_constant_s": 0.25933673412451613,
+      "maximum_sensor_age_s": 0.2,
+      "mean_track_confidence": 0.42873226253079694,
+      "final_intruder_radius_m": 605.1678466796875,
+      "mean_controller_action_norm": 0.17524299584493672,
+      "action_saturation_fraction": 0.038869257950530034,
+      "mean_applied_acceleration_mps2": 14.900273610130215,
+      "case_label": "Low-altitude terrain-mask approach",
+      "case_tags": [
+        "low-altitude",
+        "terrain-mask"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "nap_earth",
+      "intruder_type": "fpv_attack",
+      "seed": 11007,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 14.950000000000001,
+      "minimum_separation_m": 0.9346423745155334,
+      "energy_used": 3.3899621217394382,
+      "battery_remaining": 0.9677146464596245,
+      "reward": 203.67190268368154,
+      "scenario_id": "terrain-mask-low",
+      "sensor_latency_s": 0.12,
+      "sensor_dropout_probability": 0.08,
+      "radar_noise_std_m": 1.8,
+      "evasion_mps": 5.0,
+      "wind_speed_mps": 4.4721360206604,
+      "mass_factor": 0.8252760319774226,
+      "actuator_time_constant_s": 0.1962660004127694,
+      "maximum_sensor_age_s": 0.15000000000000002,
+      "mean_track_confidence": 0.44525466839472455,
+      "final_intruder_radius_m": 583.5812377929688,
+      "mean_controller_action_norm": 0.15640076290485902,
+      "action_saturation_fraction": 0.023411371237458192,
+      "mean_applied_acceleration_mps2": 13.745733789476663,
+      "case_label": "Low-altitude terrain-mask approach",
+      "case_tags": [
+        "low-altitude",
+        "terrain-mask"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "nap_earth",
+      "intruder_type": "fpv_attack",
+      "seed": 11008,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 14.450000000000001,
+      "minimum_separation_m": 0.9110202789306641,
+      "energy_used": 3.5634400191663893,
+      "battery_remaining": 0.9660624760079377,
+      "reward": 203.76385621939443,
+      "scenario_id": "terrain-mask-low",
+      "sensor_latency_s": 0.12,
+      "sensor_dropout_probability": 0.08,
+      "radar_noise_std_m": 1.8,
+      "evasion_mps": 5.0,
+      "wind_speed_mps": 4.4721360206604,
+      "mass_factor": 1.2306522540256268,
+      "actuator_time_constant_s": 0.1413147349058475,
+      "maximum_sensor_age_s": 0.25,
+      "mean_track_confidence": 0.42010148188163493,
+      "final_intruder_radius_m": 597.1021728515625,
+      "mean_controller_action_norm": 0.19685235396009437,
+      "action_saturation_fraction": 0.07612456747404844,
+      "mean_applied_acceleration_mps2": 13.493086825373057,
+      "case_label": "Low-altitude terrain-mask approach",
+      "case_tags": [
+        "low-altitude",
+        "terrain-mask"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_mass"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "nap_earth",
+      "intruder_type": "fpv_attack",
+      "seed": 11009,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 13.350000000000001,
+      "minimum_separation_m": 0.9297124147415161,
+      "energy_used": 2.910916605459592,
+      "battery_remaining": 0.9722769847099081,
+      "reward": 204.02113841063573,
+      "scenario_id": "terrain-mask-low",
+      "sensor_latency_s": 0.12,
+      "sensor_dropout_probability": 0.08,
+      "radar_noise_std_m": 1.8,
+      "evasion_mps": 5.0,
+      "wind_speed_mps": 4.4721360206604,
+      "mass_factor": 0.9034742322989608,
+      "actuator_time_constant_s": 0.09228566484060498,
+      "maximum_sensor_age_s": 0.2,
+      "mean_track_confidence": 0.4235297737281714,
+      "final_intruder_radius_m": 627.3779907226562,
+      "mean_controller_action_norm": 0.1386581815461792,
+      "action_saturation_fraction": 0.026217228464419477,
+      "mean_applied_acceleration_mps2": 12.995709715934282,
+      "case_label": "Low-altitude terrain-mask approach",
+      "case_tags": [
+        "low-altitude",
+        "terrain-mask"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "shahed136",
+      "seed": 21000,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 28.900000000000002,
+      "minimum_separation_m": 0.8649333715438843,
+      "energy_used": 11.115142939543523,
+      "battery_remaining": 0.8941414958138718,
+      "reward": 236.94648089897294,
+      "scenario_id": "crosswind-crossing",
+      "sensor_latency_s": 0.1,
+      "sensor_dropout_probability": 0.04,
+      "radar_noise_std_m": 1.2,
+      "evasion_mps": 7.0,
+      "wind_speed_mps": 13.601470947265625,
+      "mass_factor": 1.0253379059801369,
+      "actuator_time_constant_s": 0.2984156746157146,
+      "maximum_sensor_age_s": 0.2,
+      "mean_track_confidence": 0.5867318116733241,
+      "final_intruder_radius_m": 263.8222351074219,
+      "mean_controller_action_norm": 0.4780603319303387,
+      "action_saturation_fraction": 0.24048442906574394,
+      "mean_applied_acceleration_mps2": 27.7816425613466,
+      "case_label": "High-crosswind crossing target",
+      "case_tags": [
+        "crossing",
+        "high-wind"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_wind",
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "shahed136",
+      "seed": 21001,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 45.150000000000006,
+      "minimum_separation_m": 0.4475672245025635,
+      "energy_used": 13.829702790581425,
+      "battery_remaining": 0.8682885448516056,
+      "reward": 233.5753439226152,
+      "scenario_id": "crosswind-crossing",
+      "sensor_latency_s": 0.1,
+      "sensor_dropout_probability": 0.04,
+      "radar_noise_std_m": 1.2,
+      "evasion_mps": 7.0,
+      "wind_speed_mps": 13.601470947265625,
+      "mass_factor": 1.0374384762964861,
+      "actuator_time_constant_s": 0.2098490051251249,
+      "maximum_sensor_age_s": 0.2,
+      "mean_track_confidence": 0.6631674207417311,
+      "final_intruder_radius_m": 264.1173095703125,
+      "mean_controller_action_norm": 0.31850521249700736,
+      "action_saturation_fraction": 0.15503875968992248,
+      "mean_applied_acceleration_mps2": 19.566656994628218,
+      "case_label": "High-crosswind crossing target",
+      "case_tags": [
+        "crossing",
+        "high-wind"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_wind"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "shahed136",
+      "seed": 21002,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 24.0,
+      "minimum_separation_m": 1.814494013786316,
+      "energy_used": 6.966538833987729,
+      "battery_remaining": 0.933652011104879,
+      "reward": 237.9978665824289,
+      "scenario_id": "crosswind-crossing",
+      "sensor_latency_s": 0.1,
+      "sensor_dropout_probability": 0.04,
+      "radar_noise_std_m": 1.2,
+      "evasion_mps": 7.0,
+      "wind_speed_mps": 13.601470947265625,
+      "mass_factor": 0.9034544359853568,
+      "actuator_time_constant_s": 0.18039445719649383,
+      "maximum_sensor_age_s": 0.15000000000000002,
+      "mean_track_confidence": 0.5576735494538305,
+      "final_intruder_radius_m": 269.8313293457031,
+      "mean_controller_action_norm": 0.2858341326529626,
+      "action_saturation_fraction": 0.11458333333333333,
+      "mean_applied_acceleration_mps2": 20.55159514931341,
+      "case_label": "High-crosswind crossing target",
+      "case_tags": [
+        "crossing",
+        "high-wind"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_wind"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "shahed136",
+      "seed": 21003,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 30.700000000000003,
+      "minimum_separation_m": 0.963153600692749,
+      "energy_used": 11.380063914894302,
+      "battery_remaining": 0.8916184389057682,
+      "reward": 236.56076361753713,
+      "scenario_id": "crosswind-crossing",
+      "sensor_latency_s": 0.1,
+      "sensor_dropout_probability": 0.04,
+      "radar_noise_std_m": 1.2,
+      "evasion_mps": 7.0,
+      "wind_speed_mps": 13.601470947265625,
+      "mass_factor": 1.0543135673508033,
+      "actuator_time_constant_s": 0.12882839492599066,
+      "maximum_sensor_age_s": 0.2,
+      "mean_track_confidence": 0.5995541259525268,
+      "final_intruder_radius_m": 264.2602844238281,
+      "mean_controller_action_norm": 0.4496936165979466,
+      "action_saturation_fraction": 0.21986970684039087,
+      "mean_applied_acceleration_mps2": 27.312740275351153,
+      "case_label": "High-crosswind crossing target",
+      "case_tags": [
+        "crossing",
+        "high-wind"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_wind"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "shahed136",
+      "seed": 21004,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 46.2,
+      "minimum_separation_m": 0.7658548951148987,
+      "energy_used": 14.978740921101428,
+      "battery_remaining": 0.8573453245609374,
+      "reward": 233.26457286772262,
+      "scenario_id": "crosswind-crossing",
+      "sensor_latency_s": 0.1,
+      "sensor_dropout_probability": 0.04,
+      "radar_noise_std_m": 1.2,
+      "evasion_mps": 7.0,
+      "wind_speed_mps": 13.601470947265625,
+      "mass_factor": 0.9221404202390588,
+      "actuator_time_constant_s": 0.3230979293239576,
+      "maximum_sensor_age_s": 0.2,
+      "mean_track_confidence": 0.6588358359723477,
+      "final_intruder_radius_m": 264.0328369140625,
+      "mean_controller_action_norm": 0.35499944518223503,
+      "action_saturation_fraction": 0.1699134199134199,
+      "mean_applied_acceleration_mps2": 20.786026891272563,
+      "case_label": "High-crosswind crossing target",
+      "case_tags": [
+        "crossing",
+        "high-wind"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_wind",
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "shahed136",
+      "seed": 21005,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 29.450000000000003,
+      "minimum_separation_m": 0.5693700313568115,
+      "energy_used": 11.75297768692297,
+      "battery_remaining": 0.8880668791721613,
+      "reward": 236.82776714814878,
+      "scenario_id": "crosswind-crossing",
+      "sensor_latency_s": 0.1,
+      "sensor_dropout_probability": 0.04,
+      "radar_noise_std_m": 1.2,
+      "evasion_mps": 7.0,
+      "wind_speed_mps": 13.601470947265625,
+      "mass_factor": 1.159495951747953,
+      "actuator_time_constant_s": 0.29949569159177025,
+      "maximum_sensor_age_s": 0.15000000000000002,
+      "mean_track_confidence": 0.5957005913984977,
+      "final_intruder_radius_m": 264.0640563964844,
+      "mean_controller_action_norm": 0.5075569779901482,
+      "action_saturation_fraction": 0.27843803056027167,
+      "mean_applied_acceleration_mps2": 26.847929553588905,
+      "case_label": "High-crosswind crossing target",
+      "case_tags": [
+        "crossing",
+        "high-wind"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_wind",
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "shahed136",
+      "seed": 21006,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 35.800000000000004,
+      "minimum_separation_m": 0.8679059147834778,
+      "energy_used": 12.073994808072028,
+      "battery_remaining": 0.885009573256456,
+      "reward": 235.50865253253727,
+      "scenario_id": "crosswind-crossing",
+      "sensor_latency_s": 0.1,
+      "sensor_dropout_probability": 0.04,
+      "radar_noise_std_m": 1.2,
+      "evasion_mps": 7.0,
+      "wind_speed_mps": 13.601470947265625,
+      "mass_factor": 1.2375074345814898,
+      "actuator_time_constant_s": 0.2227569465040123,
+      "maximum_sensor_age_s": 0.15000000000000002,
+      "mean_track_confidence": 0.6321891126439827,
+      "final_intruder_radius_m": 264.19818115234375,
+      "mean_controller_action_norm": 0.38158592248632045,
+      "action_saturation_fraction": 0.17458100558659218,
+      "mean_applied_acceleration_mps2": 20.062842702357795,
+      "case_label": "High-crosswind crossing target",
+      "case_tags": [
+        "crossing",
+        "high-wind"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_wind",
+          "high_mass"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "shahed136",
+      "seed": 21007,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 11.700000000000001,
+      "minimum_separation_m": 1.109784483909607,
+      "energy_used": 3.110705095091164,
+      "battery_remaining": 0.9703742371896078,
+      "reward": 240.8422620584036,
+      "scenario_id": "crosswind-crossing",
+      "sensor_latency_s": 0.1,
+      "sensor_dropout_probability": 0.04,
+      "radar_noise_std_m": 1.2,
+      "evasion_mps": 7.0,
+      "wind_speed_mps": 13.601470947265625,
+      "mass_factor": 0.9610602051118543,
+      "actuator_time_constant_s": 0.3172551131739249,
+      "maximum_sensor_age_s": 0.15000000000000002,
+      "mean_track_confidence": 0.3452972782419083,
+      "final_intruder_radius_m": 592.6416625976562,
+      "mean_controller_action_norm": 0.23611363547288963,
+      "action_saturation_fraction": 0.11538461538461539,
+      "mean_applied_acceleration_mps2": 17.166296324159344,
+      "case_label": "High-crosswind crossing target",
+      "case_tags": [
+        "crossing",
+        "high-wind"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_wind",
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "shahed136",
+      "seed": 21008,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 33.0,
+      "minimum_separation_m": 0.9843676090240479,
+      "energy_used": 10.246797965068264,
+      "battery_remaining": 0.9024114479517308,
+      "reward": 236.16663817369334,
+      "scenario_id": "crosswind-crossing",
+      "sensor_latency_s": 0.1,
+      "sensor_dropout_probability": 0.04,
+      "radar_noise_std_m": 1.2,
+      "evasion_mps": 7.0,
+      "wind_speed_mps": 13.601470947265625,
+      "mass_factor": 1.2382425623345998,
+      "actuator_time_constant_s": 0.2666014371872532,
+      "maximum_sensor_age_s": 0.25,
+      "mean_track_confidence": 0.6175170646312558,
+      "final_intruder_radius_m": 263.8624572753906,
+      "mean_controller_action_norm": 0.327070345558847,
+      "action_saturation_fraction": 0.1621212121212121,
+      "mean_applied_acceleration_mps2": 19.893188944458963,
+      "case_label": "High-crosswind crossing target",
+      "case_tags": [
+        "crossing",
+        "high-wind"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_wind",
+          "high_mass"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "shahed136",
+      "seed": 21009,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 42.050000000000004,
+      "minimum_separation_m": 1.0481891632080078,
+      "energy_used": 13.988144604598943,
+      "battery_remaining": 0.8667795751942936,
+      "reward": 234.1250540990688,
+      "scenario_id": "crosswind-crossing",
+      "sensor_latency_s": 0.1,
+      "sensor_dropout_probability": 0.04,
+      "radar_noise_std_m": 1.2,
+      "evasion_mps": 7.0,
+      "wind_speed_mps": 13.601470947265625,
+      "mass_factor": 1.1907837178238059,
+      "actuator_time_constant_s": 0.1572517253299751,
+      "maximum_sensor_age_s": 0.2,
+      "mean_track_confidence": 0.6466574747460472,
+      "final_intruder_radius_m": 263.9166564941406,
+      "mean_controller_action_norm": 0.3721974313504967,
+      "action_saturation_fraction": 0.18311533888228299,
+      "mean_applied_acceleration_mps2": 20.273904099830123,
+      "case_label": "High-crosswind crossing target",
+      "case_tags": [
+        "crossing",
+        "high-wind"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_wind",
+          "high_mass"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "offset",
+      "intruder_type": "consumer_quad",
+      "seed": 31000,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 61.6,
+      "minimum_separation_m": 1.2930985689163208,
+      "energy_used": 19.149489364893405,
+      "battery_remaining": 0.8176239108105305,
+      "reward": -21.789912598244612,
+      "scenario_id": "degraded-track",
+      "sensor_latency_s": 0.32,
+      "sensor_dropout_probability": 0.22,
+      "radar_noise_std_m": 5.0,
+      "evasion_mps": 4.0,
+      "wind_speed_mps": 4.242640495300293,
+      "mass_factor": 0.9716339170308973,
+      "actuator_time_constant_s": 0.12819807881080414,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.5432649029045693,
+      "final_intruder_radius_m": 1.8329659700393677,
+      "mean_controller_action_norm": 0.32780250299959324,
+      "action_saturation_fraction": 0.17694805194805194,
+      "mean_applied_acceleration_mps2": 17.764504276470028,
+      "case_label": "Intermittent degraded sensor track",
+      "case_tags": [
+        "sensor-degraded",
+        "dropout",
+        "latency"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "offset",
+      "intruder_type": "consumer_quad",
+      "seed": 31001,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 17.400000000000002,
+      "minimum_separation_m": 0.9504970908164978,
+      "energy_used": 3.9234129226038976,
+      "battery_remaining": 0.9626341626418644,
+      "reward": 188.20523155071834,
+      "scenario_id": "degraded-track",
+      "sensor_latency_s": 0.32,
+      "sensor_dropout_probability": 0.22,
+      "radar_noise_std_m": 5.0,
+      "evasion_mps": 4.0,
+      "wind_speed_mps": 4.242640495300293,
+      "mass_factor": 0.8521655018102721,
+      "actuator_time_constant_s": 0.15437349496988984,
+      "maximum_sensor_age_s": 0.45,
+      "mean_track_confidence": 0.36884037676376735,
+      "final_intruder_radius_m": 660.9445190429688,
+      "mean_controller_action_norm": 0.1538132463331634,
+      "action_saturation_fraction": 0.028735632183908046,
+      "mean_applied_acceleration_mps2": 10.740654584919584,
+      "case_label": "Intermittent degraded sensor track",
+      "case_tags": [
+        "sensor-degraded",
+        "dropout",
+        "latency"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "offset",
+      "intruder_type": "consumer_quad",
+      "seed": 31002,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 17.45,
+      "minimum_separation_m": 0.9950607419013977,
+      "energy_used": 4.135328964906401,
+      "battery_remaining": 0.9606159146199369,
+      "reward": 188.17806022307175,
+      "scenario_id": "degraded-track",
+      "sensor_latency_s": 0.32,
+      "sensor_dropout_probability": 0.22,
+      "radar_noise_std_m": 5.0,
+      "evasion_mps": 4.0,
+      "wind_speed_mps": 4.242640495300293,
+      "mass_factor": 0.9614785377139072,
+      "actuator_time_constant_s": 0.16087053248754496,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.3837480361121041,
+      "final_intruder_radius_m": 661.3738403320312,
+      "mean_controller_action_norm": 0.17724300585994043,
+      "action_saturation_fraction": 0.03724928366762178,
+      "mean_applied_acceleration_mps2": 11.40092994533159,
+      "case_label": "Intermittent degraded sensor track",
+      "case_tags": [
+        "sensor-degraded",
+        "dropout",
+        "latency"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "offset",
+      "intruder_type": "consumer_quad",
+      "seed": 31003,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 15.450000000000001,
+      "minimum_separation_m": 0.736804723739624,
+      "energy_used": 3.4012612019093647,
+      "battery_remaining": 0.9676070361722894,
+      "reward": 188.64792989066768,
+      "scenario_id": "degraded-track",
+      "sensor_latency_s": 0.32,
+      "sensor_dropout_probability": 0.22,
+      "radar_noise_std_m": 5.0,
+      "evasion_mps": 4.0,
+      "wind_speed_mps": 4.242640495300293,
+      "mass_factor": 1.2375477509173851,
+      "actuator_time_constant_s": 0.23728251352722607,
+      "maximum_sensor_age_s": 0.45,
+      "mean_track_confidence": 0.3604780693208018,
+      "final_intruder_radius_m": 682.4734497070312,
+      "mean_controller_action_norm": 0.1429377091169948,
+      "action_saturation_fraction": 0.038834951456310676,
+      "mean_applied_acceleration_mps2": 7.63935773995702,
+      "case_label": "Intermittent degraded sensor track",
+      "case_tags": [
+        "sensor-degraded",
+        "dropout",
+        "latency"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "high_mass"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "offset",
+      "intruder_type": "consumer_quad",
+      "seed": 31004,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 61.5,
+      "minimum_separation_m": 2.019097328186035,
+      "energy_used": 18.3269521179018,
+      "battery_remaining": 0.8254575988771158,
+      "reward": -21.81884353507884,
+      "scenario_id": "degraded-track",
+      "sensor_latency_s": 0.32,
+      "sensor_dropout_probability": 0.22,
+      "radar_noise_std_m": 5.0,
+      "evasion_mps": 4.0,
+      "wind_speed_mps": 4.242640495300293,
+      "mass_factor": 1.188456046374123,
+      "actuator_time_constant_s": 0.2609543236056153,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.5422284274349166,
+      "final_intruder_radius_m": 1.6203844547271729,
+      "mean_controller_action_norm": 0.3015790247013868,
+      "action_saturation_fraction": 0.15284552845528454,
+      "mean_applied_acceleration_mps2": 12.611291247521475,
+      "case_label": "Intermittent degraded sensor track",
+      "case_tags": [
+        "sensor-degraded",
+        "dropout",
+        "latency"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "high_mass"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "offset",
+      "intruder_type": "consumer_quad",
+      "seed": 31005,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 61.5,
+      "minimum_separation_m": 1.9484186172485352,
+      "energy_used": 19.57645403078731,
+      "battery_remaining": 0.8135575806591575,
+      "reward": -22.04699882670161,
+      "scenario_id": "degraded-track",
+      "sensor_latency_s": 0.32,
+      "sensor_dropout_probability": 0.22,
+      "radar_noise_std_m": 5.0,
+      "evasion_mps": 4.0,
+      "wind_speed_mps": 4.242640495300293,
+      "mass_factor": 1.172779285256965,
+      "actuator_time_constant_s": 0.2765422048998218,
+      "maximum_sensor_age_s": 0.45,
+      "mean_track_confidence": 0.5343584338404317,
+      "final_intruder_radius_m": 1.5122222900390625,
+      "mean_controller_action_norm": 0.34297932689693356,
+      "action_saturation_fraction": 0.17642276422764228,
+      "mean_applied_acceleration_mps2": 13.030483532024594,
+      "case_label": "Intermittent degraded sensor track",
+      "case_tags": [
+        "sensor-degraded",
+        "dropout",
+        "latency"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "offset",
+      "intruder_type": "consumer_quad",
+      "seed": 31006,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 61.5,
+      "minimum_separation_m": 2.2186594009399414,
+      "energy_used": 18.00180852110876,
+      "battery_remaining": 0.8285542045608587,
+      "reward": -21.712017643270542,
+      "scenario_id": "degraded-track",
+      "sensor_latency_s": 0.32,
+      "sensor_dropout_probability": 0.22,
+      "radar_noise_std_m": 5.0,
+      "evasion_mps": 4.0,
+      "wind_speed_mps": 4.242640495300293,
+      "mass_factor": 0.8315460624163155,
+      "actuator_time_constant_s": 0.16101488752892715,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.5368439461233944,
+      "final_intruder_radius_m": 1.9878755807876587,
+      "mean_controller_action_norm": 0.2908058974053332,
+      "action_saturation_fraction": 0.13170731707317074,
+      "mean_applied_acceleration_mps2": 17.092717166039034,
+      "case_label": "Intermittent degraded sensor track",
+      "case_tags": [
+        "sensor-degraded",
+        "dropout",
+        "latency"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "offset",
+      "intruder_type": "consumer_quad",
+      "seed": 31007,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 61.5,
+      "minimum_separation_m": 1.414677381515503,
+      "energy_used": 18.88013240281803,
+      "battery_remaining": 0.8201892152112478,
+      "reward": -21.90079643522742,
+      "scenario_id": "degraded-track",
+      "sensor_latency_s": 0.32,
+      "sensor_dropout_probability": 0.22,
+      "radar_noise_std_m": 5.0,
+      "evasion_mps": 4.0,
+      "wind_speed_mps": 4.242640495300293,
+      "mass_factor": 0.9917475383706222,
+      "actuator_time_constant_s": 0.2974246534651926,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.5256993037040983,
+      "final_intruder_radius_m": 1.9988315105438232,
+      "mean_controller_action_norm": 0.31990779293133176,
+      "action_saturation_fraction": 0.16260162601626016,
+      "mean_applied_acceleration_mps2": 14.113654669174334,
+      "case_label": "Intermittent degraded sensor track",
+      "case_tags": [
+        "sensor-degraded",
+        "dropout",
+        "latency"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "offset",
+      "intruder_type": "consumer_quad",
+      "seed": 31008,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 61.7,
+      "minimum_separation_m": 2.1228551864624023,
+      "energy_used": 19.829872587783644,
+      "battery_remaining": 0.811144070592527,
+      "reward": -21.985781763760016,
+      "scenario_id": "degraded-track",
+      "sensor_latency_s": 0.32,
+      "sensor_dropout_probability": 0.22,
+      "radar_noise_std_m": 5.0,
+      "evasion_mps": 4.0,
+      "wind_speed_mps": 4.242640495300293,
+      "mass_factor": 1.0108668211231397,
+      "actuator_time_constant_s": 0.2098938771888249,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.5386498420827301,
+      "final_intruder_radius_m": 1.9794447422027588,
+      "mean_controller_action_norm": 0.34924619326167405,
+      "action_saturation_fraction": 0.18071312803889789,
+      "mean_applied_acceleration_mps2": 16.04846004825357,
+      "case_label": "Intermittent degraded sensor track",
+      "case_tags": [
+        "sensor-degraded",
+        "dropout",
+        "latency"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "offset",
+      "intruder_type": "consumer_quad",
+      "seed": 31009,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 61.800000000000004,
+      "minimum_separation_m": 1.2188260555267334,
+      "energy_used": 19.730225008678495,
+      "battery_remaining": 0.8120930951554319,
+      "reward": -22.05442808639704,
+      "scenario_id": "degraded-track",
+      "sensor_latency_s": 0.32,
+      "sensor_dropout_probability": 0.22,
+      "radar_noise_std_m": 5.0,
+      "evasion_mps": 4.0,
+      "wind_speed_mps": 4.242640495300293,
+      "mass_factor": 1.056085841317661,
+      "actuator_time_constant_s": 0.19562566932477576,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.5376754141470648,
+      "final_intruder_radius_m": 1.6193808317184448,
+      "mean_controller_action_norm": 0.34490084092202067,
+      "action_saturation_fraction": 0.18527508090614886,
+      "mean_applied_acceleration_mps2": 15.855970201591893,
+      "case_label": "Intermittent degraded sensor track",
+      "case_tags": [
+        "sensor-degraded",
+        "dropout",
+        "latency"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "pop_up",
+      "intruder_type": "fpv_attack",
+      "seed": 41000,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 34.1,
+      "minimum_separation_m": 0.5080661177635193,
+      "energy_used": 12.571828080098609,
+      "battery_remaining": 0.8802683039990573,
+      "reward": 212.85160489482416,
+      "scenario_id": "agile-pop-up",
+      "sensor_latency_s": 0.18,
+      "sensor_dropout_probability": 0.1,
+      "radar_noise_std_m": 2.5,
+      "evasion_mps": 15.0,
+      "wind_speed_mps": 7.071067810058594,
+      "mass_factor": 1.0345608207484724,
+      "actuator_time_constant_s": 0.17927247055741619,
+      "maximum_sensor_age_s": 0.35,
+      "mean_track_confidence": 0.5810061841548624,
+      "final_intruder_radius_m": 9.237323760986328,
+      "mean_controller_action_norm": 0.44559617381531996,
+      "action_saturation_fraction": 0.1935483870967742,
+      "mean_applied_acceleration_mps2": 23.745759211742808,
+      "case_label": "Agile pop-up attack",
+      "case_tags": [
+        "pop-up",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "pop_up",
+      "intruder_type": "fpv_attack",
+      "seed": 41001,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 35.4,
+      "minimum_separation_m": 2.212693691253662,
+      "energy_used": 13.975795395913325,
+      "battery_remaining": 0.8668971867055861,
+      "reward": 11.630779554382315,
+      "scenario_id": "agile-pop-up",
+      "sensor_latency_s": 0.18,
+      "sensor_dropout_probability": 0.1,
+      "radar_noise_std_m": 2.5,
+      "evasion_mps": 15.0,
+      "wind_speed_mps": 7.071067810058594,
+      "mass_factor": 1.142127086118719,
+      "actuator_time_constant_s": 0.09067290699962852,
+      "maximum_sensor_age_s": 0.3,
+      "mean_track_confidence": 0.5975321281612004,
+      "final_intruder_radius_m": 1.160331130027771,
+      "mean_controller_action_norm": 0.4988234600770461,
+      "action_saturation_fraction": 0.2443502824858757,
+      "mean_applied_acceleration_mps2": 28.08356764542181,
+      "case_label": "Agile pop-up attack",
+      "case_tags": [
+        "pop-up",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "pop_up",
+      "intruder_type": "fpv_attack",
+      "seed": 41002,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 30.200000000000003,
+      "minimum_separation_m": 0.9755498170852661,
+      "energy_used": 11.541005305117825,
+      "battery_remaining": 0.8900856637607811,
+      "reward": 213.64670589139058,
+      "scenario_id": "agile-pop-up",
+      "sensor_latency_s": 0.18,
+      "sensor_dropout_probability": 0.1,
+      "radar_noise_std_m": 2.5,
+      "evasion_mps": 15.0,
+      "wind_speed_mps": 7.071067810058594,
+      "mass_factor": 1.0067222820785313,
+      "actuator_time_constant_s": 0.23110285792384,
+      "maximum_sensor_age_s": 0.35,
+      "mean_track_confidence": 0.5359812161153998,
+      "final_intruder_radius_m": 117.22158813476562,
+      "mean_controller_action_norm": 0.47305872226719875,
+      "action_saturation_fraction": 0.22019867549668873,
+      "mean_applied_acceleration_mps2": 26.602456611315937,
+      "case_label": "Agile pop-up attack",
+      "case_tags": [
+        "pop-up",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "pop_up",
+      "intruder_type": "fpv_attack",
+      "seed": 41003,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 34.85,
+      "minimum_separation_m": 1.1548410654067993,
+      "energy_used": 12.675532472386667,
+      "battery_remaining": 0.8792806431201233,
+      "reward": 12.231489927038055,
+      "scenario_id": "agile-pop-up",
+      "sensor_latency_s": 0.18,
+      "sensor_dropout_probability": 0.1,
+      "radar_noise_std_m": 2.5,
+      "evasion_mps": 15.0,
+      "wind_speed_mps": 7.071067810058594,
+      "mass_factor": 1.0283348082126194,
+      "actuator_time_constant_s": 0.08813875662210767,
+      "maximum_sensor_age_s": 0.35,
+      "mean_track_confidence": 0.566766379128896,
+      "final_intruder_radius_m": 1.948287844657898,
+      "mean_controller_action_norm": 0.4354923000623348,
+      "action_saturation_fraction": 0.18794835007173602,
+      "mean_applied_acceleration_mps2": 27.76428048502937,
+      "case_label": "Agile pop-up attack",
+      "case_tags": [
+        "pop-up",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "pop_up",
+      "intruder_type": "fpv_attack",
+      "seed": 41004,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 34.65,
+      "minimum_separation_m": 2.621056079864502,
+      "energy_used": 13.539531729906441,
+      "battery_remaining": 0.8710520787627938,
+      "reward": 10.833465040785498,
+      "scenario_id": "agile-pop-up",
+      "sensor_latency_s": 0.18,
+      "sensor_dropout_probability": 0.1,
+      "radar_noise_std_m": 2.5,
+      "evasion_mps": 15.0,
+      "wind_speed_mps": 7.071067810058594,
+      "mass_factor": 1.0021987177736742,
+      "actuator_time_constant_s": 0.2483201125687335,
+      "maximum_sensor_age_s": 0.3,
+      "mean_track_confidence": 0.5737368161293547,
+      "final_intruder_radius_m": 1.2231619358062744,
+      "mean_controller_action_norm": 0.49058052099311206,
+      "action_saturation_fraction": 0.2049062049062049,
+      "mean_applied_acceleration_mps2": 28.33626688317991,
+      "case_label": "Agile pop-up attack",
+      "case_tags": [
+        "pop-up",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "pop_up",
+      "intruder_type": "fpv_attack",
+      "seed": 41005,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 34.7,
+      "minimum_separation_m": 4.035974979400635,
+      "energy_used": 13.707667252247452,
+      "battery_remaining": 0.8694507880738318,
+      "reward": 11.712383943746786,
+      "scenario_id": "agile-pop-up",
+      "sensor_latency_s": 0.18,
+      "sensor_dropout_probability": 0.1,
+      "radar_noise_std_m": 2.5,
+      "evasion_mps": 15.0,
+      "wind_speed_mps": 7.071067810058594,
+      "mass_factor": 0.9867390416337375,
+      "actuator_time_constant_s": 0.23478573378811357,
+      "maximum_sensor_age_s": 0.35,
+      "mean_track_confidence": 0.5707682455186364,
+      "final_intruder_radius_m": 1.5813332796096802,
+      "mean_controller_action_norm": 0.4993067191301789,
+      "action_saturation_fraction": 0.23054755043227665,
+      "mean_applied_acceleration_mps2": 28.64659638397975,
+      "case_label": "Agile pop-up attack",
+      "case_tags": [
+        "pop-up",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "pop_up",
+      "intruder_type": "fpv_attack",
+      "seed": 41006,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 34.550000000000004,
+      "minimum_separation_m": 2.6908719539642334,
+      "energy_used": 15.838057401032517,
+      "battery_remaining": 0.8491613580854019,
+      "reward": 11.451384379729433,
+      "scenario_id": "agile-pop-up",
+      "sensor_latency_s": 0.18,
+      "sensor_dropout_probability": 0.1,
+      "radar_noise_std_m": 2.5,
+      "evasion_mps": 15.0,
+      "wind_speed_mps": 7.071067810058594,
+      "mass_factor": 1.168553964942822,
+      "actuator_time_constant_s": 0.31133265724193815,
+      "maximum_sensor_age_s": 0.3,
+      "mean_track_confidence": 0.589207355600561,
+      "final_intruder_radius_m": 1.9566282033920288,
+      "mean_controller_action_norm": 0.6284486865260882,
+      "action_saturation_fraction": 0.32850940665701883,
+      "mean_applied_acceleration_mps2": 30.11024187192558,
+      "case_label": "Agile pop-up attack",
+      "case_tags": [
+        "pop-up",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "agile_target",
+          "slow_actuator",
+          "control_saturation"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "pop_up",
+      "intruder_type": "fpv_attack",
+      "seed": 41007,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 35.4,
+      "minimum_separation_m": 1.5885134935379028,
+      "energy_used": 12.41478369094378,
+      "battery_remaining": 0.8817639648481498,
+      "reward": 11.800006262387313,
+      "scenario_id": "agile-pop-up",
+      "sensor_latency_s": 0.18,
+      "sensor_dropout_probability": 0.1,
+      "radar_noise_std_m": 2.5,
+      "evasion_mps": 15.0,
+      "wind_speed_mps": 7.071067810058594,
+      "mass_factor": 0.9215861472559823,
+      "actuator_time_constant_s": 0.17105541042410094,
+      "maximum_sensor_age_s": 0.3,
+      "mean_track_confidence": 0.5573582307071713,
+      "final_intruder_radius_m": 1.2342491149902344,
+      "mean_controller_action_norm": 0.4089679737288589,
+      "action_saturation_fraction": 0.15819209039548024,
+      "mean_applied_acceleration_mps2": 25.43842293709348,
+      "case_label": "Agile pop-up attack",
+      "case_tags": [
+        "pop-up",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "pop_up",
+      "intruder_type": "fpv_attack",
+      "seed": 41008,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 33.7,
+      "minimum_separation_m": 0.983389675617218,
+      "energy_used": 13.95027844753438,
+      "battery_remaining": 0.8671402052615769,
+      "reward": 212.8013655169924,
+      "scenario_id": "agile-pop-up",
+      "sensor_latency_s": 0.18,
+      "sensor_dropout_probability": 0.1,
+      "radar_noise_std_m": 2.5,
+      "evasion_mps": 15.0,
+      "wind_speed_mps": 7.071067810058594,
+      "mass_factor": 1.1858062211463194,
+      "actuator_time_constant_s": 0.2714723416205886,
+      "maximum_sensor_age_s": 0.3,
+      "mean_track_confidence": 0.5589940730730693,
+      "final_intruder_radius_m": 38.13357925415039,
+      "mean_controller_action_norm": 0.5378626014523274,
+      "action_saturation_fraction": 0.2403560830860534,
+      "mean_applied_acceleration_mps2": 28.0746778597287,
+      "case_label": "Agile pop-up attack",
+      "case_tags": [
+        "pop-up",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "agile_target",
+          "high_mass"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "pop_up",
+      "intruder_type": "fpv_attack",
+      "seed": 41009,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 35.800000000000004,
+      "minimum_separation_m": 3.3148181438446045,
+      "energy_used": 14.496699592302496,
+      "battery_remaining": 0.861936194359021,
+      "reward": 11.54757944459729,
+      "scenario_id": "agile-pop-up",
+      "sensor_latency_s": 0.18,
+      "sensor_dropout_probability": 0.1,
+      "radar_noise_std_m": 2.5,
+      "evasion_mps": 15.0,
+      "wind_speed_mps": 7.071067810058594,
+      "mass_factor": 1.032605674952732,
+      "actuator_time_constant_s": 0.2664043912848447,
+      "maximum_sensor_age_s": 0.35,
+      "mean_track_confidence": 0.5698786310571008,
+      "final_intruder_radius_m": 1.7704905271530151,
+      "mean_controller_action_norm": 0.5194843049387463,
+      "action_saturation_fraction": 0.25139664804469275,
+      "mean_applied_acceleration_mps2": 27.914183176179836,
+      "case_label": "Agile pop-up attack",
+      "case_tags": [
+        "pop-up",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 51000,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 27.200000000000003,
+      "minimum_separation_m": 1.7343796491622925,
+      "energy_used": 9.12911069049547,
+      "battery_remaining": 0.9130560886619472,
+      "reward": 4.918954255786929,
+      "scenario_id": "remote-launch",
+      "sensor_latency_s": 0.14,
+      "sensor_dropout_probability": 0.06,
+      "radar_noise_std_m": 2.0,
+      "evasion_mps": 6.0,
+      "wind_speed_mps": 6.324555397033691,
+      "mass_factor": 0.9984649216474741,
+      "actuator_time_constant_s": 0.09229951744999575,
+      "maximum_sensor_age_s": 0.25,
+      "mean_track_confidence": 0.514292911870764,
+      "final_intruder_radius_m": 1.4257991313934326,
+      "mean_controller_action_norm": 0.3782576232256628,
+      "action_saturation_fraction": 0.15992647058823528,
+      "mean_applied_acceleration_mps2": 23.517079619553815,
+      "case_label": "Remote interceptor launch point",
+      "case_tags": [
+        "geometry",
+        "remote-launch"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 51001,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 27.200000000000003,
+      "minimum_separation_m": 1.3510959148406982,
+      "energy_used": 9.479624462646836,
+      "battery_remaining": 0.9097178622605057,
+      "reward": 4.890881879775378,
+      "scenario_id": "remote-launch",
+      "sensor_latency_s": 0.14,
+      "sensor_dropout_probability": 0.06,
+      "radar_noise_std_m": 2.0,
+      "evasion_mps": 6.0,
+      "wind_speed_mps": 6.324555397033691,
+      "mass_factor": 0.8704619820861175,
+      "actuator_time_constant_s": 0.1816696821996772,
+      "maximum_sensor_age_s": 0.25,
+      "mean_track_confidence": 0.5052869972832706,
+      "final_intruder_radius_m": 1.5349715948104858,
+      "mean_controller_action_norm": 0.4045166051512163,
+      "action_saturation_fraction": 0.19301470588235295,
+      "mean_applied_acceleration_mps2": 23.912075706894566,
+      "case_label": "Remote interceptor launch point",
+      "case_tags": [
+        "geometry",
+        "remote-launch"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 51002,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 10.700000000000001,
+      "minimum_separation_m": 1.0721118450164795,
+      "energy_used": 2.6938489786567934,
+      "battery_remaining": 0.974344295441363,
+      "reward": 210.42726627521643,
+      "scenario_id": "remote-launch",
+      "sensor_latency_s": 0.14,
+      "sensor_dropout_probability": 0.06,
+      "radar_noise_std_m": 2.0,
+      "evasion_mps": 6.0,
+      "wind_speed_mps": 6.324555397033691,
+      "mass_factor": 0.8522194328035424,
+      "actuator_time_constant_s": 0.15655827359447222,
+      "maximum_sensor_age_s": 0.25,
+      "mean_track_confidence": 0.24273651034332985,
+      "final_intruder_radius_m": 816.3782348632812,
+      "mean_controller_action_norm": 0.20736028068202816,
+      "action_saturation_fraction": 0.04672897196261682,
+      "mean_applied_acceleration_mps2": 18.905832124229903,
+      "case_label": "Remote interceptor launch point",
+      "case_tags": [
+        "geometry",
+        "remote-launch"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 51003,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 27.200000000000003,
+      "minimum_separation_m": 2.5061066150665283,
+      "energy_used": 11.385290906963624,
+      "battery_remaining": 0.8915686580289165,
+      "reward": 5.106585304371322,
+      "scenario_id": "remote-launch",
+      "sensor_latency_s": 0.14,
+      "sensor_dropout_probability": 0.06,
+      "radar_noise_std_m": 2.0,
+      "evasion_mps": 6.0,
+      "wind_speed_mps": 6.324555397033691,
+      "mass_factor": 1.013975278936185,
+      "actuator_time_constant_s": 0.32523514830995404,
+      "maximum_sensor_age_s": 0.25,
+      "mean_track_confidence": 0.4996979623759558,
+      "final_intruder_radius_m": 1.1721422672271729,
+      "mean_controller_action_norm": 0.5472809262513799,
+      "action_saturation_fraction": 0.2647058823529412,
+      "mean_applied_acceleration_mps2": 25.761159807662754,
+      "case_label": "Remote interceptor launch point",
+      "case_tags": [
+        "geometry",
+        "remote-launch"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 51004,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 27.200000000000003,
+      "minimum_separation_m": 3.514221429824829,
+      "energy_used": 9.49722976845084,
+      "battery_remaining": 0.9095501926814203,
+      "reward": 4.935013320826471,
+      "scenario_id": "remote-launch",
+      "sensor_latency_s": 0.14,
+      "sensor_dropout_probability": 0.06,
+      "radar_noise_std_m": 2.0,
+      "evasion_mps": 6.0,
+      "wind_speed_mps": 6.324555397033691,
+      "mass_factor": 1.1595422806894473,
+      "actuator_time_constant_s": 0.17676503234420965,
+      "maximum_sensor_age_s": 0.25,
+      "mean_track_confidence": 0.5141774694853967,
+      "final_intruder_radius_m": 1.6417447328567505,
+      "mean_controller_action_norm": 0.40583551882488844,
+      "action_saturation_fraction": 0.18198529411764705,
+      "mean_applied_acceleration_mps2": 19.72266433393473,
+      "case_label": "Remote interceptor launch point",
+      "case_tags": [
+        "geometry",
+        "remote-launch"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 51005,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 27.200000000000003,
+      "minimum_separation_m": 1.6822569370269775,
+      "energy_used": 9.950529150749668,
+      "battery_remaining": 0.9052330557071443,
+      "reward": 3.7294527022489916,
+      "scenario_id": "remote-launch",
+      "sensor_latency_s": 0.14,
+      "sensor_dropout_probability": 0.06,
+      "radar_noise_std_m": 2.0,
+      "evasion_mps": 6.0,
+      "wind_speed_mps": 6.324555397033691,
+      "mass_factor": 0.890844304046703,
+      "actuator_time_constant_s": 0.2227093727535443,
+      "maximum_sensor_age_s": 0.25,
+      "mean_track_confidence": 0.5104082628127632,
+      "final_intruder_radius_m": 1.3280326128005981,
+      "mean_controller_action_norm": 0.43979475590019906,
+      "action_saturation_fraction": 0.18933823529411764,
+      "mean_applied_acceleration_mps2": 23.78428159215871,
+      "case_label": "Remote interceptor launch point",
+      "case_tags": [
+        "geometry",
+        "remote-launch"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 51006,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 26.5,
+      "minimum_separation_m": 1.5838899612426758,
+      "energy_used": 9.877008978914247,
+      "battery_remaining": 0.905933247819864,
+      "reward": 6.130655599570858,
+      "scenario_id": "remote-launch",
+      "sensor_latency_s": 0.14,
+      "sensor_dropout_probability": 0.06,
+      "radar_noise_std_m": 2.0,
+      "evasion_mps": 6.0,
+      "wind_speed_mps": 6.324555397033691,
+      "mass_factor": 1.0542500152473062,
+      "actuator_time_constant_s": 0.2608218718169064,
+      "maximum_sensor_age_s": 0.25,
+      "mean_track_confidence": 0.503292415887398,
+      "final_intruder_radius_m": 1.476508617401123,
+      "mean_controller_action_norm": 0.45383260458189434,
+      "action_saturation_fraction": 0.2,
+      "mean_applied_acceleration_mps2": 21.52370478392772,
+      "case_label": "Remote interceptor launch point",
+      "case_tags": [
+        "geometry",
+        "remote-launch"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 51007,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 26.5,
+      "minimum_separation_m": 1.1164568662643433,
+      "energy_used": 9.789724831594436,
+      "battery_remaining": 0.9067645254133856,
+      "reward": 6.165318031023929,
+      "scenario_id": "remote-launch",
+      "sensor_latency_s": 0.14,
+      "sensor_dropout_probability": 0.06,
+      "radar_noise_std_m": 2.0,
+      "evasion_mps": 6.0,
+      "wind_speed_mps": 6.324555397033691,
+      "mass_factor": 1.1233041637779653,
+      "actuator_time_constant_s": 0.19504349156785572,
+      "maximum_sensor_age_s": 0.3,
+      "mean_track_confidence": 0.4940127132078124,
+      "final_intruder_radius_m": 1.3227390050888062,
+      "mean_controller_action_norm": 0.44712092520994184,
+      "action_saturation_fraction": 0.23018867924528302,
+      "mean_applied_acceleration_mps2": 21.50981375707208,
+      "case_label": "Remote interceptor launch point",
+      "case_tags": [
+        "geometry",
+        "remote-launch"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 51008,
+      "intercepted": false,
+      "outcome": "breach",
+      "duration_s": 27.200000000000003,
+      "minimum_separation_m": 1.7513656616210938,
+      "energy_used": 8.847565883665816,
+      "battery_remaining": 0.9157374677746092,
+      "reward": 4.901351590498109,
+      "scenario_id": "remote-launch",
+      "sensor_latency_s": 0.14,
+      "sensor_dropout_probability": 0.06,
+      "radar_noise_std_m": 2.0,
+      "evasion_mps": 6.0,
+      "wind_speed_mps": 6.324555397033691,
+      "mass_factor": 1.192249903813847,
+      "actuator_time_constant_s": 0.09160233163165044,
+      "maximum_sensor_age_s": 0.25,
+      "mean_track_confidence": 0.4954553829420597,
+      "final_intruder_radius_m": 1.748100757598877,
+      "mean_controller_action_norm": 0.3571654990891522,
+      "action_saturation_fraction": 0.15073529411764705,
+      "mean_applied_acceleration_mps2": 20.177098018665085,
+      "case_label": "Remote interceptor launch point",
+      "case_tags": [
+        "geometry",
+        "remote-launch"
+      ],
+      "analysis": {
+        "outcome": "breach",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_mass"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "direct",
+      "intruder_type": "shahed136",
+      "seed": 51009,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 10.65,
+      "minimum_separation_m": 0.8586027026176453,
+      "energy_used": 2.8725542826791175,
+      "battery_remaining": 0.9726423401649603,
+      "reward": 210.44789487121494,
+      "scenario_id": "remote-launch",
+      "sensor_latency_s": 0.14,
+      "sensor_dropout_probability": 0.06,
+      "radar_noise_std_m": 2.0,
+      "evasion_mps": 6.0,
+      "wind_speed_mps": 6.324555397033691,
+      "mass_factor": 0.9251162188129998,
+      "actuator_time_constant_s": 0.28986782539588646,
+      "maximum_sensor_age_s": 0.25,
+      "mean_track_confidence": 0.23883844146104616,
+      "final_intruder_radius_m": 819.8506469726562,
+      "mean_controller_action_norm": 0.24396120408820993,
+      "action_saturation_fraction": 0.07981220657276995,
+      "mean_applied_acceleration_mps2": 18.34636261247693,
+      "case_label": "Remote interceptor launch point",
+      "case_tags": [
+        "geometry",
+        "remote-launch"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "spiral",
+      "intruder_type": "consumer_quad",
+      "seed": 61000,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 22.150000000000002,
+      "minimum_separation_m": 0.7157936692237854,
+      "energy_used": 4.72723059834188,
+      "battery_remaining": 0.9549787562062654,
+      "reward": 207.75808513702077,
+      "scenario_id": "spiral-noisy",
+      "sensor_latency_s": 0.26,
+      "sensor_dropout_probability": 0.17,
+      "radar_noise_std_m": 4.2,
+      "evasion_mps": 10.0,
+      "wind_speed_mps": 8.602325439453125,
+      "mass_factor": 0.8916203029810056,
+      "actuator_time_constant_s": 0.2802776929216767,
+      "maximum_sensor_age_s": 0.39999999999999997,
+      "mean_track_confidence": 0.22192848319405908,
+      "final_intruder_radius_m": 1053.378662109375,
+      "mean_controller_action_norm": 0.12922930645464203,
+      "action_saturation_fraction": 0.029345372460496615,
+      "mean_applied_acceleration_mps2": 9.289159708044599,
+      "case_label": "Noisy spiral approach",
+      "case_tags": [
+        "spiral",
+        "sensor-degraded"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "spiral",
+      "intruder_type": "consumer_quad",
+      "seed": 61001,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 2.3833281993865967,
+      "energy_used": 23.929228390002645,
+      "battery_remaining": 0.7721025867618639,
+      "reward": 85.80133450003015,
+      "scenario_id": "spiral-noisy",
+      "sensor_latency_s": 0.26,
+      "sensor_dropout_probability": 0.17,
+      "radar_noise_std_m": 4.2,
+      "evasion_mps": 10.0,
+      "wind_speed_mps": 8.602325439453125,
+      "mass_factor": 0.8984484922284235,
+      "actuator_time_constant_s": 0.08774084569778214,
+      "maximum_sensor_age_s": 0.44999999999999996,
+      "mean_track_confidence": 0.3690997417248174,
+      "final_intruder_radius_m": 533.6296997070312,
+      "mean_controller_action_norm": 0.1006835766780811,
+      "action_saturation_fraction": 0.010416666666666666,
+      "mean_applied_acceleration_mps2": 7.580371786387016,
+      "case_label": "Noisy spiral approach",
+      "case_tags": [
+        "spiral",
+        "sensor-degraded"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "spiral",
+      "intruder_type": "consumer_quad",
+      "seed": 61002,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 2.2812838554382324,
+      "energy_used": 24.847050409082893,
+      "battery_remaining": 0.7633614246753854,
+      "reward": 86.32780218717043,
+      "scenario_id": "spiral-noisy",
+      "sensor_latency_s": 0.26,
+      "sensor_dropout_probability": 0.17,
+      "radar_noise_std_m": 4.2,
+      "evasion_mps": 10.0,
+      "wind_speed_mps": 8.602325439453125,
+      "mass_factor": 1.1424596094544064,
+      "actuator_time_constant_s": 0.11283343507806767,
+      "maximum_sensor_age_s": 0.44999999999999996,
+      "mean_track_confidence": 0.36078742626854304,
+      "final_intruder_radius_m": 529.265380859375,
+      "mean_controller_action_norm": 0.1162690116717325,
+      "action_saturation_fraction": 0.016666666666666666,
+      "mean_applied_acceleration_mps2": 6.725426674736664,
+      "case_label": "Noisy spiral approach",
+      "case_tags": [
+        "spiral",
+        "sensor-degraded"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "spiral",
+      "intruder_type": "consumer_quad",
+      "seed": 61003,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 1.6131482124328613,
+      "energy_used": 26.260829490477487,
+      "battery_remaining": 0.7498968619954376,
+      "reward": 85.35395418870144,
+      "scenario_id": "spiral-noisy",
+      "sensor_latency_s": 0.26,
+      "sensor_dropout_probability": 0.17,
+      "radar_noise_std_m": 4.2,
+      "evasion_mps": 10.0,
+      "wind_speed_mps": 8.602325439453125,
+      "mass_factor": 1.0051991689870108,
+      "actuator_time_constant_s": 0.2224373390947777,
+      "maximum_sensor_age_s": 0.44999999999999996,
+      "mean_track_confidence": 0.36420356842539103,
+      "final_intruder_radius_m": 532.892578125,
+      "mean_controller_action_norm": 0.1402762391193149,
+      "action_saturation_fraction": 0.029166666666666667,
+      "mean_applied_acceleration_mps2": 8.00525045491134,
+      "case_label": "Noisy spiral approach",
+      "case_tags": [
+        "spiral",
+        "sensor-degraded"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "spiral",
+      "intruder_type": "consumer_quad",
+      "seed": 61004,
+      "intercepted": true,
+      "outcome": "intercepted",
+      "duration_s": 22.200000000000003,
+      "minimum_separation_m": 0.8728164434432983,
+      "energy_used": 4.827704784667966,
+      "battery_remaining": 0.9540218591936357,
+      "reward": 207.72635440841944,
+      "scenario_id": "spiral-noisy",
+      "sensor_latency_s": 0.26,
+      "sensor_dropout_probability": 0.17,
+      "radar_noise_std_m": 4.2,
+      "evasion_mps": 10.0,
+      "wind_speed_mps": 8.602325439453125,
+      "mass_factor": 1.004979203828374,
+      "actuator_time_constant_s": 0.26089006949798454,
+      "maximum_sensor_age_s": 0.35,
+      "mean_track_confidence": 0.22577102920982275,
+      "final_intruder_radius_m": 1053.3834228515625,
+      "mean_controller_action_norm": 0.1374722194904042,
+      "action_saturation_fraction": 0.02252252252252252,
+      "mean_applied_acceleration_mps2": 8.966954449409837,
+      "case_label": "Noisy spiral approach",
+      "case_tags": [
+        "spiral",
+        "sensor-degraded"
+      ],
+      "analysis": {
+        "outcome": "intercepted",
+        "severity": "nominal",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "spiral",
+      "intruder_type": "consumer_quad",
+      "seed": 61005,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 2.717956304550171,
+      "energy_used": 31.694647129301522,
+      "battery_remaining": 0.6981462178161615,
+      "reward": 86.06400520468223,
+      "scenario_id": "spiral-noisy",
+      "sensor_latency_s": 0.26,
+      "sensor_dropout_probability": 0.17,
+      "radar_noise_std_m": 4.2,
+      "evasion_mps": 10.0,
+      "wind_speed_mps": 8.602325439453125,
+      "mass_factor": 1.1161982793255991,
+      "actuator_time_constant_s": 0.3064688178158976,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.3698551761562851,
+      "final_intruder_radius_m": 519.77783203125,
+      "mean_controller_action_norm": 0.23254730019291553,
+      "action_saturation_fraction": 0.059166666666666666,
+      "mean_applied_acceleration_mps2": 11.077849150815357,
+      "case_label": "Noisy spiral approach",
+      "case_tags": [
+        "spiral",
+        "sensor-degraded"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "spiral",
+      "intruder_type": "consumer_quad",
+      "seed": 61006,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 1.1782053709030151,
+      "energy_used": 26.00620342088251,
+      "battery_remaining": 0.7523218721820578,
+      "reward": 86.0183462662741,
+      "scenario_id": "spiral-noisy",
+      "sensor_latency_s": 0.26,
+      "sensor_dropout_probability": 0.17,
+      "radar_noise_std_m": 4.2,
+      "evasion_mps": 10.0,
+      "wind_speed_mps": 8.602325439453125,
+      "mass_factor": 0.8735249876871689,
+      "actuator_time_constant_s": 0.21321659137973792,
+      "maximum_sensor_age_s": 0.44999999999999996,
+      "mean_track_confidence": 0.3641280066167648,
+      "final_intruder_radius_m": 532.7686767578125,
+      "mean_controller_action_norm": 0.13595246177157,
+      "action_saturation_fraction": 0.025833333333333333,
+      "mean_applied_acceleration_mps2": 8.937849987167866,
+      "case_label": "Noisy spiral approach",
+      "case_tags": [
+        "spiral",
+        "sensor-degraded"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "spiral",
+      "intruder_type": "consumer_quad",
+      "seed": 61007,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 2.9508883953094482,
+      "energy_used": 34.019432721308924,
+      "battery_remaining": 0.676005402654186,
+      "reward": 85.78577967537807,
+      "scenario_id": "spiral-noisy",
+      "sensor_latency_s": 0.26,
+      "sensor_dropout_probability": 0.17,
+      "radar_noise_std_m": 4.2,
+      "evasion_mps": 10.0,
+      "wind_speed_mps": 8.602325439453125,
+      "mass_factor": 1.1352935938307274,
+      "actuator_time_constant_s": 0.321226864516427,
+      "maximum_sensor_age_s": 0.49999999999999994,
+      "mean_track_confidence": 0.366621070928943,
+      "final_intruder_radius_m": 520.0453491210938,
+      "mean_controller_action_norm": 0.2720242292327263,
+      "action_saturation_fraction": 0.08875,
+      "mean_applied_acceleration_mps2": 12.610072434482476,
+      "case_label": "Noisy spiral approach",
+      "case_tags": [
+        "spiral",
+        "sensor-degraded"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "spiral",
+      "intruder_type": "consumer_quad",
+      "seed": 61008,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 3.1999599933624268,
+      "energy_used": 25.13382664192124,
+      "battery_remaining": 0.7606302224578779,
+      "reward": 85.7058689648695,
+      "scenario_id": "spiral-noisy",
+      "sensor_latency_s": 0.26,
+      "sensor_dropout_probability": 0.17,
+      "radar_noise_std_m": 4.2,
+      "evasion_mps": 10.0,
+      "wind_speed_mps": 8.602325439453125,
+      "mass_factor": 0.8279373304966842,
+      "actuator_time_constant_s": 0.2267221293227678,
+      "maximum_sensor_age_s": 0.49999999999999994,
+      "mean_track_confidence": 0.36135203247018677,
+      "final_intruder_radius_m": 533.4862060546875,
+      "mean_controller_action_norm": 0.12113872741368444,
+      "action_saturation_fraction": 0.019166666666666665,
+      "mean_applied_acceleration_mps2": 8.626350141409784,
+      "case_label": "Noisy spiral approach",
+      "case_tags": [
+        "spiral",
+        "sensor-degraded"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "spiral",
+      "intruder_type": "consumer_quad",
+      "seed": 61009,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 3.1199944019317627,
+      "energy_used": 25.61520453127986,
+      "battery_remaining": 0.7560456711306527,
+      "reward": 85.75283525238498,
+      "scenario_id": "spiral-noisy",
+      "sensor_latency_s": 0.26,
+      "sensor_dropout_probability": 0.17,
+      "radar_noise_std_m": 4.2,
+      "evasion_mps": 10.0,
+      "wind_speed_mps": 8.602325439453125,
+      "mass_factor": 0.8620978841573703,
+      "actuator_time_constant_s": 0.16266188557444478,
+      "maximum_sensor_age_s": 0.44999999999999996,
+      "mean_track_confidence": 0.3667671015887199,
+      "final_intruder_radius_m": 532.7122192382812,
+      "mean_controller_action_norm": 0.12931295253142405,
+      "action_saturation_fraction": 0.020833333333333332,
+      "mean_applied_acceleration_mps2": 8.951939370241016,
+      "case_label": "Noisy spiral approach",
+      "case_tags": [
+        "spiral",
+        "sensor-degraded"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "fpv_attack",
+      "seed": 71000,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 5.308649063110352,
+      "energy_used": 28.076215561877394,
+      "battery_remaining": 0.7326074708392365,
+      "reward": 178.40989728113237,
+      "scenario_id": "compound-edge",
+      "sensor_latency_s": 0.35,
+      "sensor_dropout_probability": 0.25,
+      "radar_noise_std_m": 5.5,
+      "evasion_mps": 16.0,
+      "wind_speed_mps": 16.278820037841797,
+      "mass_factor": 1.055418219928216,
+      "actuator_time_constant_s": 0.09394763230533167,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.38691475432597316,
+      "final_intruder_radius_m": 318.3346252441406,
+      "mean_controller_action_norm": 0.17110311079595703,
+      "action_saturation_fraction": 0.0175,
+      "mean_applied_acceleration_mps2": 11.107814852998903,
+      "case_label": "Compound maximum-stress edge case",
+      "case_tags": [
+        "compound",
+        "high-wind",
+        "sensor-degraded",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "high_wind",
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "fpv_attack",
+      "seed": 71001,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 6.0440592765808105,
+      "energy_used": 27.452907422046277,
+      "battery_remaining": 0.7385437388376286,
+      "reward": 179.1107017601234,
+      "scenario_id": "compound-edge",
+      "sensor_latency_s": 0.35,
+      "sensor_dropout_probability": 0.25,
+      "radar_noise_std_m": 5.5,
+      "evasion_mps": 16.0,
+      "wind_speed_mps": 16.278820037841797,
+      "mass_factor": 0.9467841192887467,
+      "actuator_time_constant_s": 0.09717739726400659,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.3875345888360249,
+      "final_intruder_radius_m": 319.7904357910156,
+      "mean_controller_action_norm": 0.16051878366890984,
+      "action_saturation_fraction": 0.011666666666666667,
+      "mean_applied_acceleration_mps2": 11.277014805289607,
+      "case_label": "Compound maximum-stress edge case",
+      "case_tags": [
+        "compound",
+        "high-wind",
+        "sensor-degraded",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "high_wind",
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "fpv_attack",
+      "seed": 71002,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 3.757598400115967,
+      "energy_used": 29.418608888201664,
+      "battery_remaining": 0.7198227724932911,
+      "reward": 178.19392105673592,
+      "scenario_id": "compound-edge",
+      "sensor_latency_s": 0.35,
+      "sensor_dropout_probability": 0.25,
+      "radar_noise_std_m": 5.5,
+      "evasion_mps": 16.0,
+      "wind_speed_mps": 16.278820037841797,
+      "mass_factor": 0.9124353361456599,
+      "actuator_time_constant_s": 0.23051474180890963,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.38795854515554706,
+      "final_intruder_radius_m": 320.61199951171875,
+      "mean_controller_action_norm": 0.19389814456983004,
+      "action_saturation_fraction": 0.02125,
+      "mean_applied_acceleration_mps2": 12.28621509352078,
+      "case_label": "Compound maximum-stress edge case",
+      "case_tags": [
+        "compound",
+        "high-wind",
+        "sensor-degraded",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "high_wind",
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "fpv_attack",
+      "seed": 71003,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 5.321731090545654,
+      "energy_used": 29.21458197876143,
+      "battery_remaining": 0.7217658859165307,
+      "reward": 179.31353590891246,
+      "scenario_id": "compound-edge",
+      "sensor_latency_s": 0.35,
+      "sensor_dropout_probability": 0.25,
+      "radar_noise_std_m": 5.5,
+      "evasion_mps": 16.0,
+      "wind_speed_mps": 16.278820037841797,
+      "mass_factor": 0.9993674043226877,
+      "actuator_time_constant_s": 0.2345660386390344,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.3870755796480159,
+      "final_intruder_radius_m": 318.5216979980469,
+      "mean_controller_action_norm": 0.1904335860084393,
+      "action_saturation_fraction": 0.024583333333333332,
+      "mean_applied_acceleration_mps2": 11.42865828630204,
+      "case_label": "Compound maximum-stress edge case",
+      "case_tags": [
+        "compound",
+        "high-wind",
+        "sensor-degraded",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "high_wind",
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "fpv_attack",
+      "seed": 71004,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 3.207488536834717,
+      "energy_used": 28.946899230394862,
+      "battery_remaining": 0.7243152454247858,
+      "reward": 178.3734636035506,
+      "scenario_id": "compound-edge",
+      "sensor_latency_s": 0.35,
+      "sensor_dropout_probability": 0.25,
+      "radar_noise_std_m": 5.5,
+      "evasion_mps": 16.0,
+      "wind_speed_mps": 16.278820037841797,
+      "mass_factor": 1.1584969062736308,
+      "actuator_time_constant_s": 0.11455041587228851,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.39217540843940585,
+      "final_intruder_radius_m": 317.60516357421875,
+      "mean_controller_action_norm": 0.18588809463117892,
+      "action_saturation_fraction": 0.019583333333333335,
+      "mean_applied_acceleration_mps2": 10.75676735871782,
+      "case_label": "Compound maximum-stress edge case",
+      "case_tags": [
+        "compound",
+        "high-wind",
+        "sensor-degraded",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "high_wind",
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "fpv_attack",
+      "seed": 71005,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 4.047464847564697,
+      "energy_used": 28.869265347992833,
+      "battery_remaining": 0.7250546157333762,
+      "reward": 179.19061114607695,
+      "scenario_id": "compound-edge",
+      "sensor_latency_s": 0.35,
+      "sensor_dropout_probability": 0.25,
+      "radar_noise_std_m": 5.5,
+      "evasion_mps": 16.0,
+      "wind_speed_mps": 16.278820037841797,
+      "mass_factor": 1.2272044209000041,
+      "actuator_time_constant_s": 0.08421448741589058,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.39162832168378914,
+      "final_intruder_radius_m": 319.37164306640625,
+      "mean_controller_action_norm": 0.18456980219285468,
+      "action_saturation_fraction": 0.020416666666666666,
+      "mean_applied_acceleration_mps2": 10.436604586199586,
+      "case_label": "Compound maximum-stress edge case",
+      "case_tags": [
+        "compound",
+        "high-wind",
+        "sensor-degraded",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "high_wind",
+          "agile_target",
+          "high_mass"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "fpv_attack",
+      "seed": 71006,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 6.623342990875244,
+      "energy_used": 30.101900341220603,
+      "battery_remaining": 0.7133152348454932,
+      "reward": 178.71905344473677,
+      "scenario_id": "compound-edge",
+      "sensor_latency_s": 0.35,
+      "sensor_dropout_probability": 0.25,
+      "radar_noise_std_m": 5.5,
+      "evasion_mps": 16.0,
+      "wind_speed_mps": 16.278820037841797,
+      "mass_factor": 1.0610572357636912,
+      "actuator_time_constant_s": 0.25275379492826855,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.3935575278437867,
+      "final_intruder_radius_m": 318.85357666015625,
+      "mean_controller_action_norm": 0.20550104175616676,
+      "action_saturation_fraction": 0.0275,
+      "mean_applied_acceleration_mps2": 11.247194841237118,
+      "case_label": "Compound maximum-stress edge case",
+      "case_tags": [
+        "compound",
+        "high-wind",
+        "sensor-degraded",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "high_wind",
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "fpv_attack",
+      "seed": 71007,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 6.229488849639893,
+      "energy_used": 29.346425786967163,
+      "battery_remaining": 0.7205102306002912,
+      "reward": 178.45867799190682,
+      "scenario_id": "compound-edge",
+      "sensor_latency_s": 0.35,
+      "sensor_dropout_probability": 0.25,
+      "radar_noise_std_m": 5.5,
+      "evasion_mps": 16.0,
+      "wind_speed_mps": 16.278820037841797,
+      "mass_factor": 1.028018508305038,
+      "actuator_time_constant_s": 0.2551792865434415,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.38840722230909663,
+      "final_intruder_radius_m": 319.5608215332031,
+      "mean_controller_action_norm": 0.19267241124839832,
+      "action_saturation_fraction": 0.019583333333333335,
+      "mean_applied_acceleration_mps2": 11.129446162854633,
+      "case_label": "Compound maximum-stress edge case",
+      "case_tags": [
+        "compound",
+        "high-wind",
+        "sensor-degraded",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "high_wind",
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "fpv_attack",
+      "seed": 71008,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 2.4996697902679443,
+      "energy_used": 30.545596393936176,
+      "battery_remaining": 0.7090895581529632,
+      "reward": 178.61016639989822,
+      "scenario_id": "compound-edge",
+      "sensor_latency_s": 0.35,
+      "sensor_dropout_probability": 0.25,
+      "radar_noise_std_m": 5.5,
+      "evasion_mps": 16.0,
+      "wind_speed_mps": 16.278820037841797,
+      "mass_factor": 0.9168928750411491,
+      "actuator_time_constant_s": 0.28949523095028695,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.38716704350915965,
+      "final_intruder_radius_m": 318.7577209472656,
+      "mean_controller_action_norm": 0.2130353957406866,
+      "action_saturation_fraction": 0.027916666666666666,
+      "mean_applied_acceleration_mps2": 12.881031942466894,
+      "case_label": "Compound maximum-stress edge case",
+      "case_tags": [
+        "compound",
+        "high-wind",
+        "sensor-degraded",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "high_wind",
+          "agile_target",
+          "slow_actuator"
+        ],
+        "causal_claim": false
+      }
+    },
+    {
+      "pattern": "crossing",
+      "intruder_type": "fpv_attack",
+      "seed": 71009,
+      "intercepted": false,
+      "outcome": "timeout",
+      "duration_s": 120.0,
+      "minimum_separation_m": 6.630367279052734,
+      "energy_used": 28.711422248292475,
+      "battery_remaining": 0.726557883349569,
+      "reward": 179.30816259601158,
+      "scenario_id": "compound-edge",
+      "sensor_latency_s": 0.35,
+      "sensor_dropout_probability": 0.25,
+      "radar_noise_std_m": 5.5,
+      "evasion_mps": 16.0,
+      "wind_speed_mps": 16.278820037841797,
+      "mass_factor": 1.0191660117265773,
+      "actuator_time_constant_s": 0.14645483054081987,
+      "maximum_sensor_age_s": 0.5,
+      "mean_track_confidence": 0.38801751487804226,
+      "final_intruder_radius_m": 320.7146911621094,
+      "mean_controller_action_norm": 0.18188948583692158,
+      "action_saturation_fraction": 0.0225,
+      "mean_applied_acceleration_mps2": 11.062373987302806,
+      "case_label": "Compound maximum-stress edge case",
+      "case_tags": [
+        "compound",
+        "high-wind",
+        "sensor-degraded",
+        "evasive"
+      ],
+      "analysis": {
+        "outcome": "timeout",
+        "severity": "critical",
+        "observed_stress_factors": [
+          "high_sensor_latency",
+          "high_sensor_dropout",
+          "high_measurement_noise",
+          "high_wind",
+          "agile_target"
+        ],
+        "causal_claim": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "schema": "aegis.determinism-check.v1",
+  "scenario_id": "saturation_6v4",
+  "seed": 42,
+  "first_sha256": "c110fbca0051292f032436bda4a9db918b5c6c2044feba40faf520305929818f",
+  "second_sha256": "c110fbca0051292f032436bda4a9db918b5c6c2044feba40faf520305929818f",
+  "deterministic": true
+}

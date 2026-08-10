@@ -17,6 +17,7 @@ Flight-log validation can ingest ENU or NED and converts before alignment.
 | Schema | Producer | Purpose |
 |---|---|---|
 | `aegis.tactical.v1` | Tactical UDP publisher | Compact live state for external clients |
+| `aegis.swarm-coordination.v1` | Swarm telemetry publisher | Multi-track sensor-in-loop coordination presentation |
 | `aegis.mission.v1` | Mission recorder | Run identity, environment, result, artifacts |
 | `aegis.telemetry-sample.v1` | Mission recorder | Normalized mission snapshots |
 | `aegis.mission-event.v1` | Mission recorder | Ordered mission lifecycle events |
@@ -83,6 +84,14 @@ The canonical schema is
 [`aegis.tactical.v1.schema.json`](../schemas/aegis.tactical.v1.schema.json).
 The current geodetic coordinates are explicitly marked as placeholders and must
 not be interpreted as an approved operating site.
+
+## Swarm coordination UDP
+
+`aegis.swarm-coordination.v1` presents anonymous sensor tracks, interceptor
+states, assignments, and RF-link-health estimates. It is a visualization and
+research interface: it does not grant control authority and it must not be
+treated as a validated operational sensor contract. The canonical schema is
+[`aegis.swarm-coordination.v1.schema.json`](../schemas/aegis.swarm-coordination.v1.schema.json).
 
 ## Evidence integrity
 

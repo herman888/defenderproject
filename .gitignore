@@ -56,4 +56,5 @@ anti-drone-dome/yolov8n.pt
 # Local Unreal backups and packaged output (canonical source/content is tracked)
 unreal/archive/
 unreal/builds/
+unreal/releases/
 unreal/AegisTacticalViewer/Content/Developers/

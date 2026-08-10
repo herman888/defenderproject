@@ -28,6 +28,9 @@ public:
     /** Visual radar state only; sensor truth remains in the telemetry feed. */
     void SetSensorPresentationState(bool bRadarLocked, bool bRadarFailed);
 
+    /** Draws a display-only sightline to a track already validated by Python. */
+    void SetSensorTrackPresentation(const FVector& PositionEnuMetres);
+
 private:
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<USceneComponent> SceneRoot;
@@ -47,6 +50,10 @@ private:
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UStaticMeshComponent> RadarPulse;
 
+    /** Sparse dashes make a locked radar-to-track relation readable without a solid beam. */
+    UPROPERTY(VisibleAnywhere)
+    TObjectPtr<UInstancedStaticMeshComponent> SensorSightline;
+
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UStaticMeshComponent> PerimeterMarker;
 
@@ -58,6 +65,12 @@ private:
 
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UStaticMeshComponent> InterceptBeacon;
+
+    /** Dotted vertical column marking the predicted intercept point.
+     *  Replaces a 3.2 m solid pulsing sphere, which occluded the engagement it
+     *  was supposed to annotate and was hard to read against terrain. */
+    UPROPERTY(VisibleAnywhere, Category = "Aegis|Site")
+    TObjectPtr<UInstancedStaticMeshComponent> InterceptLadder;
 
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UInstancedStaticMeshComponent> CompoundBuildings;
@@ -76,9 +89,17 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UMaterialInstanceDynamic> InterceptMaterial;
+    UPROPERTY()
+    TObjectPtr<UMaterialInstanceDynamic> LadderMaterial;
 
+    UPROPERTY()
+    TObjectPtr<UMaterialInstanceDynamic> SightlineMaterial;
+
+    void UpdateSensorSightline();
     float MarkerPulseSeconds = 0.0f;
     bool bMarkerVisible = false;
     bool bRadarLocked = false;
     bool bRadarFailed = false;
+    bool bHasSensorTrack = false;
+    FVector SensorTrackWorld = FVector::ZeroVector;
 };

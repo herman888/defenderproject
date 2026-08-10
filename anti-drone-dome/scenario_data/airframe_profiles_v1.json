@@ -14,7 +14,11 @@
       },
       "rigid_body": {
         "mass_kg": 200.0,
-        "inertia_kg_m2": [35.0, 120.0, 145.0]
+        "inertia_kg_m2": [
+          35.0,
+          120.0,
+          145.0
+        ]
       },
       "propulsion": {
         "max_speed_mps": 51.0,
@@ -37,8 +41,9 @@
         "stall_angle_deg": 16.0
       },
       "disturbance": {
-        "turbulence_force_std_n": 18.0,
-        "seed": 136
+        "turbulence_force_std_n": 100.0,
+        "seed": 136,
+        "turbulence_basis": "0.051 g equivalent; set for internal consistency with the other profiles (~0.10 g) adjusted for wing loading. Unvalidated - replace with measured or Dryden-model data."
       },
       "flight_envelope": {
         "max_lateral_accel_g": 2.5,
@@ -66,7 +71,11 @@
       },
       "rigid_body": {
         "mass_kg": 0.9,
-        "inertia_kg_m2": [0.012, 0.012, 0.021]
+        "inertia_kg_m2": [
+          0.012,
+          0.012,
+          0.021
+        ]
       },
       "propulsion": {
         "max_speed_mps": 16.0,
@@ -116,7 +125,11 @@
       },
       "rigid_body": {
         "mass_kg": 1.0,
-        "inertia_kg_m2": [0.014, 0.014, 0.024]
+        "inertia_kg_m2": [
+          0.014,
+          0.014,
+          0.024
+        ]
       },
       "propulsion": {
         "max_speed_mps": 32.0,
@@ -166,7 +179,11 @@
       },
       "rigid_body": {
         "mass_kg": 1.5,
-        "inertia_kg_m2": [0.045, 0.045, 0.08]
+        "inertia_kg_m2": [
+          0.045,
+          0.045,
+          0.08
+        ]
       },
       "propulsion": {
         "thrust_axis": "body_x",

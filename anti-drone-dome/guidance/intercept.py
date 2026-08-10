@@ -57,6 +57,11 @@ _R_TAPER           = 25.0    # m — nominal APN/terminal blend start
 _R_TERM            = 15.0    # m — nominal pure-terminal distance
 _TERM_THRUST_ACCEL = 130.0   # m/s² nominal terminal acceleration
 
+# Endgame navigation-ratio boost. PN leaves a residual line-of-sight rate that
+# becomes miss distance; raise the ratio as time-to-go shrinks.
+_ENDGAME_HORIZON_S = 3.0   # s - time-to-go at which the boost begins
+_ENDGAME_GAIN      = 1.6   # added to N' at zero time-to-go
+
 # Zero-effort-miss terminal law.
 _ZEM_GAIN     = 3.0    # N in a = N * ZEM / t_go^2; 3 is the PN-equivalent value
 _ZEM_MIN_TGO  = 0.06   # s — floor on t_go, since the command diverges as t_go->0
@@ -377,11 +382,31 @@ class PurePursuitGuidance:
             0.0,
             1.0,
         ))
+        # Endgame gain.
+        #
+        # Proportional navigation nulls line-of-sight rate asymptotically, so
+        # whatever rate is left close in converts directly into miss distance:
+        # a residual 0.7 deg/s at 200 m and 118 m/s closure is ~2.4 m/s of
+        # lateral error, which becomes several metres of miss over the ~1.7 s
+        # remaining. That is what produced the measured overshoot - closing
+        # speed going negative at 19 m - and the resulting mid-air reversal.
+        #
+        # None of the terms above scale with proximity, and the law was
+        # commanding only ~6% of available acceleration through the approach.
+        # Raise the navigation ratio as time-to-go shrinks, which is standard
+        # practice and spends authority that was otherwise going unused.
+        time_to_go_s = rng / max(closing_speed, 1.0)
+        endgame_ratio = float(np.clip(
+            (_ENDGAME_HORIZON_S - time_to_go_s) / _ENDGAME_HORIZON_S,
+            0.0,
+            1.0,
+        ))
         navigation_gain = float(np.clip(
             self._N_prime
             + 1.15 * maneuver_ratio
             + 0.85 * crossing_ratio
-            + 0.35 * closing_deficit,
+            + 0.35 * closing_deficit
+            + _ENDGAME_GAIN * endgame_ratio,
             3.0,
             6.2,
         ))

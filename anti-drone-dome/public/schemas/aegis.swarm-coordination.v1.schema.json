@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-larp.local/schemas/aegis.swarm-coordination.v1.schema.json",
+  "title": "AEGIS swarm coordination presentation packet",
+  "type": "object",
+  "required": ["schema", "sequence", "mission_time_s", "timestamp_clock", "coordinate_frame", "coordinator", "interceptors", "threats", "assignment", "link_health"],
+  "properties": {
+    "schema": {"const": "aegis.swarm-coordination.v1"},
+    "sequence": {"type": "integer", "minimum": 0},
+    "mission_time_s": {"type": "number", "minimum": 0},
+    "timestamp_clock": {"const": "simulation-relative"},
+    "coordinate_frame": {
+      "type": "object",
+      "required": ["type", "axes", "position_unit", "velocity_unit", "orientation"],
+      "properties": {
+        "type": {"const": "local-tangent-plane"},
+        "axes": {"const": "ENU"},
+        "position_unit": {"const": "m"},
+        "velocity_unit": {"const": "m/s"},
+        "orientation": {"const": "xyzw"}
+      },
+      "additionalProperties": false
+    },
+    "coordinator": {"$ref": "#/$defs/kinematicTrack"},
+    "interceptors": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          {"$ref": "#/$defs/kinematicTrack"},
+          {
+            "type": "object",
+            "required": ["assigned_threat_id", "state"],
+            "properties": {
+              "assigned_threat_id": {"type": ["string", "null"], "minLength": 1},
+              "state": {"enum": ["ASSIGNED", "COASTING", "AUTONOMOUS_LOCAL", "RESERVE", "EXPENDED"]}
+            }
+          }
+        ]
+      }
+    },
+    "threats": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          {"$ref": "#/$defs/kinematicTrack"},
+          {
+            "type": "object",
+            "required": ["type", "status"],
+            "properties": {
+              "type": {"type": "string", "minLength": 1},
+              "status": {"enum": ["ACTIVE", "NEUTRALIZED", "BREACHED", "LEAKER"]}
+            }
+          }
+        ]
+      }
+    },
+    "assignment": {"type": "object", "additionalProperties": {"type": "string"}},
+    "link_health": {"type": "object"}
+  },
+  "$defs": {
+    "vector3": {
+      "type": "array",
+      "prefixItems": [{"type": "number"}, {"type": "number"}, {"type": "number"}],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "kinematicTrack": {
+      "type": "object",
+      "required": ["id", "position_enu_m", "velocity_enu_mps"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "position_enu_m": {"$ref": "#/$defs/vector3"},
+        "velocity_enu_mps": {"$ref": "#/$defs/vector3"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

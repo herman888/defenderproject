@@ -43,9 +43,12 @@ void AAegisTacticalCameraActor::SetTrackSnapshot(const FTacticalTrackSnapshot& S
         bHasInterceptor = true;
         if (bNewDeployment)
         {
-            PresentationMode = 2;
+            // Stay in a composed two-aircraft engagement view when the
+            // interceptor deploys. CHASE remains available on C, but should
+            // never be an abrupt automatic cut in a tactical replay.
+            PresentationMode = 0;
             bHasFramedTrack = false;
-            LastAutoCut = TEXT("INTERCEPTOR DEPLOYED");
+            LastAutoCut = TEXT("ENGAGEMENT TRACK");
         }
     }
 }
@@ -215,7 +218,10 @@ void AAegisTacticalCameraActor::Tick(float DeltaSeconds)
         // the interceptor exists.
         if (!bHasObserverAnchor)
         {
-            ObserverAnchor = LeadFocus + AverageVelocity * 100.0f * 4.5f;
+            // Two seconds of lead leaves room for the inbound aircraft to
+            // traverse the shot while keeping it large enough to read as an
+            // aircraft rather than a HUD reticle over terrain.
+            ObserverAnchor = LeadFocus + AverageVelocity * 100.0f * 2.0f;
             ObserverAnchorAgeSeconds = 0.0f;
             bHasObserverAnchor = true;
         }
@@ -230,9 +236,9 @@ void AAegisTacticalCameraActor::Tick(float DeltaSeconds)
     // being mistaken for a camera-obstruction and preserves the aircraft's
     // world-space transit through the frame.
     FVector Direction = bHasInterceptor
-        ? FVector(-0.70f, -0.70f, 0.34f)
-        : FVector(-0.38f, -0.38f, 0.84f).GetSafeNormal();
-    float BaseDistance = bHasInterceptor ? 7000.0f : 40000.0f;
+        ? FVector(-0.64f, -0.64f, 0.42f).GetSafeNormal()
+        : FVector(-0.58f, -0.58f, 0.58f).GetSafeNormal();
+    float BaseDistance = bHasInterceptor ? 11000.0f : 12000.0f;
     if (PresentationMode == 1)
     {
         Direction = FVector(-0.22f, -0.22f, 0.95f);
@@ -330,11 +336,11 @@ void AAegisTacticalCameraActor::Tick(float DeltaSeconds)
     }
 
     const float LocationFollowSpeed = !bHasInterceptor && PresentationMode == 0
-        ? 0.01f : 6.0f;
+        ? 0.01f : 2.4f;
     SetActorLocation(FMath::VInterpTo(
         GetActorLocation(), DesiredLocation, DeltaSeconds, LocationFollowSpeed));
     SetActorRotation(FMath::RInterpTo(
-        GetActorRotation(), DesiredRotation, DeltaSeconds, 6.0f));
+        GetActorRotation(), DesiredRotation, DeltaSeconds, 2.8f));
 }
 
 void AAegisTacticalCameraActor::TriggerHitStop(float Duration)
