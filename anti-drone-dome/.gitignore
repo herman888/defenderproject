@@ -6,7 +6,7 @@ data/merged/
 data/raw/
 
 # Base weights (downloaded automatically)
-models/yolo11n_drone.pt
+# Candidate yolo11n_drone.pt is tracked and locked by models/vision/drone_detector_candidate.json.
 
 # YOLO run outputs
 runs/
