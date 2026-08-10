@@ -1,0 +1,228 @@
+{
+  "configuration": {
+    "backend": "opencv-dshow",
+    "device_index": 1,
+    "device_name": "Innomaker-U20CAM-1080PD&N-S1",
+    "operation": "enumeration"
+  },
+  "controls": [
+    {
+      "controls": [
+        {
+          "current_value": 0.0,
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "BRIGHTNESS",
+          "opencv_property": 10,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        },
+        {
+          "current_value": 38.0,
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "CONTRAST",
+          "opencv_property": 11,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        },
+        {
+          "current_value": 64.0,
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "SATURATION",
+          "opencv_property": 12,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        },
+        {
+          "current_value": 0.0,
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "HUE",
+          "opencv_property": 13,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        },
+        {
+          "current_value": 64.0,
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "GAIN",
+          "opencv_property": 14,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        },
+        {
+          "current_value": "NOT MEASURED",
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "EXPOSURE",
+          "opencv_property": 15,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        },
+        {
+          "current_value": "NOT MEASURED",
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "AUTO_EXPOSURE",
+          "opencv_property": 21,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        },
+        {
+          "current_value": 1.0,
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "AUTO_WB",
+          "opencv_property": 44,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        },
+        {
+          "current_value": "NOT MEASURED",
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "WB_TEMPERATURE",
+          "opencv_property": 45,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        },
+        {
+          "current_value": 0.0,
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "BACKLIGHT",
+          "opencv_property": 32,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        },
+        {
+          "current_value": 50.0,
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "SHARPNESS",
+          "opencv_property": 20,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        },
+        {
+          "current_value": 300.0,
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "GAMMA",
+          "opencv_property": 22,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        },
+        {
+          "current_value": "NOT MEASURED",
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "ZOOM",
+          "opencv_property": 27,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        },
+        {
+          "current_value": "NOT MEASURED",
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "FOCUS",
+          "opencv_property": 28,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        },
+        {
+          "current_value": "NOT MEASURED",
+          "default": "NOT MEASURED",
+          "discovery_limit": "OpenCV/DirectShow interface does not expose IAMCameraControl range/default metadata.",
+          "name": "AUTOFOCUS",
+          "opencv_property": 39,
+          "range": "NOT MEASURED",
+          "step": "NOT MEASURED"
+        }
+      ],
+      "scope": "Portable OpenCV controls only. No conclusion is made about IR-cut, night mode, or other vendor controls because this interface does not enumerate them."
+    }
+  ],
+  "created_utc": "2026-08-10T23:56:31.477577+00:00",
+  "directshow": {
+    "devices_raw": {
+      "command": [
+        "ffmpeg",
+        "-hide_banner",
+        "-list_devices",
+        "true",
+        "-f",
+        "dshow",
+        "-i",
+        "dummy"
+      ],
+      "returncode": 0,
+      "stderr": "[in#0 @ 00000179fdd88a40] \"Integrated Camera\" (video)\n[in#0 @ 00000179fdd88a40]   Alternative name \"@device_pnp_\\\\?\\usb#vid_5986&pid_2130&mi_00#6&2c505ce6&0&0000#{65e8773d-8f56-11d0-a3b9-00a0c9223196}\\global\"\n[in#0 @ 00000179fdd88a40] \"Innomaker-U20CAM-1080PD&N-S1\" (video)\n[in#0 @ 00000179fdd88a40]   Alternative name \"@device_pnp_\\\\?\\usb#vid_0bda&pid_5856&mi_00#7&2a4650ef&0&0000#{65e8773d-8f56-11d0-a3b9-00a0c9223196}\\global\"\n[in#0 @ 00000179fdd88a40] \"Microphone (USB Audio)\" (audio)\n[in#0 @ 00000179fdd88a40]   Alternative name \"@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\\wave_{FE719410-5094-4DBE-A3B6-55555D227ECA}\"\n[in#0 @ 00000179fdd88a40] \"Microphone Array (Realtek(R) Audio)\" (audio)\n[in#0 @ 00000179fdd88a40]   Alternative name \"@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\\wave_{388745D2-2D62-421B-8968-DC6C72F8B7CB}\"\nError opening input file dummy.\n",
+      "stdout": ""
+    },
+    "options_raw": {
+      "command": [
+        "ffmpeg",
+        "-hide_banner",
+        "-list_options",
+        "true",
+        "-f",
+        "dshow",
+        "-i",
+        "video=Innomaker-U20CAM-1080PD&N-S1"
+      ],
+      "returncode": 0,
+      "stderr": "[in#0 @ 000001ec4d388a40] DirectShow video device options (from video devices)\n[in#0 @ 000001ec4d388a40]  Pin \"Capture\" (alternative pin name \"0\")\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=640x480 fps=30 max s=640x480 fps=30\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=640x480 fps=30 max s=640x480 fps=30 (pc, bt470bg/bt709/unknown, center)\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=1920x1080 fps=30 max s=1920x1080 fps=30\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=1920x1080 fps=30 max s=1920x1080 fps=30 (pc, bt470bg/bt709/unknown, center)\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=320x240 fps=30 max s=320x240 fps=30\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=320x240 fps=30 max s=320x240 fps=30 (pc, bt470bg/bt709/unknown, center)\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=352x288 fps=30 max s=352x288 fps=30\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=352x288 fps=30 max s=352x288 fps=30 (pc, bt470bg/bt709/unknown, center)\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=640x480 fps=30 max s=640x480 fps=30\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=640x480 fps=30 max s=640x480 fps=30 (pc, bt470bg/bt709/unknown, center)\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=800x600 fps=30 max s=800x600 fps=30\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=800x600 fps=30 max s=800x600 fps=30 (pc, bt470bg/bt709/unknown, center)\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=848x480 fps=30 max s=848x480 fps=30\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=848x480 fps=30 max s=848x480 fps=30 (pc, bt470bg/bt709/unknown, center)\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=960x540 fps=30 max s=960x540 fps=30\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=960x540 fps=30 max s=960x540 fps=30 (pc, bt470bg/bt709/unknown, center)\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=1280x720 fps=30 max s=1280x720 fps=30\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=1280x720 fps=30 max s=1280x720 fps=30 (pc, bt470bg/bt709/unknown, center)\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=1280x800 fps=30 max s=1280x800 fps=30\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=1280x800 fps=30 max s=1280x800 fps=30 (pc, bt470bg/bt709/unknown, center)\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=640x480 fps=30 max s=640x480 fps=30\n[in#0 @ 000001ec4d388a40]   vcodec=mjpeg  min s=640x480 fps=30 max s=640x480 fps=30 (pc, bt470bg/bt709/unknown, center)\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=1280x720 fps=10 max s=1280x720 fps=10\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=1280x720 fps=10 max s=1280x720 fps=10 (tv, bt470bg/bt709/unknown, topleft)\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=640x480 fps=30 max s=640x480 fps=30\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=640x480 fps=30 max s=640x480 fps=30 (tv, bt470bg/bt709/unknown, topleft)\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=800x600 fps=20 max s=800x600 fps=20\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=800x600 fps=20 max s=800x600 fps=20 (tv, bt470bg/bt709/unknown, topleft)\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=848x480 fps=20 max s=848x480 fps=20\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=848x480 fps=20 max s=848x480 fps=20 (tv, bt470bg/bt709/unknown, topleft)\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=960x540 fps=15 max s=960x540 fps=15\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=960x540 fps=15 max s=960x540 fps=15 (tv, bt470bg/bt709/unknown, topleft)\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=1280x720 fps=10 max s=1280x720 fps=10\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=1280x720 fps=10 max s=1280x720 fps=10 (tv, bt470bg/bt709/unknown, topleft)\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=1280x800 fps=5 max s=1280x800 fps=5\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=1280x800 fps=5 max s=1280x800 fps=5 (tv, bt470bg/bt709/unknown, topleft)\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=1920x1080 fps=5 max s=1920x1080 fps=5\n[in#0 @ 000001ec4d388a40]   pixel_format=yuyv422  min s=1920x1080 fps=5 max s=1920x1080 fps=5 (tv, bt470bg/bt709/unknown, topleft)\nError opening input file video=Innomaker-U20CAM-1080PD&N-S1.\n",
+      "stdout": ""
+    }
+  },
+  "git_commit": "79c44ac6895cc6b0a36e2e99ba7d4881a608d1eb",
+  "host": {
+    "hostname": "EddieGaming",
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)]"
+  },
+  "index_verification": {
+    "directshow_order": {
+      "0": "Integrated Camera",
+      "1": "Innomaker-U20CAM-1080PD&N-S1"
+    },
+    "method": "ffmpeg DirectShow device enumeration recorded the ordered device list; OpenCV index 1 opened successfully.",
+    "requested_index": 1,
+    "verification_status": "OPENED"
+  },
+  "note": "Raw DirectShow output is stored unedited. Video-node mapping is reported from Windows PnP nodes; DirectShow does not expose Linux-style nodes.",
+  "pnp_camera_nodes": [
+    {
+      "Class": "Camera",
+      "FriendlyName": "Integrated Camera",
+      "InstanceId": "USB\\VID_5986&PID_2130&MI_00\\6&2C505CE6&0&0000",
+      "Status": "OK"
+    },
+    {
+      "Class": "Image",
+      "FriendlyName": "Lexmark CX410e (ET0021B7EE1EC6)",
+      "InstanceId": "SWD\\DAFWSDPROVIDER\\URN:UUID:9F279215-4DB8-410D-836D-95799934D6BD/URI:UUID:9F279215-4DB8-410D-836D-95799934D6BD/SCANNER1/WEBSERVICES",
+      "Status": "OK"
+    },
+    {
+      "Class": "Camera",
+      "FriendlyName": "Innomaker-U20CAM-1080PD&N-S1",
+      "InstanceId": "USB\\VID_0BDA&PID_5856&MI_00\\7&2A4650EF&0&0000",
+      "Status": "OK"
+    }
+  ],
+  "resolved_packages": {
+    "opencv-python": "4.11.0.86",
+    "psutil": "7.0.0",
+    "pyserial": "3.5",
+    "torch": "2.13.0",
+    "ultralytics": "8.3.151"
+  },
+  "schema": "larp.camera-bench.v1",
+  "schema_version": 1
+}

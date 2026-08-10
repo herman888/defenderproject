@@ -1,0 +1,83 @@
+{
+  "ardupilot_fit": {
+    "reason": "Requires the measured board target/flash result and a separately cited target-build size check; no flashing is performed by this tool.",
+    "status": "NOT MEASURED"
+  },
+  "board_key": "mcu-uid-NOT-MEASURED",
+  "configuration": {
+    "actuation_enabled": false,
+    "airframe_id": "NOT_MEASURED",
+    "baud": 115200,
+    "commands": [
+      "version",
+      "status",
+      "resource",
+      "serial",
+      "get serialrx_provider",
+      "dump"
+    ],
+    "operation": "Betaflight CLI interrogation",
+    "port": "COM5"
+  },
+  "created_utc": "2026-08-10T23:56:48.309366+00:00",
+  "fc": {
+    "airframe_id": "NOT_MEASURED",
+    "betaflight_version": "2025.12.5",
+    "board_identifier": "FURYF4OSD",
+    "external_dataflash": "JEDEC ID=0x00ef4018 16M",
+    "firmware_target": "STM32F405",
+    "flash_total_or_free": "FLASH: JEDEC ID=0x00ef4018 16M",
+    "internal_flash_bytes": "NOT MEASURED",
+    "mcu_identifier": "STM32F40X",
+    "receiver_physical_presence": "NOT MEASURED",
+    "receiver_signal": "ABSENT (RXLOSS, RX rate 0)",
+    "serialrx_provider": "SPEK2048",
+    "unique_id": "NOT MEASURED"
+  },
+  "git_commit": "79c44ac6895cc6b0a36e2e99ba7d4881a608d1eb",
+  "host": {
+    "hostname": "EddieGaming",
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)]"
+  },
+  "resolved_packages": {
+    "opencv-python": "4.11.0.86",
+    "psutil": "7.0.0",
+    "pyserial": "3.5",
+    "torch": "2.13.0",
+    "ultralytics": "8.3.151"
+  },
+  "safety": {
+    "actuation_enabled": false,
+    "props_removed_and_no_battery_confirmed": true,
+    "write_commands_sent": false
+  },
+  "schema": "larp.fc-interrogation.v1",
+  "schema_version": 1,
+  "serial_ports": [
+    {
+      "description": "Standard Serial over Bluetooth link (COM4)",
+      "device": "COM4",
+      "hwid": "BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0000\\7&2CB3A53D&0&000000000000_00000000",
+      "pid": "NOT MEASURED",
+      "serial_number": "NOT MEASURED",
+      "vid": "NOT MEASURED"
+    },
+    {
+      "description": "USB Serial Device (COM5)",
+      "device": "COM5",
+      "hwid": "USB VID:PID=0483:5740 SER=0X8000000 LOCATION=1-3.4",
+      "pid": "5740",
+      "serial_number": "0X8000000",
+      "vid": "0483"
+    },
+    {
+      "description": "Standard Serial over Bluetooth link (COM3)",
+      "device": "COM3",
+      "hwid": "BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}_VID&00010075_PID&A013\\7&2CB3A53D&0&AC80FB12B42E_C00000000",
+      "pid": "NOT MEASURED",
+      "serial_number": "NOT MEASURED",
+      "vid": "NOT MEASURED"
+    }
+  ]
+}
