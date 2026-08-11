@@ -92,8 +92,8 @@ def config_name(width: int, height: int, fmt: str) -> str:
     return f"{width}x{height}_{fmt.lower()}"
 
 
-def windows_display_origin(device_name: str) -> tuple[int, int]:
-    """Return an explicit Windows display origin, without guessing a monitor."""
+def windows_display_geometry(device_name: str) -> tuple[int, int, int, int]:
+    """Return explicit Windows display geometry, without guessing a monitor."""
     if __import__("platform").system() != "Windows":
         raise RuntimeError("stimulus display placement is implemented only on Windows")
     import ctypes
@@ -105,14 +105,14 @@ def windows_display_origin(device_name: str) -> tuple[int, int]:
     class MONITORINFOEXW(ctypes.Structure):
         _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", RECT), ("rcWork", RECT), ("dwFlags", wintypes.DWORD), ("szDevice", wintypes.WCHAR * 32)]
 
-    found: list[tuple[int, int]] = []
+    found: list[tuple[int, int, int, int]] = []
     callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HMONITOR, wintypes.HDC, ctypes.POINTER(RECT), wintypes.LPARAM)
 
     @callback_type
     def visit(handle, _dc, _rect, _data):
         info = MONITORINFOEXW(); info.cbSize = ctypes.sizeof(info)
         if ctypes.windll.user32.GetMonitorInfoW(handle, ctypes.byref(info)) and info.szDevice.upper() == device_name.upper():
-            found.append((info.rcMonitor.left, info.rcMonitor.top))
+            found.append((info.rcMonitor.left, info.rcMonitor.top, info.rcMonitor.right - info.rcMonitor.left, info.rcMonitor.bottom - info.rcMonitor.top))
         return True
 
     if not ctypes.windll.user32.EnumDisplayMonitors(None, None, visit, 0) or not found:
@@ -183,12 +183,12 @@ def latency_command(args) -> Path:
     if not capture.isOpened():
         raise RuntimeError("camera could not open requested latency mode")
     print("Confirm the camera is rigid, focused, and its central third contains only this display. Press Enter to start.")
-    stimulus_origin = windows_display_origin(args.stimulus_display)
+    stimulus_geometry = windows_display_geometry(args.stimulus_display)
+    stimulus_origin = stimulus_geometry[:2]
     cv2.namedWindow("LARP latency stimulus", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("LARP latency stimulus", *stimulus_geometry[2:])
     cv2.moveWindow("LARP latency stimulus", *stimulus_origin)
     cv2.imshow("LARP latency stimulus", np.full((300, 500, 3), 127, dtype="uint8")); cv2.waitKey(1)
-    cv2.setWindowProperty("LARP latency stimulus", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-    cv2.waitKey(1)
     if args.preflight_seconds:
         print(f"Stimulus is on {args.stimulus_display}; starting in {args.preflight_seconds} seconds.")
         time.sleep(args.preflight_seconds)
@@ -228,7 +228,7 @@ def latency_command(args) -> Path:
     finally:
         capture.release(); cv2.destroyAllWindows()
     samples = [trial["crossing_latency_ms"] for trial in trial_records if trial["accepted"]]
-    config = {"operation": "glass_to_glass_luminance_flash", "device_index": args.device_index, "mode": spec, "trials": args.trials, "roi": "central third", "white_threshold": args.threshold, "dark_threshold": args.dark_threshold, "stimulus_display": args.stimulus_display, "stimulus_display_origin": stimulus_origin, "preflight_seconds": args.preflight_seconds, "monitor_resolution": args.monitor_resolution, "monitor_refresh_hz": args.refresh_hz, "room_condition": args.room_condition, "operator_confirmed": {"camera_rigid": args.camera_rigid, "focus_locked": args.focus_locked, "vrr_status": args.vrr_status, "motion_smoothing_status": args.motion_smoothing_status, "power_saving_status": args.power_saving_status, "other_apps_closed": args.other_apps_closed, "windows_high_performance": args.windows_high_performance}}
+    config = {"operation": "glass_to_glass_luminance_flash", "device_index": args.device_index, "mode": spec, "trials": args.trials, "roi": "central third", "white_threshold": args.threshold, "dark_threshold": args.dark_threshold, "stimulus_display": args.stimulus_display, "stimulus_display_geometry": stimulus_geometry, "preflight_seconds": args.preflight_seconds, "monitor_resolution": args.monitor_resolution, "monitor_refresh_hz": args.refresh_hz, "room_condition": args.room_condition, "operator_confirmed": {"camera_rigid": args.camera_rigid, "focus_locked": args.focus_locked, "vrr_status": args.vrr_status, "motion_smoothing_status": args.motion_smoothing_status, "power_saving_status": args.power_saving_status, "other_apps_closed": args.other_apps_closed, "windows_high_performance": args.windows_high_performance}}
     status = "MEASURED" if len(samples) >= args.minimum_crossings else "REJECTED_INSUFFICIENT_CROSSINGS"
     record = {"schema": SCHEMA, **metadata(root_path(), config), "measurement_status": status, "raw_trials": trial_records, "samples_ms": samples, "statistics_ms": {"p50": percentile(samples,.5), "p95": percentile(samples,.95), "p99": percentile(samples,.99), "min": min(samples) if samples else NOT_MEASURED, "max": max(samples) if samples else NOT_MEASURED, "standard_deviation": statistics.stdev(samples) if len(samples)>1 else NOT_MEASURED}, "successful_trials": len(samples), "minimum_acceptable_crossings": args.minimum_crossings, "unseparated_additive_biases": ["monitor refresh timing", "display pixel response", "camera exposure and auto-exposure behaviour", "camera readout and host read scheduling", "window compositor/presentation scheduling"], "interpretation_limit": "This is a luminance-crossing proxy, not an isolated camera-latency measurement. None of the listed biases has been subtracted or separately measured."}
     path = write_artifact(root_path(), "camera", f"latency_{config_name(*spec[:3])}", record); print(path); return path
