@@ -134,7 +134,7 @@ class FfmpegDshowFrameCapture:
         input_format = ["-vcodec", "mjpeg"] if fourcc == "MJPG" else ["-pixel_format", "yuyv422"]
         self.width, self.height = width, height
         self.np = np
-        self.command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "dshow", "-video_size", f"{width}x{height}", "-framerate", str(fps), *input_format, "-i", f"video={device}", "-an", "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]
+        self.command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-fflags", "nobuffer", "-flags", "low_delay", "-rtbufsize", "1M", "-f", "dshow", "-video_size", f"{width}x{height}", "-framerate", str(fps), *input_format, "-i", f"video={device}", "-an", "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]
         self.process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
         self.frame_bytes = width * height
         self.frames: queue.Queue = queue.Queue(maxsize=1)
