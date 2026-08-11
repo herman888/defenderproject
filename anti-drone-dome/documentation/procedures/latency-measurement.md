@@ -14,7 +14,7 @@ userspace. It is not capture-to-detection or a guidance-loop budget.
    Supply the observed monitor fields and all confirmed setup flags, for example:
 
    ```powershell
-   .\venv312\Scripts\python.exe .\scripts\bench_camera.py latency --width 1920 --height 1080 --format MJPG --fps 30 --monitor-resolution <observed-resolution> --refresh-hz <observed-hz> --room-condition "dim, blinds closed" --camera-rigid --focus-locked --vrr-status "NOT MEASURED" --motion-smoothing-status "NOT MEASURED" --power-saving-status "NOT MEASURED" --other-apps-closed --windows-high-performance
+   .\venv312\Scripts\python.exe .\scripts\bench_camera.py latency --width 1920 --height 1080 --format MJPG --fps 30 --stimulus-display '\\.\DISPLAY2' --preflight-seconds 10 --monitor-resolution <observed-resolution> --refresh-hz <observed-hz> --room-condition "dim, blinds closed" --camera-rigid --focus-locked --vrr-status "NOT MEASURED" --motion-smoothing-status "NOT MEASURED" --power-saving-status "NOT MEASURED" --other-apps-closed --windows-high-performance
    ```
 
 5. Reject a run with fewer than 45 crossings. Reject both 1080p runs if their
