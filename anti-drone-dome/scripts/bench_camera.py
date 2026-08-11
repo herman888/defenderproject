@@ -137,8 +137,12 @@ class FfmpegDshowFrameCapture:
         self.command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "dshow", "-video_size", f"{width}x{height}", "-framerate", str(fps), *input_format, "-i", f"video={device}", "-an", "-f", "rawvideo", "-pix_fmt", "bgr24", "pipe:1"]
         self.process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
         self.frame_bytes = width * height * 3
+        self.frames: queue.Queue = queue.Queue(maxsize=1)
+        self.stop_event = threading.Event()
+        self.reader = threading.Thread(target=self._read_frames, daemon=True)
+        self.reader.start()
 
-    def read(self):
+    def _read_one(self):
         chunks, remaining = [], self.frame_bytes
         while remaining:
             chunk = self.process.stdout.read(remaining)
@@ -149,13 +153,38 @@ class FfmpegDshowFrameCapture:
         frame = self.np.frombuffer(b"".join(chunks), dtype=self.np.uint8).reshape(self.height, self.width, 3).copy()
         return True, frame
 
+    def _read_frames(self):
+        while not self.stop_event.is_set():
+            ok, frame = self._read_one()
+            if not ok:
+                return
+            try:
+                self.frames.put(frame, timeout=.05)
+            except queue.Full:
+                try:
+                    self.frames.get_nowait()
+                except queue.Empty:
+                    pass
+                try:
+                    self.frames.put_nowait(frame)
+                except queue.Full:
+                    pass
+
+    def read(self):
+        try:
+            return True, self.frames.get(timeout=.25)
+        except queue.Empty:
+            return False, None
+
     def release(self):
+        self.stop_event.set()
         if self.process.poll() is None:
             self.process.terminate()
             try:
                 self.process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 self.process.kill()
+        self.reader.join(timeout=1)
 
 
 def measure_mode(device_index: int, spec: tuple[int, int, str, float], warmup: int, frames: int) -> dict:
