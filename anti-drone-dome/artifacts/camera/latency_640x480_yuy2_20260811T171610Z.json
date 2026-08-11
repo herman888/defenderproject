@@ -1,0 +1,496 @@
+{
+  "configuration": {
+    "crossing_threshold_method": "actual display black/white calibration midpoint",
+    "device_index": 1,
+    "minimum_contrast": 20,
+    "mode": [
+      640,
+      480,
+      "YUY2",
+      30.0
+    ],
+    "monitor_refresh_hz": 144.0,
+    "monitor_resolution": "1920x1200",
+    "operation": "glass_to_glass_luminance_flash",
+    "operator_confirmed": {
+      "camera_rigid": true,
+      "focus_locked": true,
+      "motion_smoothing_status": "NOT MEASURED",
+      "other_apps_closed": true,
+      "power_saving_status": "NOT MEASURED",
+      "vrr_status": "NOT MEASURED",
+      "windows_high_performance": true
+    },
+    "preflight_seconds": 10.0,
+    "roi": "central third",
+    "room_condition": "daylight present; illuminance NOT MEASURED",
+    "stimulus_display": "\\\\.\\DISPLAY2",
+    "stimulus_display_geometry": [
+      1920,
+      0,
+      1920,
+      1200
+    ],
+    "transition_fraction": 0.5,
+    "trials": 50
+  },
+  "created_utc": "2026-08-11T17:16:10.397302+00:00",
+  "git_commit": "9c666959c0788e96cc712a733b8f164e014419dc",
+  "host": {
+    "hostname": "EddieGaming",
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)]"
+  },
+  "interpretation_limit": "This is a luminance-crossing proxy, not an isolated camera-latency measurement. None of the listed biases has been subtracted or separately measured.",
+  "luminance_calibration": {
+    "black_reference_median": 144.86161971830984,
+    "black_samples": [
+      174.45261150234742,
+      148.3575117370892,
+      148.25093896713614,
+      148.15601525821597,
+      147.86537558685447,
+      147.6831279342723,
+      147.47863849765258,
+      147.54421948356807,
+      147.07406103286385,
+      146.79964788732394,
+      146.52702464788732,
+      146.12095070422535,
+      145.66426056338028,
+      145.4113262910798,
+      144.9950997652582,
+      144.7281396713615,
+      144.65293427230046,
+      144.3367957746479,
+      144.19463028169014,
+      143.81161971830986,
+      143.99242957746478,
+      143.90859741784038,
+      143.5781690140845,
+      143.3237676056338,
+      143.02901995305163,
+      142.7843896713615,
+      142.78829225352112,
+      142.70466549295776,
+      142.71622652582158,
+      142.71449530516432
+    ],
+    "contrast": 24.0142899061033,
+    "crossing_threshold": 156.86876467136148,
+    "white_reference_median": 168.87590962441314,
+    "white_samples": [
+      142.74031690140845,
+      168.8230340375587,
+      168.81830985915494,
+      168.84017018779343,
+      168.85152582159625,
+      168.8774647887324,
+      168.88823356807512,
+      168.83327464788732,
+      168.8919307511737,
+      168.86845657276996,
+      168.8605340375587,
+      168.86857394366197,
+      168.88855633802817,
+      168.82541079812208,
+      168.90228873239437,
+      168.9036678403756,
+      168.87177230046947,
+      168.85525234741783,
+      168.87435446009388,
+      168.8980046948357,
+      168.93832159624412,
+      168.92837441314555,
+      168.91211854460093,
+      168.87188967136152,
+      168.88101525821597,
+      168.9100058685446,
+      168.87039319248825,
+      168.90269953051643,
+      168.90768779342724,
+      168.9237676056338
+    ]
+  },
+  "measurement_status": "MEASURED",
+  "minimum_acceptable_crossings": 45,
+  "raw_trials": [
+    {
+      "accepted": true,
+      "crossing_latency_ms": 91.7207,
+      "reason": "crossing_observed",
+      "trial": 1
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 80.4095,
+      "reason": "crossing_observed",
+      "trial": 2
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 104.4494,
+      "reason": "crossing_observed",
+      "trial": 3
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 63.9173,
+      "reason": "crossing_observed",
+      "trial": 4
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 80.8305,
+      "reason": "crossing_observed",
+      "trial": 5
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 103.7209,
+      "reason": "crossing_observed",
+      "trial": 6
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 62.6813,
+      "reason": "crossing_observed",
+      "trial": 7
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 83.9474,
+      "reason": "crossing_observed",
+      "trial": 8
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 92.0123,
+      "reason": "crossing_observed",
+      "trial": 9
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 73.1168,
+      "reason": "crossing_observed",
+      "trial": 10
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 89.8847,
+      "reason": "crossing_observed",
+      "trial": 11
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 77.6441,
+      "reason": "crossing_observed",
+      "trial": 12
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 80.2333,
+      "reason": "crossing_observed",
+      "trial": 13
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 59.597,
+      "reason": "crossing_observed",
+      "trial": 14
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 94.884,
+      "reason": "crossing_observed",
+      "trial": 15
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 58.4605,
+      "reason": "crossing_observed",
+      "trial": 16
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 63.6385,
+      "reason": "crossing_observed",
+      "trial": 17
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 76.9058,
+      "reason": "crossing_observed",
+      "trial": 18
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 64.8648,
+      "reason": "crossing_observed",
+      "trial": 19
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 76.8367,
+      "reason": "crossing_observed",
+      "trial": 20
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 70.6463,
+      "reason": "crossing_observed",
+      "trial": 21
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 55.2246,
+      "reason": "crossing_observed",
+      "trial": 22
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 66.0931,
+      "reason": "crossing_observed",
+      "trial": 23
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 79.3848,
+      "reason": "crossing_observed",
+      "trial": 24
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 56.8334,
+      "reason": "crossing_observed",
+      "trial": 25
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 71.9241,
+      "reason": "crossing_observed",
+      "trial": 26
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 76.9495,
+      "reason": "crossing_observed",
+      "trial": 27
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 53.8424,
+      "reason": "crossing_observed",
+      "trial": 28
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 70.02,
+      "reason": "crossing_observed",
+      "trial": 29
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 69.537,
+      "reason": "crossing_observed",
+      "trial": 30
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 60.9163,
+      "reason": "crossing_observed",
+      "trial": 31
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 64.9063,
+      "reason": "crossing_observed",
+      "trial": 32
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 76.7954,
+      "reason": "crossing_observed",
+      "trial": 33
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 55.73,
+      "reason": "crossing_observed",
+      "trial": 34
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 75.888,
+      "reason": "crossing_observed",
+      "trial": 35
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 67.2825,
+      "reason": "crossing_observed",
+      "trial": 36
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 67.0507,
+      "reason": "crossing_observed",
+      "trial": 37
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 72.3226,
+      "reason": "crossing_observed",
+      "trial": 38
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 63.444,
+      "reason": "crossing_observed",
+      "trial": 39
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 81.8455,
+      "reason": "crossing_observed",
+      "trial": 40
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 75.5313,
+      "reason": "crossing_observed",
+      "trial": 41
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 75.4341,
+      "reason": "crossing_observed",
+      "trial": 42
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 79.4464,
+      "reason": "crossing_observed",
+      "trial": 43
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 88.641,
+      "reason": "crossing_observed",
+      "trial": 44
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 58.1525,
+      "reason": "crossing_observed",
+      "trial": 45
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 53.8191,
+      "reason": "crossing_observed",
+      "trial": 46
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 76.9623,
+      "reason": "crossing_observed",
+      "trial": 47
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 55.3261,
+      "reason": "crossing_observed",
+      "trial": 48
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 70.0069,
+      "reason": "crossing_observed",
+      "trial": 49
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 76.2265,
+      "reason": "crossing_observed",
+      "trial": 50
+    }
+  ],
+  "resolved_packages": {
+    "opencv-python": "4.11.0.86",
+    "psutil": "7.0.0",
+    "pyserial": "3.5",
+    "torch": "2.13.0",
+    "ultralytics": "8.3.151"
+  },
+  "samples_ms": [
+    91.7207,
+    80.4095,
+    104.4494,
+    63.9173,
+    80.8305,
+    103.7209,
+    62.6813,
+    83.9474,
+    92.0123,
+    73.1168,
+    89.8847,
+    77.6441,
+    80.2333,
+    59.597,
+    94.884,
+    58.4605,
+    63.6385,
+    76.9058,
+    64.8648,
+    76.8367,
+    70.6463,
+    55.2246,
+    66.0931,
+    79.3848,
+    56.8334,
+    71.9241,
+    76.9495,
+    53.8424,
+    70.02,
+    69.537,
+    60.9163,
+    64.9063,
+    76.7954,
+    55.73,
+    75.888,
+    67.2825,
+    67.0507,
+    72.3226,
+    63.444,
+    81.8455,
+    75.5313,
+    75.4341,
+    79.4464,
+    88.641,
+    58.1525,
+    53.8191,
+    76.9623,
+    55.3261,
+    70.0069,
+    76.2265
+  ],
+  "schema": "larp.camera-bench.v1",
+  "schema_version": 1,
+  "statistics_ms": {
+    "max": 104.4494,
+    "min": 53.8191,
+    "p50": 72.3226,
+    "p95": 94.884,
+    "p99": 104.4494,
+    "standard_deviation": 12.423754058957101
+  },
+  "successful_trials": 50,
+  "unseparated_additive_biases": [
+    "monitor refresh timing",
+    "display pixel response",
+    "camera exposure and auto-exposure behaviour",
+    "camera readout and host read scheduling",
+    "window compositor/presentation scheduling"
+  ]
+}
