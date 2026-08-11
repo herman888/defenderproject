@@ -9,10 +9,13 @@ import argparse
 import csv
 import random
 import statistics
+import sys
 import time
 from pathlib import Path
 
 from bench_common import NOT_MEASURED, metadata, write_artifact
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 SCHEMA = "larp.pixel-floor.v1"
 PATHS = ("full_frame_resize", "centre_crop", "native_tiles")
