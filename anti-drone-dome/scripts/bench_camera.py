@@ -120,6 +120,44 @@ def windows_display_geometry(device_name: str) -> tuple[int, int, int, int]:
     return found[0]
 
 
+class FfmpegDshowFrameCapture:
+    """Read BGR frames from an ffmpeg DirectShow process with its input pin fixed.
+
+    OpenCV's DirectShow path can accept a requested resolution while silently
+    changing the input compression.  The ffmpeg command constrains the input
+    pin before open, so the requested MJPEG/YUY2 mode is auditable.
+    """
+
+    def __init__(self, device: str, width: int, height: int, fourcc: str, fps: float):
+        import numpy as np
+
+        input_format = ["-vcodec", "mjpeg"] if fourcc == "MJPG" else ["-pixel_format", "yuyv422"]
+        self.width, self.height = width, height
+        self.np = np
+        self.command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "dshow", "-video_size", f"{width}x{height}", "-framerate", str(fps), *input_format, "-i", f"video={device}", "-an", "-f", "rawvideo", "-pix_fmt", "bgr24", "pipe:1"]
+        self.process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
+        self.frame_bytes = width * height * 3
+
+    def read(self):
+        chunks, remaining = [], self.frame_bytes
+        while remaining:
+            chunk = self.process.stdout.read(remaining)
+            if not chunk:
+                return False, None
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        frame = self.np.frombuffer(b"".join(chunks), dtype=self.np.uint8).reshape(self.height, self.width, 3).copy()
+        return True, frame
+
+    def release(self):
+        if self.process.poll() is None:
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+
+
 def measure_mode(device_index: int, spec: tuple[int, int, str, float], warmup: int, frames: int) -> dict:
     """Read frames from a DirectShow-configured ffmpeg pipe.
 
@@ -179,9 +217,7 @@ def latency_command(args) -> Path:
     import cv2
     import numpy as np
     spec = (args.width, args.height, args.format, args.fps)
-    capture = OpenCVCaptureBackend().open(args.device_index, *spec)
-    if not capture.isOpened():
-        raise RuntimeError("camera could not open requested latency mode")
+    capture = FfmpegDshowFrameCapture(args.device, *spec)
     print("Confirm the camera is rigid, focused, and its central third contains only this display. Press Enter to start.")
     stimulus_geometry = windows_display_geometry(args.stimulus_display)
     stimulus_origin = stimulus_geometry[:2]
@@ -252,7 +288,7 @@ def latency_command(args) -> Path:
     finally:
         capture.release(); cv2.destroyAllWindows()
     samples = [trial["crossing_latency_ms"] for trial in trial_records if trial["accepted"]]
-    config = {"operation": "glass_to_glass_luminance_flash", "device_index": args.device_index, "mode": spec, "trials": args.trials, "roi": "central third", "crossing_threshold_method": "actual display black/white calibration midpoint", "transition_fraction": args.transition_fraction, "minimum_contrast": args.minimum_contrast, "stimulus_display": args.stimulus_display, "stimulus_display_geometry": stimulus_geometry, "preflight_seconds": args.preflight_seconds, "monitor_resolution": args.monitor_resolution, "monitor_refresh_hz": args.refresh_hz, "room_condition": args.room_condition, "operator_confirmed": {"camera_rigid": args.camera_rigid, "focus_locked": args.focus_locked, "vrr_status": args.vrr_status, "motion_smoothing_status": args.motion_smoothing_status, "power_saving_status": args.power_saving_status, "other_apps_closed": args.other_apps_closed, "windows_high_performance": args.windows_high_performance}}
+    config = {"operation": "glass_to_glass_luminance_flash", "device_index": args.device_index, "mode": spec, "capture_backend": "ffmpeg-dshow", "capture_command": capture.command, "trials": args.trials, "roi": "central third", "crossing_threshold_method": "actual display black/white calibration midpoint", "transition_fraction": args.transition_fraction, "minimum_contrast": args.minimum_contrast, "stimulus_display": args.stimulus_display, "stimulus_display_geometry": stimulus_geometry, "preflight_seconds": args.preflight_seconds, "monitor_resolution": args.monitor_resolution, "monitor_refresh_hz": args.refresh_hz, "room_condition": args.room_condition, "operator_confirmed": {"camera_rigid": args.camera_rigid, "focus_locked": args.focus_locked, "vrr_status": args.vrr_status, "motion_smoothing_status": args.motion_smoothing_status, "power_saving_status": args.power_saving_status, "other_apps_closed": args.other_apps_closed, "windows_high_performance": args.windows_high_performance}}
     status = "MEASURED" if len(samples) >= args.minimum_crossings else "REJECTED_INSUFFICIENT_CROSSINGS"
     record = {"schema": SCHEMA, **metadata(root_path(), config), "measurement_status": status, "luminance_calibration": {"black_samples": black_calibration, "white_samples": white_calibration, "black_reference_median": black_reference, "white_reference_median": white_reference, "contrast": contrast, "crossing_threshold": crossing_threshold}, "raw_trials": trial_records, "samples_ms": samples, "statistics_ms": {"p50": percentile(samples,.5), "p95": percentile(samples,.95), "p99": percentile(samples,.99), "min": min(samples) if samples else NOT_MEASURED, "max": max(samples) if samples else NOT_MEASURED, "standard_deviation": statistics.stdev(samples) if len(samples)>1 else NOT_MEASURED}, "successful_trials": len(samples), "minimum_acceptable_crossings": args.minimum_crossings, "unseparated_additive_biases": ["monitor refresh timing", "display pixel response", "camera exposure and auto-exposure behaviour", "camera readout and host read scheduling", "window compositor/presentation scheduling"], "interpretation_limit": "This is a luminance-crossing proxy, not an isolated camera-latency measurement. None of the listed biases has been subtracted or separately measured."}
     path = write_artifact(root_path(), "camera", f"latency_{config_name(*spec[:3])}", record); print(path); return path

@@ -2,6 +2,8 @@
 
 This Windows-only procedure measures scene-change to frame availability in
 userspace. It is not capture-to-detection or a guidance-loop budget.
+It uses ffmpeg's DirectShow input pin selection, rather than OpenCV mode
+properties, so the requested MJPEG or YUY2 input compression is recorded.
 
 1. Remove props and disconnect the flight battery. Mount the Innomaker rigidly,
    0.5 m from the monitor; do not hand-hold it.
