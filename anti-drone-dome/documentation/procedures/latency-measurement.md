@@ -21,5 +21,8 @@ userspace. It is not capture-to-detection or a guidance-loop budget.
    p50 values differ by over 15%. Flag (do not reinterpret) a 640x480 p50 not
    lower than 1080p.
 
-Artifacts retain every sample and include unseparated monitor refresh/response,
-exposure integration, and OpenCV scheduling bias. None is silently subtracted.
+Before trials, the runner samples the actual black and white display fields and
+uses their midpoint as the luminance crossing threshold. Artifacts retain those
+calibration samples and every trial, including failures, plus unseparated
+monitor refresh/response, exposure integration, and OpenCV scheduling bias.
+None is silently subtracted.

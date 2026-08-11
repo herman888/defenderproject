@@ -194,25 +194,50 @@ def latency_command(args) -> Path:
         time.sleep(args.preflight_seconds)
     else:
         input("Confirm the stimulus is on the camera-facing display, then press Enter to start. ")
+    def roi_luminance(frame) -> float:
+        h, w = frame.shape[:2]
+        roi = frame[h//3:2*h//3, w//3:2*w//3]
+        return float(cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY).mean())
+
+    def collect_luminance(count: int) -> list[float]:
+        values = []
+        deadline = time.perf_counter_ns() + int(args.timeout_s * 1e9)
+        while len(values) < count and time.perf_counter_ns() < deadline:
+            ok, frame = capture.read()
+            if ok:
+                values.append(roi_luminance(frame))
+        return values
+
+    black = np.zeros((300, 500, 3), dtype="uint8")
+    white = np.full((300, 500, 3), 255, dtype="uint8")
+    cv2.imshow("LARP latency stimulus", black); cv2.waitKey(1); time.sleep(args.calibration_settle_s)
+    black_calibration = collect_luminance(args.calibration_frames)
+    cv2.imshow("LARP latency stimulus", white); cv2.waitKey(1); time.sleep(args.calibration_settle_s)
+    white_calibration = collect_luminance(args.calibration_frames)
+    black_reference = statistics.median(black_calibration) if black_calibration else None
+    white_reference = statistics.median(white_calibration) if white_calibration else None
+    contrast = white_reference - black_reference if black_reference is not None and white_reference is not None else None
+    if contrast is None or contrast < args.minimum_contrast:
+        capture.release(); cv2.destroyAllWindows()
+        raise RuntimeError(f"insufficient display-to-camera luminance contrast: {contrast!r}; minimum is {args.minimum_contrast}")
+    crossing_threshold = black_reference + contrast * args.transition_fraction
     trial_records = []
     try:
         for trial_number in range(1, args.trials + 1):
-            cv2.imshow("LARP latency stimulus", np.zeros((300, 500, 3), dtype="uint8")); cv2.waitKey(1)
+            cv2.imshow("LARP latency stimulus", black); cv2.waitKey(1)
             dark_deadline = time.perf_counter_ns() + int(args.timeout_s * 1e9)
             dark_seen = False
             while time.perf_counter_ns() < dark_deadline:
                 ok, frame = capture.read()
                 if not ok:
                     continue
-                h, w = frame.shape[:2]; roi = frame[h//3:2*h//3, w//3:2*w//3]
-                if float(cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY).mean()) <= args.dark_threshold:
+                if roi_luminance(frame) <= crossing_threshold:
                     dark_seen = True
                     break
             if not dark_seen:
                 trial_records.append({"trial": trial_number, "accepted": False, "reason": "dark_baseline_not_observed", "crossing_latency_ms": NOT_MEASURED})
                 continue
             time.sleep(random.uniform(.12, .35))
-            white = np.full((300, 500, 3), 255, dtype="uint8")
             emitted = time.perf_counter_ns(); cv2.imshow("LARP latency stimulus", white); cv2.waitKey(1)
             deadline = emitted + int(args.timeout_s * 1e9)
             crossing = None
@@ -220,17 +245,16 @@ def latency_command(args) -> Path:
                 ok, frame = capture.read()
                 if not ok:
                     continue
-                h, w = frame.shape[:2]; roi = frame[h//3:2*h//3, w//3:2*w//3]
-                if float(cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY).mean()) >= args.threshold:
+                if roi_luminance(frame) >= crossing_threshold:
                     crossing = (time.perf_counter_ns() - emitted) / 1e6
                     break
             trial_records.append({"trial": trial_number, "accepted": crossing is not None, "reason": "crossing_observed" if crossing is not None else "white_threshold_not_observed_before_timeout", "crossing_latency_ms": crossing if crossing is not None else NOT_MEASURED})
     finally:
         capture.release(); cv2.destroyAllWindows()
     samples = [trial["crossing_latency_ms"] for trial in trial_records if trial["accepted"]]
-    config = {"operation": "glass_to_glass_luminance_flash", "device_index": args.device_index, "mode": spec, "trials": args.trials, "roi": "central third", "white_threshold": args.threshold, "dark_threshold": args.dark_threshold, "stimulus_display": args.stimulus_display, "stimulus_display_geometry": stimulus_geometry, "preflight_seconds": args.preflight_seconds, "monitor_resolution": args.monitor_resolution, "monitor_refresh_hz": args.refresh_hz, "room_condition": args.room_condition, "operator_confirmed": {"camera_rigid": args.camera_rigid, "focus_locked": args.focus_locked, "vrr_status": args.vrr_status, "motion_smoothing_status": args.motion_smoothing_status, "power_saving_status": args.power_saving_status, "other_apps_closed": args.other_apps_closed, "windows_high_performance": args.windows_high_performance}}
+    config = {"operation": "glass_to_glass_luminance_flash", "device_index": args.device_index, "mode": spec, "trials": args.trials, "roi": "central third", "crossing_threshold_method": "actual display black/white calibration midpoint", "transition_fraction": args.transition_fraction, "minimum_contrast": args.minimum_contrast, "stimulus_display": args.stimulus_display, "stimulus_display_geometry": stimulus_geometry, "preflight_seconds": args.preflight_seconds, "monitor_resolution": args.monitor_resolution, "monitor_refresh_hz": args.refresh_hz, "room_condition": args.room_condition, "operator_confirmed": {"camera_rigid": args.camera_rigid, "focus_locked": args.focus_locked, "vrr_status": args.vrr_status, "motion_smoothing_status": args.motion_smoothing_status, "power_saving_status": args.power_saving_status, "other_apps_closed": args.other_apps_closed, "windows_high_performance": args.windows_high_performance}}
     status = "MEASURED" if len(samples) >= args.minimum_crossings else "REJECTED_INSUFFICIENT_CROSSINGS"
-    record = {"schema": SCHEMA, **metadata(root_path(), config), "measurement_status": status, "raw_trials": trial_records, "samples_ms": samples, "statistics_ms": {"p50": percentile(samples,.5), "p95": percentile(samples,.95), "p99": percentile(samples,.99), "min": min(samples) if samples else NOT_MEASURED, "max": max(samples) if samples else NOT_MEASURED, "standard_deviation": statistics.stdev(samples) if len(samples)>1 else NOT_MEASURED}, "successful_trials": len(samples), "minimum_acceptable_crossings": args.minimum_crossings, "unseparated_additive_biases": ["monitor refresh timing", "display pixel response", "camera exposure and auto-exposure behaviour", "camera readout and host read scheduling", "window compositor/presentation scheduling"], "interpretation_limit": "This is a luminance-crossing proxy, not an isolated camera-latency measurement. None of the listed biases has been subtracted or separately measured."}
+    record = {"schema": SCHEMA, **metadata(root_path(), config), "measurement_status": status, "luminance_calibration": {"black_samples": black_calibration, "white_samples": white_calibration, "black_reference_median": black_reference, "white_reference_median": white_reference, "contrast": contrast, "crossing_threshold": crossing_threshold}, "raw_trials": trial_records, "samples_ms": samples, "statistics_ms": {"p50": percentile(samples,.5), "p95": percentile(samples,.95), "p99": percentile(samples,.99), "min": min(samples) if samples else NOT_MEASURED, "max": max(samples) if samples else NOT_MEASURED, "standard_deviation": statistics.stdev(samples) if len(samples)>1 else NOT_MEASURED}, "successful_trials": len(samples), "minimum_acceptable_crossings": args.minimum_crossings, "unseparated_additive_biases": ["monitor refresh timing", "display pixel response", "camera exposure and auto-exposure behaviour", "camera readout and host read scheduling", "window compositor/presentation scheduling"], "interpretation_limit": "This is a luminance-crossing proxy, not an isolated camera-latency measurement. None of the listed biases has been subtracted or separately measured."}
     path = write_artifact(root_path(), "camera", f"latency_{config_name(*spec[:3])}", record); print(path); return path
 
 
@@ -240,7 +264,7 @@ def main() -> int:
     enum = subs.add_parser("enumerate"); device_args(enum); enum.set_defaults(func=enumerate_command)
     sweep = subs.add_parser("sweep"); device_args(sweep); sweep.add_argument("--warmup", type=int, default=60); sweep.add_argument("--frames", type=int, default=600); sweep.add_argument("--only", choices=[config_name(*spec[:3]) for spec in REQUIRED_MODES]); sweep.set_defaults(func=sweep_command)
     status_choices = ("disabled", "unavailable", NOT_MEASURED)
-    lat = subs.add_parser("latency"); device_args(lat); lat.add_argument("--width",type=int,default=1920); lat.add_argument("--height",type=int,default=1080); lat.add_argument("--format",default="MJPG"); lat.add_argument("--fps",type=float,default=30); lat.add_argument("--trials",type=int,default=50); lat.add_argument("--threshold",type=float,default=180); lat.add_argument("--dark-threshold",type=float,default=75); lat.add_argument("--timeout-s",type=float,default=2); lat.add_argument("--minimum-crossings",type=int,default=45); lat.add_argument("--stimulus-display",default="\\\\.\\DISPLAY1"); lat.add_argument("--preflight-seconds",type=float,default=0); lat.add_argument("--monitor-resolution",required=True); lat.add_argument("--refresh-hz",type=float,required=True); lat.add_argument("--room-condition",required=True); lat.add_argument("--camera-rigid",action="store_true",required=True); lat.add_argument("--focus-locked",action="store_true",required=True); lat.add_argument("--vrr-status",choices=status_choices,default=NOT_MEASURED); lat.add_argument("--motion-smoothing-status",choices=status_choices,default=NOT_MEASURED); lat.add_argument("--power-saving-status",choices=status_choices,default=NOT_MEASURED); lat.add_argument("--other-apps-closed",action="store_true",required=True); lat.add_argument("--windows-high-performance",action="store_true",required=True); lat.set_defaults(func=latency_command)
+    lat = subs.add_parser("latency"); device_args(lat); lat.add_argument("--width",type=int,default=1920); lat.add_argument("--height",type=int,default=1080); lat.add_argument("--format",default="MJPG"); lat.add_argument("--fps",type=float,default=30); lat.add_argument("--trials",type=int,default=50); lat.add_argument("--transition-fraction",type=float,default=.5); lat.add_argument("--minimum-contrast",type=float,default=20); lat.add_argument("--calibration-frames",type=int,default=30); lat.add_argument("--calibration-settle-s",type=float,default=1.5); lat.add_argument("--timeout-s",type=float,default=2); lat.add_argument("--minimum-crossings",type=int,default=45); lat.add_argument("--stimulus-display",default="\\\\.\\DISPLAY1"); lat.add_argument("--preflight-seconds",type=float,default=0); lat.add_argument("--monitor-resolution",required=True); lat.add_argument("--refresh-hz",type=float,required=True); lat.add_argument("--room-condition",required=True); lat.add_argument("--camera-rigid",action="store_true",required=True); lat.add_argument("--focus-locked",action="store_true",required=True); lat.add_argument("--vrr-status",choices=status_choices,default=NOT_MEASURED); lat.add_argument("--motion-smoothing-status",choices=status_choices,default=NOT_MEASURED); lat.add_argument("--power-saving-status",choices=status_choices,default=NOT_MEASURED); lat.add_argument("--other-apps-closed",action="store_true",required=True); lat.add_argument("--windows-high-performance",action="store_true",required=True); lat.set_defaults(func=latency_command)
     args = parser.parse_args()
     if getattr(args, "frames", 600) < 600: parser.error("--frames must be at least 600")
     args.func(args); return 0
