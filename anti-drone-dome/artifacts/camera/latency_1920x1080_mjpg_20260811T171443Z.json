@@ -1,0 +1,458 @@
+{
+  "configuration": {
+    "crossing_threshold_method": "actual display black/white calibration midpoint",
+    "device_index": 1,
+    "minimum_contrast": 20,
+    "mode": [
+      1920,
+      1080,
+      "MJPG",
+      30.0
+    ],
+    "monitor_refresh_hz": 144.0,
+    "monitor_resolution": "1920x1200",
+    "operation": "glass_to_glass_luminance_flash",
+    "operator_confirmed": {
+      "camera_rigid": true,
+      "focus_locked": true,
+      "motion_smoothing_status": "NOT MEASURED",
+      "other_apps_closed": true,
+      "power_saving_status": "NOT MEASURED",
+      "vrr_status": "NOT MEASURED",
+      "windows_high_performance": true
+    },
+    "preflight_seconds": 10.0,
+    "roi": "central third",
+    "room_condition": "daylight present; illuminance NOT MEASURED",
+    "stimulus_display": "\\\\.\\DISPLAY2",
+    "stimulus_display_geometry": [
+      1920,
+      0,
+      1920,
+      1200
+    ],
+    "transition_fraction": 0.5,
+    "trials": 50
+  },
+  "created_utc": "2026-08-11T17:14:43.439582+00:00",
+  "git_commit": "52d1bc5918289ac033129ee89205e442b60f5047",
+  "host": {
+    "hostname": "EddieGaming",
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)]"
+  },
+  "interpretation_limit": "This is a luminance-crossing proxy, not an isolated camera-latency measurement. None of the listed biases has been subtracted or separately measured.",
+  "luminance_calibration": {
+    "black_reference_median": 115.88227430555555,
+    "black_samples": [
+      222.56996961805555,
+      99.57053819444444,
+      99.66029513888888,
+      99.57845052083333,
+      105.92113715277777,
+      107.33457465277777,
+      115.88227430555555,
+      122.80718315972223,
+      122.700078125,
+      132.62408854166668,
+      135.95241753472223
+    ],
+    "contrast": 83.51908854166668,
+    "crossing_threshold": 157.64181857638889,
+    "white_reference_median": 199.40136284722223,
+    "white_samples": [
+      254.0,
+      254.0,
+      254.0,
+      254.0,
+      253.85555555555555,
+      198.12032552083335,
+      199.25416666666666,
+      199.34202256944445,
+      199.40136284722223,
+      196.11947916666668,
+      195.61227864583333
+    ]
+  },
+  "measurement_status": "MEASURED",
+  "minimum_acceptable_crossings": 45,
+  "raw_trials": [
+    {
+      "accepted": true,
+      "crossing_latency_ms": 274.0846,
+      "reason": "crossing_observed",
+      "trial": 1
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 363.0324,
+      "reason": "crossing_observed",
+      "trial": 2
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 272.4083,
+      "reason": "crossing_observed",
+      "trial": 3
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 383.1694,
+      "reason": "crossing_observed",
+      "trial": 4
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 274.1411,
+      "reason": "crossing_observed",
+      "trial": 5
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 356.8824,
+      "reason": "crossing_observed",
+      "trial": 6
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 321.8601,
+      "reason": "crossing_observed",
+      "trial": 7
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 380.1523,
+      "reason": "crossing_observed",
+      "trial": 8
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 172.3989,
+      "reason": "crossing_observed",
+      "trial": 9
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 262.853,
+      "reason": "crossing_observed",
+      "trial": 10
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 390.9498,
+      "reason": "crossing_observed",
+      "trial": 11
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 195.3043,
+      "reason": "crossing_observed",
+      "trial": 12
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 388.4294,
+      "reason": "crossing_observed",
+      "trial": 13
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 165.2509,
+      "reason": "crossing_observed",
+      "trial": 14
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 227.8122,
+      "reason": "crossing_observed",
+      "trial": 15
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 264.4839,
+      "reason": "crossing_observed",
+      "trial": 16
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 183.4488,
+      "reason": "crossing_observed",
+      "trial": 17
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 187.9459,
+      "reason": "crossing_observed",
+      "trial": 18
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 313.3227,
+      "reason": "crossing_observed",
+      "trial": 19
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 236.2539,
+      "reason": "crossing_observed",
+      "trial": 20
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 340.6459,
+      "reason": "crossing_observed",
+      "trial": 21
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 210.1406,
+      "reason": "crossing_observed",
+      "trial": 22
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 364.7356,
+      "reason": "crossing_observed",
+      "trial": 23
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 254.8122,
+      "reason": "crossing_observed",
+      "trial": 24
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 234.15,
+      "reason": "crossing_observed",
+      "trial": 25
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 128.0219,
+      "reason": "crossing_observed",
+      "trial": 26
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 211.4487,
+      "reason": "crossing_observed",
+      "trial": 27
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 173.2053,
+      "reason": "crossing_observed",
+      "trial": 28
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 359.7163,
+      "reason": "crossing_observed",
+      "trial": 29
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 273.8442,
+      "reason": "crossing_observed",
+      "trial": 30
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 265.7445,
+      "reason": "crossing_observed",
+      "trial": 31
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 211.5397,
+      "reason": "crossing_observed",
+      "trial": 32
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 264.503,
+      "reason": "crossing_observed",
+      "trial": 33
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 192.1665,
+      "reason": "crossing_observed",
+      "trial": 34
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 375.4453,
+      "reason": "crossing_observed",
+      "trial": 35
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 223.063,
+      "reason": "crossing_observed",
+      "trial": 36
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 310.1551,
+      "reason": "crossing_observed",
+      "trial": 37
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 283.5358,
+      "reason": "crossing_observed",
+      "trial": 38
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 3.8903,
+      "reason": "crossing_observed",
+      "trial": 39
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 259.2352,
+      "reason": "crossing_observed",
+      "trial": 40
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 185.0048,
+      "reason": "crossing_observed",
+      "trial": 41
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 300.6721,
+      "reason": "crossing_observed",
+      "trial": 42
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 386.4439,
+      "reason": "crossing_observed",
+      "trial": 43
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 245.723,
+      "reason": "crossing_observed",
+      "trial": 44
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 271.3999,
+      "reason": "crossing_observed",
+      "trial": 45
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 334.2691,
+      "reason": "crossing_observed",
+      "trial": 46
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 345.6479,
+      "reason": "crossing_observed",
+      "trial": 47
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 253.6029,
+      "reason": "crossing_observed",
+      "trial": 48
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 390.9621,
+      "reason": "crossing_observed",
+      "trial": 49
+    },
+    {
+      "accepted": true,
+      "crossing_latency_ms": 263.6839,
+      "reason": "crossing_observed",
+      "trial": 50
+    }
+  ],
+  "resolved_packages": {
+    "opencv-python": "4.11.0.86",
+    "psutil": "7.0.0",
+    "pyserial": "3.5",
+    "torch": "2.13.0",
+    "ultralytics": "8.3.151"
+  },
+  "samples_ms": [
+    274.0846,
+    363.0324,
+    272.4083,
+    383.1694,
+    274.1411,
+    356.8824,
+    321.8601,
+    380.1523,
+    172.3989,
+    262.853,
+    390.9498,
+    195.3043,
+    388.4294,
+    165.2509,
+    227.8122,
+    264.4839,
+    183.4488,
+    187.9459,
+    313.3227,
+    236.2539,
+    340.6459,
+    210.1406,
+    364.7356,
+    254.8122,
+    234.15,
+    128.0219,
+    211.4487,
+    173.2053,
+    359.7163,
+    273.8442,
+    265.7445,
+    211.5397,
+    264.503,
+    192.1665,
+    375.4453,
+    223.063,
+    310.1551,
+    283.5358,
+    3.8903,
+    259.2352,
+    185.0048,
+    300.6721,
+    386.4439,
+    245.723,
+    271.3999,
+    334.2691,
+    345.6479,
+    253.6029,
+    390.9621,
+    263.6839
+  ],
+  "schema": "larp.camera-bench.v1",
+  "schema_version": 1,
+  "statistics_ms": {
+    "max": 390.9621,
+    "min": 3.8903,
+    "p50": 264.503,
+    "p95": 388.4294,
+    "p99": 390.9621,
+    "standard_deviation": 80.86917131463078
+  },
+  "successful_trials": 50,
+  "unseparated_additive_biases": [
+    "monitor refresh timing",
+    "display pixel response",
+    "camera exposure and auto-exposure behaviour",
+    "camera readout and host read scheduling",
+    "window compositor/presentation scheduling"
+  ]
+}
