@@ -9,17 +9,19 @@ unless a validated hardware profile reports that state.
 | Role | Platform | Notes |
 |------|----------|--------|
 | Perception compute | Raspberry Pi 5 + Pi AI HAT+ / AI Kit | Hailo-8/8L NPU; HailoRT + Dataflow Compiler and `.hef` export. Performance is **NOT MEASURED**. |
-| Flight control | Mamba F405-class (`FURYF4OSD` / MK2 era) | PID/flight-control role only; the model does not run on this M4. UART1/UART3/UART6 pads are available for companion integration. |
+| Current airframe flight control | Diatone / Mamba Fury F4 OSD (`FURYF4OSD`) | Measured over USB: Betaflight 2025.12.5, STM32F40X; VCP/UART1/UART3/UART6 exposed. This is the current airframe. |
+| Second fleet flight control | Omnibus F4 SD (`OMNIBUSF4SD`) | Separate physical quad; not yet interrogated in the fleet pass. |
 | Motors | TOA 2306 2150KV, 5-inch class | At least one build. Pack voltage is **NOT CONFIRMED**. |
 | Vision | InnoMaker U20CAM-1080PD&N-S1 | USB 2.0 UVC day/IR camera; direct Pi USB connection, not CSI. |
 | Analog FPV | Lumenier camera/VTX stack, 5.8 GHz whip, LEDs, 470 uF low-ESR cap | Present and wired; separate from the Pi perception path. |
-| Receiver | Not installed on the Mamba build | Blocks manual flight. |
+| Receiver | `SPEK2048` configured on the current FURYF4OSD | Real Spektrum fleet ecosystem; physical receiver presence/binding remains **NOT MEASURED**. No live signal at interrogation (`RXLOSS`, RX rate 0). |
 
 ## Radio
 
-Legacy Omnibus/Fury/Spektrum bench material remains in the repository for
-recoverability. It is not the product baseline. The Mamba build currently has
-no receiver installed, which blocks manual flight.
+The current airframe is the FURYF4OSD; the Omnibus is the second quad in the
+fleet. `SPEK2048` on the FURY is a measured configuration, not evidence of a
+bound receiver. Inventory the Spektrum transmitter and all satellites/receivers
+before buying replacement radio hardware.
 
 - Signal wire → **SBUS** pad (UART1 Serial Rx)
 - Power → **3.3V** (not 5V)
@@ -39,7 +41,7 @@ Board targets, pads, and setup scripts: [Flight Controllers](flight-controllers.
 | Native modes | 1080p30, YUY2 and MJPEG; auto IR-cut day/night, onboard IR LEDs and MEMS mic |
 | Interface | USB 2.0 UVC directly to Pi 5 USB; not CSI ribbon |
 | Lens | Wide, approximately 120 degrees diagonal / 102 degrees horizontal class |
-| Capture envelope | **NOT MEASURED**; run `python scripts/measure_camera.py` and retain its JSON artifact |
+| Capture envelope | Measured Windows/ffmpeg-host result: 1080p MJPEG approximately 30 fps; 720p YUY2 approximately 10 fps. Re-measure latency/jitter on the Pi/Linux backend. |
 
 Live detect: `bash run_camera_detect.sh` from `anti-drone-dome/`.
 
