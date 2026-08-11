@@ -134,9 +134,9 @@ class FfmpegDshowFrameCapture:
         input_format = ["-vcodec", "mjpeg"] if fourcc == "MJPG" else ["-pixel_format", "yuyv422"]
         self.width, self.height = width, height
         self.np = np
-        self.command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "dshow", "-video_size", f"{width}x{height}", "-framerate", str(fps), *input_format, "-i", f"video={device}", "-an", "-f", "rawvideo", "-pix_fmt", "bgr24", "pipe:1"]
+        self.command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "dshow", "-video_size", f"{width}x{height}", "-framerate", str(fps), *input_format, "-i", f"video={device}", "-an", "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]
         self.process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
-        self.frame_bytes = width * height * 3
+        self.frame_bytes = width * height
         self.frames: queue.Queue = queue.Queue(maxsize=1)
         self.stop_event = threading.Event()
         self.reader = threading.Thread(target=self._read_frames, daemon=True)
@@ -150,7 +150,7 @@ class FfmpegDshowFrameCapture:
                 return False, None
             chunks.append(chunk)
             remaining -= len(chunk)
-        frame = self.np.frombuffer(b"".join(chunks), dtype=self.np.uint8).reshape(self.height, self.width, 3).copy()
+        frame = self.np.frombuffer(b"".join(chunks), dtype=self.np.uint8).reshape(self.height, self.width).copy()
         return True, frame
 
     def _read_frames(self):
@@ -262,7 +262,7 @@ def latency_command(args) -> Path:
     def roi_luminance(frame) -> float:
         h, w = frame.shape[:2]
         roi = frame[h//3:2*h//3, w//3:2*w//3]
-        return float(cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY).mean())
+        return float(roi.mean()) if roi.ndim == 2 else float(cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY).mean())
 
     def collect_luminance(count: int) -> list[float]:
         values = []
