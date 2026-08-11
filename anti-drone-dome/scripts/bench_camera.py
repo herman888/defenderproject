@@ -149,30 +149,51 @@ def sweep_command(args) -> list[Path]:
 
 def latency_command(args) -> Path:
     import cv2
+    import numpy as np
     spec = (args.width, args.height, args.format, args.fps)
     capture = OpenCVCaptureBackend().open(args.device_index, *spec)
     if not capture.isOpened():
         raise RuntimeError("camera could not open requested latency mode")
-    print("Point the camera at this display so the central ROI sees the fullscreen field; focus it, then press Enter.")
+    print("Confirm the camera is rigid, focused, and its central third contains only this display. Press Enter to start.")
     cv2.namedWindow("LARP latency stimulus", cv2.WINDOW_NORMAL); cv2.setWindowProperty("LARP latency stimulus", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-    cv2.imshow("LARP latency stimulus", __import__("numpy").full((300, 500, 3), 127, dtype="uint8")); cv2.waitKey(1); input()
-    samples = []
+    cv2.imshow("LARP latency stimulus", np.full((300, 500, 3), 127, dtype="uint8")); cv2.waitKey(1); input()
+    trial_records = []
     try:
-        for _ in range(args.trials):
-            cv2.imshow("LARP latency stimulus", __import__("numpy").zeros((300, 500, 3), dtype="uint8")); cv2.waitKey(1); time.sleep(random.uniform(.12, .35))
-            white = __import__("numpy").full((300, 500, 3), 255, dtype="uint8")
+        for trial_number in range(1, args.trials + 1):
+            cv2.imshow("LARP latency stimulus", np.zeros((300, 500, 3), dtype="uint8")); cv2.waitKey(1)
+            dark_deadline = time.perf_counter_ns() + int(args.timeout_s * 1e9)
+            dark_seen = False
+            while time.perf_counter_ns() < dark_deadline:
+                ok, frame = capture.read()
+                if not ok:
+                    continue
+                h, w = frame.shape[:2]; roi = frame[h//3:2*h//3, w//3:2*w//3]
+                if float(cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY).mean()) <= args.dark_threshold:
+                    dark_seen = True
+                    break
+            if not dark_seen:
+                trial_records.append({"trial": trial_number, "accepted": False, "reason": "dark_baseline_not_observed", "crossing_latency_ms": NOT_MEASURED})
+                continue
+            time.sleep(random.uniform(.12, .35))
+            white = np.full((300, 500, 3), 255, dtype="uint8")
             emitted = time.perf_counter_ns(); cv2.imshow("LARP latency stimulus", white); cv2.waitKey(1)
             deadline = emitted + int(args.timeout_s * 1e9)
+            crossing = None
             while time.perf_counter_ns() < deadline:
                 ok, frame = capture.read()
-                if not ok: continue
+                if not ok:
+                    continue
                 h, w = frame.shape[:2]; roi = frame[h//3:2*h//3, w//3:2*w//3]
                 if float(cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY).mean()) >= args.threshold:
-                    samples.append((time.perf_counter_ns() - emitted) / 1e6); break
+                    crossing = (time.perf_counter_ns() - emitted) / 1e6
+                    break
+            trial_records.append({"trial": trial_number, "accepted": crossing is not None, "reason": "crossing_observed" if crossing is not None else "white_threshold_not_observed_before_timeout", "crossing_latency_ms": crossing if crossing is not None else NOT_MEASURED})
     finally:
         capture.release(); cv2.destroyAllWindows()
-    config = {"operation": "glass_to_glass_luminance_flash", "device_index": args.device_index, "mode": spec, "trials": args.trials, "roi": "central third", "threshold": args.threshold}
-    record = {"schema": SCHEMA, **metadata(root_path(), config), "measurement_status": "MEASURED" if samples else NOT_MEASURED, "samples_ms": samples, "statistics_ms": {"p50": percentile(samples,.5), "p95": percentile(samples,.95), "p99": percentile(samples,.99), "min": min(samples) if samples else NOT_MEASURED, "max": max(samples) if samples else NOT_MEASURED, "standard_deviation": statistics.stdev(samples) if len(samples)>1 else NOT_MEASURED}, "known_additive_bias": "Display refresh interval is not separable and has not been subtracted.", "successful_trials": len(samples)}
+    samples = [trial["crossing_latency_ms"] for trial in trial_records if trial["accepted"]]
+    config = {"operation": "glass_to_glass_luminance_flash", "device_index": args.device_index, "mode": spec, "trials": args.trials, "roi": "central third", "white_threshold": args.threshold, "dark_threshold": args.dark_threshold, "monitor_resolution": args.monitor_resolution, "monitor_refresh_hz": args.refresh_hz, "room_condition": args.room_condition, "operator_confirmed": {"camera_rigid": args.camera_rigid, "focus_locked": args.focus_locked, "vrr_disabled": args.vrr_disabled, "motion_smoothing_disabled": args.motion_smoothing_disabled, "power_saving_disabled": args.power_saving_disabled, "other_apps_closed": args.other_apps_closed, "windows_high_performance": args.windows_high_performance}}
+    status = "MEASURED" if len(samples) >= args.minimum_crossings else "REJECTED_INSUFFICIENT_CROSSINGS"
+    record = {"schema": SCHEMA, **metadata(root_path(), config), "measurement_status": status, "raw_trials": trial_records, "samples_ms": samples, "statistics_ms": {"p50": percentile(samples,.5), "p95": percentile(samples,.95), "p99": percentile(samples,.99), "min": min(samples) if samples else NOT_MEASURED, "max": max(samples) if samples else NOT_MEASURED, "standard_deviation": statistics.stdev(samples) if len(samples)>1 else NOT_MEASURED}, "successful_trials": len(samples), "minimum_acceptable_crossings": args.minimum_crossings, "unseparated_additive_biases": ["monitor refresh timing", "display pixel response", "camera exposure and auto-exposure behaviour", "camera readout and host read scheduling", "window compositor/presentation scheduling"], "interpretation_limit": "This is a luminance-crossing proxy, not an isolated camera-latency measurement. None of the listed biases has been subtracted or separately measured."}
     path = write_artifact(root_path(), "camera", f"latency_{config_name(*spec[:3])}", record); print(path); return path
 
 
@@ -181,7 +202,7 @@ def main() -> int:
     def device_args(p): p.add_argument("--device", default="Innomaker-U20CAM-1080PD&N-S1"); p.add_argument("--device-index", type=int, default=1)
     enum = subs.add_parser("enumerate"); device_args(enum); enum.set_defaults(func=enumerate_command)
     sweep = subs.add_parser("sweep"); device_args(sweep); sweep.add_argument("--warmup", type=int, default=60); sweep.add_argument("--frames", type=int, default=600); sweep.add_argument("--only", choices=[config_name(*spec[:3]) for spec in REQUIRED_MODES]); sweep.set_defaults(func=sweep_command)
-    lat = subs.add_parser("latency"); device_args(lat); lat.add_argument("--width",type=int,default=1920); lat.add_argument("--height",type=int,default=1080); lat.add_argument("--format",default="MJPG"); lat.add_argument("--fps",type=float,default=30); lat.add_argument("--trials",type=int,default=50); lat.add_argument("--threshold",type=float,default=180); lat.add_argument("--timeout-s",type=float,default=2); lat.set_defaults(func=latency_command)
+    lat = subs.add_parser("latency"); device_args(lat); lat.add_argument("--width",type=int,default=1920); lat.add_argument("--height",type=int,default=1080); lat.add_argument("--format",default="MJPG"); lat.add_argument("--fps",type=float,default=30); lat.add_argument("--trials",type=int,default=50); lat.add_argument("--threshold",type=float,default=180); lat.add_argument("--dark-threshold",type=float,default=75); lat.add_argument("--timeout-s",type=float,default=2); lat.add_argument("--minimum-crossings",type=int,default=45); lat.add_argument("--monitor-resolution",required=True); lat.add_argument("--refresh-hz",type=float,required=True); lat.add_argument("--room-condition",required=True); lat.add_argument("--camera-rigid",action="store_true",required=True); lat.add_argument("--focus-locked",action="store_true",required=True); lat.add_argument("--vrr-disabled",action="store_true",required=True); lat.add_argument("--motion-smoothing-disabled",action="store_true",required=True); lat.add_argument("--power-saving-disabled",action="store_true",required=True); lat.add_argument("--other-apps-closed",action="store_true",required=True); lat.add_argument("--windows-high-performance",action="store_true",required=True); lat.set_defaults(func=latency_command)
     args = parser.parse_args()
     if getattr(args, "frames", 600) < 600: parser.error("--frames must be at least 600")
     args.func(args); return 0
