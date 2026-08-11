@@ -112,7 +112,11 @@
       168.9237676056338
     ]
   },
-  "measurement_status": "MEASURED",
+  "measurement_status": "SUPERSEDED_BACKEND_FORMAT_UNVERIFIED",
+  "supersession": {
+    "reason": "Although a post-run mode audit reported 640x480 YUY2, this run did not retain mode verification in its own artifact. Raw trial data is preserved but is not used for the cross-mode comparison.",
+    "replacement_method": "ffmpeg DirectShow input pin selection, implemented after this run"
+  },
   "minimum_acceptable_crossings": 45,
   "raw_trials": [
     {

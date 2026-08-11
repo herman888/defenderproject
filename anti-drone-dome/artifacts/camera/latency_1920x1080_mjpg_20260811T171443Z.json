@@ -74,7 +74,11 @@
       195.61227864583333
     ]
   },
-  "measurement_status": "MEASURED",
+  "measurement_status": "SUPERSEDED_BACKEND_FORMAT_UNVERIFIED",
+  "supersession": {
+    "reason": "Post-run mode audit showed OpenCV DirectShow silently delivered YUY2 for requested MJPEG. Raw trial data is preserved, but must not be interpreted as a 1080p MJPEG result.",
+    "replacement_method": "ffmpeg DirectShow input pin selection, implemented after this run"
+  },
   "minimum_acceptable_crossings": 45,
   "raw_trials": [
     {
