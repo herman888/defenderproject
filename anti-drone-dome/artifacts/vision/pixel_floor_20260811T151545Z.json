@@ -1,0 +1,449 @@
+{
+  "caveats": [
+    "Rescaling lacks real low-signal sensor noise, atmospheric effects, and motion blur.",
+    "Sky and clutter performance are not separated by this dataset.",
+    "Candidate model is not held-out validated."
+  ],
+  "configuration": {
+    "dataset": "C:\\Users\\aclie\\Documents\\Side Projects\\defender_project\\defenderproject\\anti-drone-dome\\data\\public\\shahed-ubivw",
+    "model": "larp-drone-detector-candidate@sha256:311b8bea0a5a",
+    "seed": 20260811,
+    "sources": 5,
+    "tile_overlap": 0.2,
+    "widths_px": [
+      4,
+      8,
+      12,
+      16,
+      20,
+      24,
+      28,
+      32,
+      36,
+      40,
+      44,
+      48,
+      52,
+      56,
+      60,
+      64
+    ]
+  },
+  "created_utc": "2026-08-11T15:15:45.027112+00:00",
+  "git_commit": "4cc3f010a1c958240c8c8d648f0915d7a78c1064",
+  "host": {
+    "hostname": "EddieGaming",
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)]"
+  },
+  "pixel_floor": {
+    "centre_crop": {
+      "detection_rate_50_percent_px": 24,
+      "detection_rate_90_percent_px": "NOT MEASURED"
+    },
+    "full_frame_resize": {
+      "detection_rate_50_percent_px": "NOT MEASURED",
+      "detection_rate_90_percent_px": "NOT MEASURED"
+    },
+    "native_tiles": {
+      "detection_rate_50_percent_px": 24,
+      "detection_rate_90_percent_px": "NOT MEASURED"
+    }
+  },
+  "resolved_packages": {
+    "opencv-python": "4.11.0.86",
+    "psutil": "7.0.0",
+    "pyserial": "3.5",
+    "torch": "2.13.0",
+    "ultralytics": "8.3.151"
+  },
+  "results": [
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 510.9972400008701,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 4
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 105.02519999572542,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 4
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 323.58508000324946,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 4
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 162.49169999500737,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 8
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 142.10643999686,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 8
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 470.3877799998736,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 8
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 159.37716000480577,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 12
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 146.6554000013275,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 12
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 454.6794799971394,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 12
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 135.87784000264946,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 16
+    },
+    {
+      "detection_rate": 0.2,
+      "mean_confidence": 0.0005212542135268449,
+      "mean_processing_ms": 132.5676999957068,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 16
+    },
+    {
+      "detection_rate": 0.2,
+      "mean_confidence": 0.0014434546232223512,
+      "mean_processing_ms": 433.38809999695513,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 16
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 111.0117399977753,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 20
+    },
+    {
+      "detection_rate": 0.2,
+      "mean_confidence": 0.03024912774562836,
+      "mean_processing_ms": 104.78776000090875,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 20
+    },
+    {
+      "detection_rate": 0.2,
+      "mean_confidence": 0.00656806230545044,
+      "mean_processing_ms": 333.4426600020379,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 20
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 125.81722000031732,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 24
+    },
+    {
+      "detection_rate": 0.6,
+      "mean_confidence": 0.007576069375500083,
+      "mean_processing_ms": 124.0737000014633,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 24
+    },
+    {
+      "detection_rate": 0.6,
+      "mean_confidence": 0.014659502543509007,
+      "mean_processing_ms": 373.1692999979714,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 24
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 112.3258400009945,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 28
+    },
+    {
+      "detection_rate": 0.4,
+      "mean_confidence": 0.008128675306215883,
+      "mean_processing_ms": 107.40286000072956,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 28
+    },
+    {
+      "detection_rate": 0.6,
+      "mean_confidence": 0.049665263341739777,
+      "mean_processing_ms": 326.32231999887154,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 28
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 120.74437999690417,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 32
+    },
+    {
+      "detection_rate": 0.4,
+      "mean_confidence": 0.0070138460025191305,
+      "mean_processing_ms": 128.04377999855205,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 32
+    },
+    {
+      "detection_rate": 0.8,
+      "mean_confidence": 0.018248327495530247,
+      "mean_processing_ms": 361.6152800008422,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 32
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 116.47634000109974,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 36
+    },
+    {
+      "detection_rate": 0.2,
+      "mean_confidence": 0.0011440206319093705,
+      "mean_processing_ms": 122.62810000393074,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 36
+    },
+    {
+      "detection_rate": 0.6,
+      "mean_confidence": 0.007451257202774286,
+      "mean_processing_ms": 359.6339200012153,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 36
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 123.82567999593448,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 40
+    },
+    {
+      "detection_rate": 0.4,
+      "mean_confidence": 0.002418457134626806,
+      "mean_processing_ms": 113.03871999843977,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 40
+    },
+    {
+      "detection_rate": 0.4,
+      "mean_confidence": 0.045699293166399,
+      "mean_processing_ms": 333.77632000192534,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 40
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 125.65326000039931,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 44
+    },
+    {
+      "detection_rate": 0.4,
+      "mean_confidence": 0.005121922213584184,
+      "mean_processing_ms": 120.83572000265121,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 44
+    },
+    {
+      "detection_rate": 0.6,
+      "mean_confidence": 0.030412649922072887,
+      "mean_processing_ms": 379.7655400005169,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 44
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 132.73021999921184,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 48
+    },
+    {
+      "detection_rate": 0.6,
+      "mean_confidence": 0.00401784481946379,
+      "mean_processing_ms": 107.9435200052103,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 48
+    },
+    {
+      "detection_rate": 0.6,
+      "mean_confidence": 0.011072919052094222,
+      "mean_processing_ms": 321.8870799988508,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 48
+    },
+    {
+      "detection_rate": 0.2,
+      "mean_confidence": 0.00021420398261398076,
+      "mean_processing_ms": 140.21718000003602,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 52
+    },
+    {
+      "detection_rate": 0.6,
+      "mean_confidence": 0.003544547688215971,
+      "mean_processing_ms": 142.35855999868363,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 52
+    },
+    {
+      "detection_rate": 0.6,
+      "mean_confidence": 0.09636842897161842,
+      "mean_processing_ms": 430.93561999558005,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 52
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 143.07054000382777,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 56
+    },
+    {
+      "detection_rate": 0.6,
+      "mean_confidence": 0.02220217473804951,
+      "mean_processing_ms": 131.90519999770913,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 56
+    },
+    {
+      "detection_rate": 0.6,
+      "mean_confidence": 0.01678064316511154,
+      "mean_processing_ms": 453.15016000240576,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 56
+    },
+    {
+      "detection_rate": 0.4,
+      "mean_confidence": 0.0016454043798148632,
+      "mean_processing_ms": 125.40244000265375,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 60
+    },
+    {
+      "detection_rate": 0.6,
+      "mean_confidence": 0.00401135953143239,
+      "mean_processing_ms": 116.12048000097275,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 60
+    },
+    {
+      "detection_rate": 0.6,
+      "mean_confidence": 0.04088534582406282,
+      "mean_processing_ms": 317.0291999937035,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 60
+    },
+    {
+      "detection_rate": 0.2,
+      "mean_confidence": 0.0007139637134969234,
+      "mean_processing_ms": 124.59713999705855,
+      "path": "full_frame_resize",
+      "samples": 5,
+      "target_width_px": 64
+    },
+    {
+      "detection_rate": 0.8,
+      "mean_confidence": 0.07376658916473389,
+      "mean_processing_ms": 123.82050000305753,
+      "path": "centre_crop",
+      "samples": 5,
+      "target_width_px": 64
+    },
+    {
+      "detection_rate": 0.8,
+      "mean_confidence": 0.09308361932635308,
+      "mean_processing_ms": 365.6923200003803,
+      "path": "native_tiles",
+      "samples": 5,
+      "target_width_px": 64
+    }
+  ],
+  "schema": "larp.pixel-floor.v1",
+  "schema_version": 1,
+  "scope": "Measured on synthetic rescaled annotated imagery with a checksum-locked candidate model; not field detection performance."
+}
