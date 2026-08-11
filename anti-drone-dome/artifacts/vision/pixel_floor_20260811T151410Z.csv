@@ -1,0 +1,4 @@
+target_width_px,path,samples,detection_rate,mean_confidence,mean_processing_ms
+16,full_frame_resize,1,0.0,0.0,3303.6047000059625
+16,centre_crop,1,1.0,0.011042007245123386,109.87830000522081
+16,native_tiles,1,0.0,0.0,322.8693999990355

@@ -1,0 +1,74 @@
+{
+  "caveats": [
+    "Rescaling lacks real low-signal sensor noise, atmospheric effects, and motion blur.",
+    "Sky and clutter performance are not separated by this dataset.",
+    "Candidate model is not held-out validated."
+  ],
+  "configuration": {
+    "dataset": "C:\\Users\\aclie\\Documents\\Side Projects\\defender_project\\defenderproject\\anti-drone-dome\\data\\public\\shahed-ubivw",
+    "model": "larp-drone-detector-candidate@sha256:311b8bea0a5a",
+    "seed": 20260811,
+    "sources": 1,
+    "tile_overlap": 0.2,
+    "widths_px": [
+      16
+    ]
+  },
+  "created_utc": "2026-08-11T15:14:10.775118+00:00",
+  "git_commit": "30f251b28e11f497af573938d67618c9d95de50e",
+  "host": {
+    "hostname": "EddieGaming",
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)]"
+  },
+  "pixel_floor": {
+    "centre_crop": {
+      "detection_rate_50_percent_px": 16,
+      "detection_rate_90_percent_px": 16
+    },
+    "full_frame_resize": {
+      "detection_rate_50_percent_px": "NOT MEASURED",
+      "detection_rate_90_percent_px": "NOT MEASURED"
+    },
+    "native_tiles": {
+      "detection_rate_50_percent_px": "NOT MEASURED",
+      "detection_rate_90_percent_px": "NOT MEASURED"
+    }
+  },
+  "resolved_packages": {
+    "opencv-python": "4.11.0.86",
+    "psutil": "7.0.0",
+    "pyserial": "3.5",
+    "torch": "2.13.0",
+    "ultralytics": "8.3.151"
+  },
+  "results": [
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 3303.6047000059625,
+      "path": "full_frame_resize",
+      "samples": 1,
+      "target_width_px": 16
+    },
+    {
+      "detection_rate": 1.0,
+      "mean_confidence": 0.011042007245123386,
+      "mean_processing_ms": 109.87830000522081,
+      "path": "centre_crop",
+      "samples": 1,
+      "target_width_px": 16
+    },
+    {
+      "detection_rate": 0.0,
+      "mean_confidence": 0.0,
+      "mean_processing_ms": 322.8693999990355,
+      "path": "native_tiles",
+      "samples": 1,
+      "target_width_px": 16
+    }
+  ],
+  "schema": "larp.pixel-floor.v1",
+  "schema_version": 1,
+  "scope": "Measured on synthetic rescaled annotated imagery with a checksum-locked candidate model; not field detection performance."
+}
