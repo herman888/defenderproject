@@ -58,6 +58,6 @@ scene, short locked exposure, and the actual driver exposure setting before a re
 
 ## Verification
 
-Full Python suite: **238 passed in 25.58 s**. Strict MkDocs build: **passed** in an
+Full Python suite: **239 passed in 25.49 s**. Strict MkDocs build: **passed** in an
 isolated environment. MkDocs reported existing pages omitted from navigation; these
 are warnings, not strict-build failures.
