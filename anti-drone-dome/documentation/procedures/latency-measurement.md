@@ -7,8 +7,10 @@ properties, so the requested MJPEG or YUY2 input compression is recorded.
 
 1. Remove props and disconnect the flight battery. Mount the Innomaker rigidly,
    0.5 m from the monitor; do not hand-hold it.
-2. Dim the room (not black), fill the central third of the camera frame with
-   monitor only, focus and lock focus. Record the lighting condition.
+2. Use a bright scene, fill the central third of the camera frame with monitor
+   only, focus and lock focus. Set a short manual exposure in the camera driver,
+   record its exact value, and confirm it remains locked. Do not claim that an
+   unlocked auto-exposure run isolates camera transport latency.
 3. Record monitor resolution/refresh rate; disable VRR, motion smoothing, and
    power saving. Close other applications and select Windows High Performance.
 4. Run 50 trials each for 1080p MJPEG, 640x480 YUY2, 720p MJPEG, then repeat
@@ -16,7 +18,7 @@ properties, so the requested MJPEG or YUY2 input compression is recorded.
    Supply the observed monitor fields and all confirmed setup flags, for example:
 
    ```powershell
-   .\venv312\Scripts\python.exe .\scripts\bench_camera.py latency --width 1920 --height 1080 --format MJPG --fps 30 --stimulus-display '\\.\DISPLAY2' --preflight-seconds 10 --monitor-resolution <observed-resolution> --refresh-hz <observed-hz> --room-condition "dim, blinds closed" --camera-rigid --focus-locked --vrr-status "NOT MEASURED" --motion-smoothing-status "NOT MEASURED" --power-saving-status "NOT MEASURED" --other-apps-closed --windows-high-performance
+   .\venv312\Scripts\python.exe .\scripts\bench_camera.py latency --width 1920 --height 1080 --format MJPG --fps 30 --stimulus-display '\\.\DISPLAY2' --preflight-seconds 10 --monitor-resolution <observed-resolution> --refresh-hz <observed-hz> --room-condition "bright, <describe lights>" --camera-rigid --focus-locked --exposure-locked --exposure-setting <actual-driver-value> --vrr-status "NOT MEASURED" --motion-smoothing-status "NOT MEASURED" --power-saving-status "NOT MEASURED" --other-apps-closed --windows-high-performance
    ```
 
 5. Reject a run with fewer than 45 crossings. Reject both 1080p runs if their
