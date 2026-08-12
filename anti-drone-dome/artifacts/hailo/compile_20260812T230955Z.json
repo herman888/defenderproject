@@ -1,0 +1,39 @@
+{
+  "compiler": {
+    "command": [],
+    "returncode": null,
+    "stderr": "no Dataflow Compiler command supplied",
+    "stdout": ""
+  },
+  "configuration": {
+    "input_resolution": [
+      640,
+      640
+    ],
+    "model": "models\\yolo11n_drone.pt",
+    "quantization": "int8"
+  },
+  "cpu_fallback": "NOT MEASURED",
+  "created_utc": "2026-08-12T23:09:55.097611+00:00",
+  "git_commit": "efdb2861fb2791f928cb3819aae1cee079ab84e0",
+  "host": {
+    "hostname": "EddieGaming",
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)]"
+  },
+  "measurement_status": "BLOCKED",
+  "model_sha256": "311b8bea0a5a9f2b2dd407ade666a91831bbcb4dcd9d4b6580dbe33aac3123be",
+  "npu_utilization": "NOT MEASURED",
+  "power": "NOT MEASURED",
+  "resolved_packages": {
+    "opencv-python": "4.11.0.86",
+    "psutil": "7.0.0",
+    "pyserial": "3.5",
+    "torch": "2.13.0",
+    "ultralytics": "8.3.151"
+  },
+  "schema": "larp.hailo-compilation.v1",
+  "schema_version": 1,
+  "target_device_inference_latency": "NOT MEASURED",
+  "thermal": "NOT MEASURED"
+}
