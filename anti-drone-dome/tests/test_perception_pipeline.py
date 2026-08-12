@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from sensors.perception_pipeline import (CameraConfig, LibcameraCaptureBackend,
+from sensors.perception_pipeline import (CameraConfig, IoUTracker, LibcameraCaptureBackend,
     PerceptionPipeline, PipelineConfig, PreprocessConfig, capture_backend)
 
 
@@ -19,3 +19,10 @@ def test_pipeline_logs_independent_stage_timestamps_without_backend_logic():
     assert record["camera"]["identity"] == "InnoMaker"
     assert record["track"] == {"count": 1}
     assert set(record["timestamps_ns"]) == {"capture_complete", "preprocess_complete", "detection_complete", "track_complete"}
+
+
+def test_iou_tracker_preserves_id_for_overlapping_detection():
+    tracker = IoUTracker()
+    first = tracker([{"bbox": (0, 0, 10, 10)}])[0]["tracker_id"]
+    second = tracker([{"bbox": (1, 1, 11, 11)}])[0]["tracker_id"]
+    assert first == second

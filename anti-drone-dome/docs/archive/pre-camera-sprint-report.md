@@ -13,6 +13,7 @@ not a target-device or field-performance report.
 | Centre-crop host processing cost | 104.8–142.4 ms mean across the reported widths | `artifacts/vision/pixel_floor_20260811T151545Z.json` |
 | Native-tile host processing cost | 317.0–470.4 ms mean across the reported widths | `artifacts/vision/pixel_floor_20260811T151545Z.json` |
 | Hailo bring-up | Fail: no `hailortcli` or Hailo device on this Windows host | `artifacts/hailo/bringup_20260812T230524Z.json` |
+| Hailo compiler availability | Blocked: no compiler command/environment; candidate model SHA-256 captured | `artifacts/hailo/compile_20260812T230955Z.json` |
 
 ## Important contradiction
 
@@ -57,7 +58,6 @@ scene, short locked exposure, and the actual driver exposure setting before a re
 
 ## Verification
 
-Focused added tests are expected to cover Hailo artifact shape, compile-record hash,
-tracking metrics, pipeline backend isolation, and non-transmitting bench controls.
-Run the full Python suite and `mkdocs build --strict` before merging; their current
-results are reported only after execution, never predicted here.
+Full Python suite: **238 passed in 25.58 s**. Strict MkDocs build: **passed** in an
+isolated environment. MkDocs reported existing pages omitted from navigation; these
+are warnings, not strict-build failures.

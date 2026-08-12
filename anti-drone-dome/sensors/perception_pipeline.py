@@ -110,6 +110,33 @@ def capture_backend(name: str) -> CaptureBackend:
         raise ValueError(f"unknown capture backend {name!r}; choose {sorted(choices)}") from exc
 
 
+def bbox_iou(left: tuple[float, float, float, float], right: tuple[float, float, float, float]) -> float:
+    x1, y1 = max(left[0], right[0]), max(left[1], right[1])
+    x2, y2 = min(left[2], right[2]), min(left[3], right[3])
+    intersection = max(0.0, x2-x1) * max(0.0, y2-y1)
+    union = (left[2]-left[0]) * (left[3]-left[1]) + (right[2]-right[0]) * (right[3]-right[1]) - intersection
+    return intersection / union if union else 0.0
+
+
+class IoUTracker:
+    """Deterministic single-frame association tracker for detector output replay."""
+    def __init__(self, minimum_iou: float = .3):
+        self.minimum_iou, self._next_id, self._boxes = minimum_iou, 1, {}
+
+    def __call__(self, detections: list[dict]) -> list[dict]:
+        remaining = set(self._boxes); output = []
+        for detection in detections:
+            box = detection.get("bbox")
+            match = max(remaining, key=lambda track_id: bbox_iou(box, self._boxes[track_id]), default=None) if box else None
+            if match is None or bbox_iou(box, self._boxes[match]) < self.minimum_iou:
+                match = f"track-{self._next_id}"; self._next_id += 1
+            else:
+                remaining.remove(match)
+            self._boxes[match] = box
+            output.append({**detection, "tracker_id": match})
+        return output
+
+
 def preprocess(frame: Any, config: PreprocessConfig) -> list[tuple[Any, tuple[int, int]]]:
     """Return image regions with their native-frame origin for detection merge."""
     import cv2

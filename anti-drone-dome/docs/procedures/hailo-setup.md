@@ -6,7 +6,9 @@ AI HAT+. It creates an evidence record whether the device works or fails.
 ## Before installing
 
 Use current Raspberry Pi OS (64-bit) and the Hailo packages supplied for that OS.
-The Pi 5 needs PCIe enabled. In `/boot/firmware/config.txt`, record the values
+For an AI HAT+ (Hailo-8/8L), the current Raspberry Pi package is `hailo-all`.
+The AI HAT+ applies PCIe Gen 3 automatically; do not add a Gen-3 override just
+because an AI Kit uses one. In `/boot/firmware/config.txt`, record the values
 actually used on the day; do not copy a claimed result into this table.
 
 | Item | Day-of-run value |
@@ -21,11 +23,25 @@ actually used on the day; do not copy a claimed result into this table.
 | Idle temperature | TO BE MEASURED |
 | Idle power (external inline meter) | TO BE MEASURED |
 
-Install the OS-matched runtime bundle from Hailo's Developer Zone or the Raspberry
-Pi AI software guide. Do not mix versions: record HailoRT, the PCIe driver, device
-firmware, and Dataflow Compiler together. A mismatch between these is a common
-bring-up failure. Reboot after installing a kernel driver, then confirm that
-`hailortcli fw-control identify` and `hailortcli scan` run.
+On the Pi, run the following installation commands. They install HailoRT and its
+PCIe DKMS driver through the Raspberry Pi package. Do not mix versions: record
+HailoRT, the PCIe driver, device firmware, and Dataflow Compiler together. A
+mismatch between these is a common bring-up failure.
+
+```bash
+grep -nE '^(dtparam=pciex1|dtparam=pciex1_gen)' /boot/firmware/config.txt || true
+sudo apt update
+sudo apt full-upgrade -y
+sudo apt install -y dkms hailo-all
+apt-cache policy hailort hailo-dkms python3-hailort hailo-tappas-core
+grep -nE '^(dtparam=pciex1|dtparam=pciex1_gen)' /boot/firmware/config.txt || true
+sudo reboot
+```
+
+The `dtparam=pciex1_gen=3` setting is **AI Kit only**, not an AI HAT+ requirement.
+If the hardware turns out to be an AI Kit, add `dtparam=pciex1_gen=3` to
+`/boot/firmware/config.txt`, reboot, and record that change. After reboot, confirm
+that `hailortcli fw-control identify` and `hailortcli scan` run.
 
 ## Running this and sending the results back.
 
