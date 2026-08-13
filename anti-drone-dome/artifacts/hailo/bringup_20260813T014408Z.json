@@ -1,0 +1,74 @@
+{
+  "commands": {
+    "identify": {
+      "command": [
+        "hailortcli",
+        "fw-control",
+        "identify"
+      ],
+      "returncode": null,
+      "stderr": "hailortcli is not installed or not on PATH",
+      "stdout": ""
+    },
+    "pci_scan": {
+      "command": [
+        "lspci",
+        "-nn"
+      ],
+      "returncode": null,
+      "stderr": "lspci is not installed or not on PATH",
+      "stdout": ""
+    },
+    "scan": {
+      "command": [
+        "hailortcli",
+        "scan"
+      ],
+      "returncode": null,
+      "stderr": "hailortcli is not installed or not on PATH",
+      "stdout": ""
+    }
+  },
+  "configuration": {
+    "operation": "hailo_bringup"
+  },
+  "created_utc": "2026-08-13T01:44:08.137275+00:00",
+  "device_pcie_visible": false,
+  "device_present": false,
+  "failure_or_resolution": "Windows development host; Pi 5 and Hailo AI HAT+ not present on this host.",
+  "git_commit": "76f48792252bb9ad5ada07be3cf9bbceaf475a64",
+  "host": {
+    "hostname": "EddieGaming",
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)]"
+  },
+  "idle_baseline": {
+    "power_draw_w": "NOT MEASURED",
+    "power_method": "NOT MEASURED",
+    "temperature_c": "NOT MEASURED"
+  },
+  "limitations": [
+    "A missing external power meter is recorded as NOT MEASURED.",
+    "This is a bring-up record, not an inference benchmark."
+  ],
+  "measurement_status": "fail",
+  "operator": "Evan",
+  "resolved_packages": {
+    "opencv-python": "4.11.0.86",
+    "psutil": "7.0.0",
+    "pyserial": "3.5",
+    "torch": "2.13.0",
+    "ultralytics": "8.3.151"
+  },
+  "schema": "larp.hailo-bringup.v2",
+  "schema_version": 1,
+  "versions": {
+    "dataflow_compiler": "NOT INSTALLED",
+    "firmware": "NOT MEASURED",
+    "hailort_cli": "NOT INSTALLED",
+    "hailort_python": "NOT INSTALLED",
+    "os": "Windows-11-10.0.26200-SP0",
+    "pcie_driver": "NOT INSTALLED",
+    "python": "3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)]"
+  }
+}
