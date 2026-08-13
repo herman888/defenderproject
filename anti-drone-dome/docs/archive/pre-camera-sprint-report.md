@@ -12,7 +12,7 @@ not a target-device or field-performance report.
 | Synthetic pixel floor, full-frame resize | 50% and 90% `NOT MEASURED` through 64 px | `artifacts/vision/pixel_floor_20260811T151545Z.json` |
 | Centre-crop host processing cost | 104.8–142.4 ms mean across the reported widths | `artifacts/vision/pixel_floor_20260811T151545Z.json` |
 | Native-tile host processing cost | 317.0–470.4 ms mean across the reported widths | `artifacts/vision/pixel_floor_20260811T151545Z.json` |
-| Hailo bring-up | Fail: no `hailortcli`, PCIe Hailo device, or Dataflow Compiler on this Windows host | Pending the next v3 record after configuration-contract upgrade |
+| Hailo bring-up | Fail: no `hailortcli`, PCIe Hailo device, or Dataflow Compiler on this Windows host | `artifacts/hailo/bringup_20260813T023115Z.json` |
 | Hailo compiler availability | Blocked: no compiler command/environment; candidate model SHA-256 captured | `artifacts/hailo/compile_20260812T230955Z.json` |
 
 ## Important contradiction
