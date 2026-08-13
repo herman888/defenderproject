@@ -19,6 +19,13 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def cpu_fallback_status(log: str) -> tuple[str, list[str]]:
+    """Report only an explicit CPU-fallback marker; silence is not evidence of no fallback."""
+    mentions = [line for line in log.splitlines()
+                if "cpu" in line.lower() and "fallback" in line.lower()]
+    return ("YES", mentions) if mentions else ("NOT REPORTED IN COMPILER LOG", [])
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True, help="ONNX input accepted by the installed DFC")
@@ -34,10 +41,12 @@ def main() -> int:
         completed = subprocess.run(args.command, text=True, capture_output=True)
         output = {"command": args.command, "returncode": completed.returncode, "stdout": completed.stdout, "stderr": completed.stderr}
         status = "COMPILED" if completed.returncode == 0 else "FAILED"
-        fallback = "YES" if "cpu fallback" in (completed.stdout + completed.stderr).lower() else "NO"
+        fallback, fallback_mentions = cpu_fallback_status(completed.stdout + completed.stderr)
+    if status != "COMPILED":
+        fallback_mentions = []
     record = {"schema": SCHEMA, **metadata(root, {"model": str(model), "input_resolution": [args.input_width, args.input_height], "quantization": args.quantization}),
               "measurement_status": status, "model_sha256": sha256(model) if model.is_file() else NOT_MEASURED,
-              "compiler": output, "cpu_fallback": fallback,
+              "compiler": output, "cpu_fallback": fallback, "cpu_fallback_log_lines": fallback_mentions,
               "target_device_inference_latency": NOT_MEASURED, "npu_utilization": NOT_MEASURED,
               "thermal": NOT_MEASURED, "power": NOT_MEASURED}
     print(write_artifact(root, "hailo", "compile", record)); return 0 if status == "COMPILED" else 2

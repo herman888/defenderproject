@@ -8,7 +8,7 @@ from hailo_bringup import SCHEMA, command_output, validate_artifact
 
 
 def test_hailo_bringup_schema_and_failed_command_capture():
-    assert SCHEMA == "larp.hailo-bringup.v2"
+    assert SCHEMA == "larp.hailo-bringup.v3"
     result = command_output(["command-that-does-not-exist-for-hailo-test"])
     assert result["returncode"] is None
     assert result["stderr"]
@@ -16,7 +16,7 @@ def test_hailo_bringup_schema_and_failed_command_capture():
 
 def test_hailo_bringup_artifact_schema_rejects_missing_required_values():
     record = {"schema": SCHEMA, "schema_version": 1, "created_utc": "2026-08-12T00:00:00Z",
-              "git_commit": "a" * 40, "host": {}, "configuration": {}, "measurement_status": "fail",
+              "git_commit": "a" * 40, "host": {}, "configuration": {"operation": "hailo_bringup", "operator": "tester", "idle_power_meter_reading_w": "NOT MEASURED", "resolution_note": "NOT MEASURED"}, "measurement_status": "fail",
               "operator": "tester", "device_present": False, "device_pcie_visible": False,
               "commands": {"identify": {}, "scan": {}, "pci_scan": {}},
               "versions": {name: "NOT MEASURED" for name in ("hailort_cli", "hailort_python", "pcie_driver", "firmware", "dataflow_compiler", "os", "python")},
@@ -29,3 +29,11 @@ def test_hailo_bringup_artifact_schema_rejects_missing_required_values():
         pass
     else:
         raise AssertionError("artifact without firmware version was accepted")
+    record["versions"]["firmware"] = "NOT MEASURED"
+    del record["configuration"]["operator"]
+    try:
+        validate_artifact(record)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("artifact without full configuration was accepted")

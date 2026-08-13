@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from bench_common import NOT_MEASURED, metadata, write_artifact
 
-SCHEMA = "larp.hailo-bringup.v2"
+SCHEMA = "larp.hailo-bringup.v3"
 
 
 def command_output(command: list[str]) -> dict[str, object]:
@@ -56,6 +56,10 @@ def validate_artifact(record: dict) -> None:
         raise ValueError(f"invalid Hailo bring-up artifact; missing={sorted(missing)}")
     if record["measurement_status"] not in {"pass", "partial", "fail"}:
         raise ValueError("measurement_status must be pass, partial, or fail")
+    required_config = {"operation", "operator", "idle_power_meter_reading_w", "resolution_note"}
+    missing_config = required_config - set(record["configuration"])
+    if missing_config:
+        raise ValueError(f"configuration missing={sorted(missing_config)}")
     for name in ("identify", "scan", "pci_scan"):
         if name not in record["commands"]:
             raise ValueError(f"commands missing {name}")
