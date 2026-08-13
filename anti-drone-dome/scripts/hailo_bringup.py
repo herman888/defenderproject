@@ -110,7 +110,10 @@ def main() -> int:
         "os": platform.platform(), "python": sys.version,
     }
     status = "pass" if device_present else ("partial" if cli_available or device_pcie_visible else "fail")
-    record = {"schema": SCHEMA, **metadata(root, {"operation": "hailo_bringup"}),
+    record = {"schema": SCHEMA, **metadata(root, {"operation": "hailo_bringup",
+              "operator": args.operator,
+              "idle_power_meter_reading_w": args.idle_power_w if args.idle_power_w is not None else NOT_MEASURED,
+              "resolution_note": args.resolution_note}),
               "measurement_status": status, "operator": args.operator,
               "device_present": device_present, "device_pcie_visible": device_pcie_visible,
               "commands": {"identify": identify, "scan": scan, "pci_scan": pci_scan},
