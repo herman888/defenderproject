@@ -49,8 +49,8 @@ Copy and run these commands exactly, replacing only the placeholders in angle
 brackets. They work whether this is a success or a failure run.
 
 ```bash
-git clone <repository-url> anti-drone-dome
-cd anti-drone-dome
+git clone https://github.com/herman888/defenderproject.git defenderproject
+cd defenderproject/anti-drone-dome
 git checkout feat/pre-camera-sprint
 git pull --ff-only origin feat/pre-camera-sprint
 python3 -m venv .venv
