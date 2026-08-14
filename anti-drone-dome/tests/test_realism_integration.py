@@ -39,7 +39,7 @@ from main import _coalesce_dashboard_messages
 from dome.killzone import DomeKillZone
 from guidance.intercept import PurePursuitGuidance
 from guidance.setpoint import GuidanceSetpoint
-from viz.dashboard import SimControl, _altitude_time_window
+from viz.sim_control import SimControl, _altitude_time_window
 from scripts.benchmark_controllers import paired_comparison, summarize
 from scripts.validate_unreal_motion_recording import (
     motion_is_valid,
