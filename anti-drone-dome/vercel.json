@@ -4,5 +4,17 @@
   "installCommand": "echo 'no install'",
   "buildCommand": "echo 'prebuilt static site'",
   "outputDirectory": "public",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "www.projectlarp.com" }],
+      "destination": "/marketing/index.html"
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "projectlarp.com" }],
+      "destination": "/marketing/index.html"
+    }
+  ]
 }
