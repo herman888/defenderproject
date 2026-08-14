@@ -77,4 +77,7 @@ mkdocs build --strict
 
 ## Deploy to Vercel
 
-See [Deploy to Vercel](deploy-vercel.md) for publishing this site to **https://projectlarp.vercel.app**.
+See [Deploy to Vercel](deploy-vercel.md) for publishing. Partner-facing docs should
+be served on the **Cloudflare Access–protected** custom hostname only — see
+[Access control](access-control.md) and [Security and privacy](security-privacy.md).
+Do not treat `https://projectlarp.vercel.app` as a public share link.

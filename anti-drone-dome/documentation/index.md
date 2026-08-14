@@ -2,6 +2,11 @@
 
 **Localised Aerial Response Platform** — anti-drone detection, simulation, and intercept demonstrator.
 
+!!! warning "Invitation only"
+    This documentation is confidential. Production access is gated by
+    [Cloudflare Access](access-control.md) (email invite). See
+    [Security and privacy](security-privacy.md).
+
 This site is the living technical record for the AEGIS counter-UAS research
 stack: simulation, sensor fusion, guidance, machine learning, validation,
 hardware integration, Betaflight firmware, and YOLO detection.

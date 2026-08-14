@@ -13,33 +13,31 @@
         <meta name="author" content="Herman Isayenka">
       
       
-        <link rel="canonical" href="https://docs.projectlarp.com/development/gpu-setup/">
+        <link rel="canonical" href="https://docs.projectlarp.com/access-control/">
       
       
-        <link rel="prev" href="../testing/">
+        <link rel="prev" href="../deploy-vercel/">
       
-      
-        <link rel="next" href="../../contributing/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/logo.svg">
+      <link rel="icon" href="../assets/logo.svg">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
   <meta name="robots" content="noindex, nofollow" />
 
     
       
-        <title>NVIDIA GPU setup - Project LARP</title>
+        <title>Access control - Project LARP</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -58,9 +56,9 @@
       
     
     
-      <link rel="stylesheet" href="../../stylesheets/extra.css">
+      <link rel="stylesheet" href="../stylesheets/extra.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -85,7 +83,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#nvidia-training-setup-rtx-3080-reference" class="md-skip">
+        <a href="#access-control-cloudflare-access" class="md-skip">
           Skip to content
         </a>
       
@@ -101,9 +99,9 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="Project LARP" class="md-header__button md-logo" aria-label="Project LARP" data-md-component="logo">
+    <a href=".." title="Project LARP" class="md-header__button md-logo" aria-label="Project LARP" data-md-component="logo">
       
-  <img src="../../assets/logo.svg" alt="logo">
+  <img src="../assets/logo.svg" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -120,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              NVIDIA GPU setup
+              Access control
             
           </span>
         </div>
@@ -243,9 +241,9 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="Project LARP" class="md-nav__button md-logo" aria-label="Project LARP" data-md-component="logo">
+    <a href=".." title="Project LARP" class="md-nav__button md-logo" aria-label="Project LARP" data-md-component="logo">
       
-  <img src="../../assets/logo.svg" alt="logo">
+  <img src="../assets/logo.svg" alt="logo">
 
     </a>
     Project LARP
@@ -272,7 +270,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -299,7 +297,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../security-privacy/" class="md-nav__link">
+      <a href="../security-privacy/" class="md-nav__link">
         
   
   
@@ -380,7 +378,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/installation/" class="md-nav__link">
+      <a href="../getting-started/installation/" class="md-nav__link">
         
   
   
@@ -469,7 +467,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../system/architecture/" class="md-nav__link">
+      <a href="../system/architecture/" class="md-nav__link">
         
   
   
@@ -497,7 +495,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../system/implementation-status/" class="md-nav__link">
+      <a href="../system/implementation-status/" class="md-nav__link">
         
   
   
@@ -525,7 +523,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../system/data-contracts/" class="md-nav__link">
+      <a href="../system/data-contracts/" class="md-nav__link">
         
   
   
@@ -614,7 +612,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../software/simulation/" class="md-nav__link">
+      <a href="../software/simulation/" class="md-nav__link">
         
   
   
@@ -642,7 +640,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../simulation/scenarios/" class="md-nav__link">
+      <a href="../simulation/scenarios/" class="md-nav__link">
         
   
   
@@ -670,7 +668,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../simulation/fidelity-and-controls/" class="md-nav__link">
+      <a href="../simulation/fidelity-and-controls/" class="md-nav__link">
         
   
   
@@ -698,7 +696,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../simulation/swarm-coordination/" class="md-nav__link">
+      <a href="../simulation/swarm-coordination/" class="md-nav__link">
         
   
   
@@ -726,7 +724,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../simulation/rendering/" class="md-nav__link">
+      <a href="../simulation/rendering/" class="md-nav__link">
         
   
   
@@ -815,7 +813,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../software/overview/" class="md-nav__link">
+      <a href="../software/overview/" class="md-nav__link">
         
   
   
@@ -843,7 +841,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../software/detection-pipeline/" class="md-nav__link">
+      <a href="../software/detection-pipeline/" class="md-nav__link">
         
   
   
@@ -871,7 +869,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/detection-pipeline-reference/" class="md-nav__link">
+      <a href="../reference/detection-pipeline-reference/" class="md-nav__link">
         
   
   
@@ -960,7 +958,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ml-training/training/" class="md-nav__link">
+      <a href="../ml-training/training/" class="md-nav__link">
         
   
   
@@ -988,7 +986,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ml-training/vision-training/" class="md-nav__link">
+      <a href="../ml-training/vision-training/" class="md-nav__link">
         
   
   
@@ -1016,7 +1014,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ml-training/evaluation/" class="md-nav__link">
+      <a href="../ml-training/evaluation/" class="md-nav__link">
         
   
   
@@ -1105,7 +1103,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../validation/overview/" class="md-nav__link">
+      <a href="../validation/overview/" class="md-nav__link">
         
   
   
@@ -1133,7 +1131,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../validation/regression-campaign/" class="md-nav__link">
+      <a href="../validation/regression-campaign/" class="md-nav__link">
         
   
   
@@ -1161,7 +1159,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../validation/hardware-readiness/" class="md-nav__link">
+      <a href="../validation/hardware-readiness/" class="md-nav__link">
         
   
   
@@ -1189,7 +1187,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../results/current-evidence/" class="md-nav__link">
+      <a href="../results/current-evidence/" class="md-nav__link">
         
   
   
@@ -1278,7 +1276,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../operations/mission-recording/" class="md-nav__link">
+      <a href="../operations/mission-recording/" class="md-nav__link">
         
   
   
@@ -1306,7 +1304,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../integration/external-renderers/" class="md-nav__link">
+      <a href="../integration/external-renderers/" class="md-nav__link">
         
   
   
@@ -1334,7 +1332,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../integration/unreal-bridge/" class="md-nav__link">
+      <a href="../integration/unreal-bridge/" class="md-nav__link">
         
   
   
@@ -1423,7 +1421,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../hardware/overview/" class="md-nav__link">
+      <a href="../hardware/overview/" class="md-nav__link">
         
   
   
@@ -1451,7 +1449,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../hardware/flight-controllers/" class="md-nav__link">
+      <a href="../hardware/flight-controllers/" class="md-nav__link">
         
   
   
@@ -1479,7 +1477,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../hardware/radio/" class="md-nav__link">
+      <a href="../hardware/radio/" class="md-nav__link">
         
   
   
@@ -1507,7 +1505,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../hardware/raspberry-pi-companion/" class="md-nav__link">
+      <a href="../hardware/raspberry-pi-companion/" class="md-nav__link">
         
   
   
@@ -1535,7 +1533,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../hardware/safety/" class="md-nav__link">
+      <a href="../hardware/safety/" class="md-nav__link">
         
   
   
@@ -1624,7 +1622,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../firmware/flashing/" class="md-nav__link">
+      <a href="../firmware/flashing/" class="md-nav__link">
         
   
   
@@ -1652,7 +1650,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../firmware/recovery/" class="md-nav__link">
+      <a href="../firmware/recovery/" class="md-nav__link">
         
   
   
@@ -1680,7 +1678,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/firmware-legacy/" class="md-nav__link">
+      <a href="../reference/firmware-legacy/" class="md-nav__link">
         
   
   
@@ -1769,7 +1767,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../gallery/overview/" class="md-nav__link">
+      <a href="../gallery/overview/" class="md-nav__link">
         
   
   
@@ -1858,7 +1856,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../testing/" class="md-nav__link">
+      <a href="../development/testing/" class="md-nav__link">
         
   
   
@@ -1866,6 +1864,90 @@
     
   
     Testing and release checks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/gpu-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NVIDIA GPU setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deploy-vercel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deploy to Vercel
   
 
     
@@ -1902,7 +1984,7 @@
   <span class="md-ellipsis">
     
   
-    NVIDIA GPU setup
+    Access control
   
 
     
@@ -1920,7 +2002,7 @@
   <span class="md-ellipsis">
     
   
-    NVIDIA GPU setup
+    Access control
   
 
     
@@ -1946,10 +2028,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-pull-the-repo" class="md-nav__link">
+  <a href="#ops-checklist-required" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Pull the repo
+        Ops checklist (required)
       
     </span>
   </a>
@@ -1957,10 +2039,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-install-dependencies" class="md-nav__link">
+  <a href="#1-cloudflare-zone-and-dns" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Install dependencies
+        1. Cloudflare zone and DNS
       
     </span>
   </a>
@@ -1968,10 +2050,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-re-download-datasets-gitignored-must-re-fetch" class="md-nav__link">
+  <a href="#2-vercel-custom-domain" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Re-download datasets (gitignored — must re-fetch)
+        2. Vercel custom domain
       
     </span>
   </a>
@@ -1979,10 +2061,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-merge-datasets" class="md-nav__link">
+  <a href="#3-cloudflare-zero-trust-access-application" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Merge datasets
+        3. Cloudflare Zero Trust Access application
       
     </span>
   </a>
@@ -1990,10 +2072,49 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-update-finetunepy-for-3080" class="md-nav__link">
+  <a href="#4-invite-and-revoke" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Update finetune.py for 3080
+        4. Invite and revoke
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Invite and revoke">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#invite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Invite
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#revoke" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Revoke
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-block-projectlarpvercelapp-bypass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Block projectlarp.vercel.app bypass
       
     </span>
   </a>
@@ -2001,10 +2122,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-train" class="md-nav__link">
+  <a href="#6-github-close-the-source-back-door" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Train
+        6. GitHub: close the source back door
       
     </span>
   </a>
@@ -2012,10 +2133,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#7-results" class="md-nav__link">
+  <a href="#7-mkdocs-site_url-after-cutover" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7. Results
+        7. MkDocs / site_url after cutover
       
     </span>
   </a>
@@ -2023,10 +2144,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#8-test-the-fine-tuned-model-on-camera" class="md-nav__link">
+  <a href="#8-verification" class="md-nav__link">
     <span class="md-ellipsis">
       
-        8. Test the fine-tuned model on camera
+        8. Verification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-not-to-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What not to do
       
     </span>
   </a>
@@ -2037,90 +2169,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../contributing/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Contributing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../deploy-vercel/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Deploy to Vercel
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../access-control/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Access control
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -2160,10 +2208,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-pull-the-repo" class="md-nav__link">
+  <a href="#ops-checklist-required" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Pull the repo
+        Ops checklist (required)
       
     </span>
   </a>
@@ -2171,10 +2219,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-install-dependencies" class="md-nav__link">
+  <a href="#1-cloudflare-zone-and-dns" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Install dependencies
+        1. Cloudflare zone and DNS
       
     </span>
   </a>
@@ -2182,10 +2230,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-re-download-datasets-gitignored-must-re-fetch" class="md-nav__link">
+  <a href="#2-vercel-custom-domain" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Re-download datasets (gitignored — must re-fetch)
+        2. Vercel custom domain
       
     </span>
   </a>
@@ -2193,10 +2241,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-merge-datasets" class="md-nav__link">
+  <a href="#3-cloudflare-zero-trust-access-application" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Merge datasets
+        3. Cloudflare Zero Trust Access application
       
     </span>
   </a>
@@ -2204,10 +2252,49 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-update-finetunepy-for-3080" class="md-nav__link">
+  <a href="#4-invite-and-revoke" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Update finetune.py for 3080
+        4. Invite and revoke
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Invite and revoke">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#invite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Invite
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#revoke" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Revoke
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-block-projectlarpvercelapp-bypass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Block projectlarp.vercel.app bypass
       
     </span>
   </a>
@@ -2215,10 +2302,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-train" class="md-nav__link">
+  <a href="#6-github-close-the-source-back-door" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Train
+        6. GitHub: close the source back door
       
     </span>
   </a>
@@ -2226,10 +2313,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#7-results" class="md-nav__link">
+  <a href="#7-mkdocs-site_url-after-cutover" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7. Results
+        7. MkDocs / site_url after cutover
       
     </span>
   </a>
@@ -2237,10 +2324,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#8-test-the-fine-tuned-model-on-camera" class="md-nav__link">
+  <a href="#8-verification" class="md-nav__link">
     <span class="md-ellipsis">
       
-        8. Test the fine-tuned model on camera
+        8. Verification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-not-to-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What not to do
       
     </span>
   </a>
@@ -2264,7 +2362,7 @@
 
 
   
-    <a href="https://github.com/herman888/defenderproject/edit/main/anti-drone-dome/documentation/development/gpu-setup.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/herman888/defenderproject/edit/main/anti-drone-dome/documentation/access-control.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2272,61 +2370,293 @@
   
 
 
-<h1 id="nvidia-training-setup-rtx-3080-reference">NVIDIA training setup (RTX 3080 reference)<a class="headerlink" href="#nvidia-training-setup-rtx-3080-reference" title="Permanent link">&para;</a></h1>
-<h2 id="1-pull-the-repo">1. Pull the repo<a class="headerlink" href="#1-pull-the-repo" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">git</span> <span class="n">pull</span> <span class="n">origin</span> <span class="n">main</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd </span><span class="n">anti-drone-dome</span>
+<h1 id="access-control-cloudflare-access">Access control (Cloudflare Access)<a class="headerlink" href="#access-control-cloudflare-access" title="Permanent link">&para;</a></h1>
+<p>Project LARP documentation is <strong>invitation-only</strong>. Access is enforced by
+<strong>Cloudflare Zero Trust Access</strong> in front of the Vercel static site — not by a
+login page inside MkDocs.</p>
+<p>Unauthenticated visitors hit Cloudflare first (email one-time PIN and/or Google).
+Only allowlisted identities reach the MkDocs HTML on Vercel.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart LR
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  visitor[Visitor] --&gt; cf[Cloudflare_Access]
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  cf --&gt;|unauthenticated| login[Email_OTP_or_Google]
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  cf --&gt;|allowlisted_and_authed| vercel[Vercel_static_docs]
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  vercel --&gt; mkdocs[MkDocs_public_folder]
 </code></pre></div>
-<h2 id="2-install-dependencies">2. Install dependencies<a class="headerlink" href="#2-install-dependencies" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">pip</span> <span class="n">install</span> <span class="n">torch</span> <span class="n">torchvision</span> <span class="p">-</span><span class="n">-index-url</span> <span class="n">https</span><span class="p">://</span><span class="n">download</span><span class="p">.</span><span class="n">pytorch</span><span class="p">.</span><span class="n">org</span><span class="p">/</span><span class="n">whl</span><span class="p">/</span><span class="n">cu126</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">pip</span> <span class="n">install</span> <span class="n">ultralytics</span> <span class="n">opencv-python</span> <span class="n">supervision</span> <span class="n">pyyaml</span>
+<p>Partner-facing policy: <a href="../security-privacy/">Security and privacy</a>.<br />
+Deploy settings: <a href="../deploy-vercel/">Deploy to Vercel</a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Custom domain required</p>
+<p>Cloudflare Access needs a hostname you control on Cloudflare. You generally
+<strong>cannot</strong> put Access in front of <code>*.vercel.app</code> alone. Use a custom domain
+(example: <code>docs.projectlarp.com</code>) as the <strong>canonical</strong> docs URL. Treat
+<code>https://projectlarp.vercel.app</code> as a bypass risk until it is blocked or
+redirected (see <a href="#ops-checklist-required">Ops checklist</a>).</p>
+</div>
+<hr />
+<h2 id="ops-checklist-required">Ops checklist (required)<a class="headerlink" href="#ops-checklist-required" title="Permanent link">&para;</a></h2>
+<p>Complete these before sharing the docs URL with external parties:</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Action</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Own a domain; add it to Cloudflare; nameservers active</td>
+<td>Access attaches to your zone</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Point <code>docs</code> (or apex) at Vercel with <strong>proxied</strong> (orange-cloud) DNS</td>
+<td>Traffic must pass through Cloudflare</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Add the same hostname under Vercel → Project → Domains</td>
+<td>TLS and correct project routing</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Create a Zero Trust Access application + allow policy</td>
+<td>Real authentication gate</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Enable <strong>One-time PIN</strong> and optionally <strong>Google</strong></td>
+<td>Invite-by-email UX</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>Block or redirect</strong> <code>projectlarp.vercel.app</code></td>
+<td>Prevent Access bypass</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Set GitHub repo <strong>private</strong> (or remove sensitive docs from public git)</td>
+<td>Docs auth does not hide a public repo</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Update <code>site_url</code> in <code>mkdocs.yml</code> to the protected hostname; rebuild <code>public/</code></td>
+<td>Canonical links / sitemap match reality</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Confirm <code>robots.txt</code> disallows crawlers</td>
+<td>Defense in depth if a URL leaks</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-cloudflare-zone-and-dns">1. Cloudflare zone and DNS<a class="headerlink" href="#1-cloudflare-zone-and-dns" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Create or use a <a href="https://dash.cloudflare.com/">Cloudflare</a> account.</li>
+<li><strong>Add site</strong> → enter your domain → complete nameserver delegation.</li>
+<li><strong>DNS → Records</strong> → add the docs hostname:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Name</th>
+<th>Target</th>
+<th>Proxy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CNAME</td>
+<td><code>docs</code></td>
+<td><code>cname.vercel-dns.com</code> (or the target Vercel shows for your project)</td>
+<td><strong>Proxied</strong> (orange cloud)</td>
+</tr>
+<tr>
+<td>CNAME</td>
+<td><code>www</code></td>
+<td><code>cname.vercel-dns.com</code></td>
+<td><strong>Proxied</strong></td>
+</tr>
+<tr>
+<td>CNAME</td>
+<td><code>@</code></td>
+<td><code>cname.vercel-dns.com</code></td>
+<td><strong>Proxied</strong> (Cloudflare flattens apex CNAME)</td>
+</tr>
+</tbody>
+</table>
+<p>Then in Vercel → <strong>Domains</strong>, add <code>docs.projectlarp.com</code>, <code>www.projectlarp.com</code>, and <code>projectlarp.com</code>.</p>
+<p>Host routing: <code>www</code> / apex serve the public landing page. <code>docs</code> stays behind Access. Do not point Access at the apex or the public site will demand login.</p>
+<p>For an apex domain (<code>projectlarp.com</code>), Cloudflare CNAME flattening is preferred over raw A records. Keep the proxy <strong>on</strong>.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>If the orange cloud is off (DNS only), Access will not protect the origin.</p>
+</div>
+<hr />
+<h2 id="2-vercel-custom-domain">2. Vercel custom domain<a class="headerlink" href="#2-vercel-custom-domain" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Vercel → project <strong>projectlarp</strong> (root directory <code>anti-drone-dome</code>).</li>
+<li><strong>Settings → Domains</strong> → add <code>docs.yourdomain.com</code> (same hostname as DNS).</li>
+<li>Leave build settings as in <a href="../deploy-vercel/">Deploy to Vercel</a> (prebuilt <code>public/</code>).</li>
+<li>Wait until the domain shows <strong>Valid</strong> / ready.</li>
+</ol>
+<hr />
+<h2 id="3-cloudflare-zero-trust-access-application">3. Cloudflare Zero Trust Access application<a class="headerlink" href="#3-cloudflare-zero-trust-access-application" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Open <a href="https://one.dash.cloudflare.com/">Cloudflare Zero Trust</a> → <strong>Access</strong> → <strong>Applications</strong>.</li>
+<li><strong>Add an application</strong> → <strong>Self-hosted</strong>.</li>
+<li>Configure:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Suggested value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Application name</td>
+<td><code>Project LARP Docs</code></td>
+</tr>
+<tr>
+<td>Session duration</td>
+<td><code>24 hours</code> (shorter for highly sensitive shares)</td>
+</tr>
+<tr>
+<td>Application domain</td>
+<td><code>docs.yourdomain.com</code> (path <code>/</code> or leave default)</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>
+<p><strong>Identity providers</strong> (Authentication):</p>
+</li>
+<li>
+<p>Enable <strong>One-time PIN</strong> (email OTP) — primary invite path.</p>
+</li>
+<li>
+<p>Optionally enable <strong>Google</strong> for partners who prefer Google login.</p>
+</li>
+<li>
+<p><strong>Policies</strong> → create an <strong>Allow</strong> policy, for example:</p>
+</li>
+<li>
+<p><strong>Policy name:</strong> <code>Allowlisted readers</code></p>
+</li>
+<li><strong>Action:</strong> Allow</li>
+<li>
+<p><strong>Include</strong> rules (pick what you need):</p>
+<ul>
+<li><strong>Emails</strong> — specific addresses (contractors, advisors)</li>
+<li><strong>Emails ending in</strong> — e.g. <code>@partner.com</code> for a whole org (use carefully)</li>
+</ul>
+</li>
+<li>
+<p>Do <strong>not</strong> add a broad “allow everyone” or public bypass policy.</p>
+</li>
+<li>Save. Unauthenticated visits to <code>https://docs.yourdomain.com</code> should show the
+   Cloudflare Access login, not MkDocs.</li>
+</ol>
+<hr />
+<h2 id="4-invite-and-revoke">4. Invite and revoke<a class="headerlink" href="#4-invite-and-revoke" title="Permanent link">&para;</a></h2>
+<h3 id="invite">Invite<a class="headerlink" href="#invite" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Zero Trust → Access → Applications → <strong>Project LARP Docs</strong> → edit policy.</li>
+<li>Add the person’s email under <strong>Include → Emails</strong>.</li>
+<li>Send them only the <strong>protected</strong> URL (<code>https://docs.yourdomain.com</code>), plus any NDA.</li>
+<li>They open the link → enter email → receive OTP (or use Google) → access docs.</li>
+</ol>
+<h3 id="revoke">Revoke<a class="headerlink" href="#revoke" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Remove their email (or domain rule) from the Access policy.</li>
+<li>Optionally <strong>Revoke</strong> existing sessions under Zero Trust → Access → <strong>Access</strong> logs / user sessions if available for your plan.</li>
+<li>Notify them that access has ended.</li>
+</ol>
+<p>Internal disputes or offboarding: revoke Access <strong>and</strong> confirm they no longer
+have git access if the repo is shared.</p>
+<hr />
+<h2 id="5-block-projectlarpvercelapp-bypass">5. Block <code>projectlarp.vercel.app</code> bypass<a class="headerlink" href="#5-block-projectlarpvercelapp-bypass" title="Permanent link">&para;</a></h2>
+<p>Access on the custom domain does <strong>not</strong> automatically lock the Vercel default
+hostname. Choose one:</p>
+<ol>
+<li><strong>Preferred:</strong> Vercel → project → <strong>Deployment Protection</strong> / password or
+   standard protection so <code>*.vercel.app</code> is not anonymously public, <strong>or</strong></li>
+<li>Remove unused preview/production aliases you do not need, <strong>or</strong></li>
+<li>Redirect <code>projectlarp.vercel.app</code> to the Cloudflare hostname (still prefer
+   protection on the Vercel hostname so raw HTML cannot be fetched without auth).</li>
+</ol>
+<p>After cutover, share <strong>only</strong> the Cloudflare-protected URL with external readers.</p>
+<hr />
+<h2 id="6-github-close-the-source-back-door">6. GitHub: close the source back door<a class="headerlink" href="#6-github-close-the-source-back-door" title="Permanent link">&para;</a></h2>
+<p>Site auth does not protect git history.</p>
+<ol>
+<li>GitHub → <a href="https://github.com/herman888/defenderproject">herman888/defenderproject</a> →
+   <strong>Settings → General → Danger Zone → Change repository visibility → Private</strong>.</li>
+<li>Audit who has collaborator / org access; remove people who should not see IP.</li>
+<li>If the repo must stay public for other reasons, <strong>do not</strong> publish sensitive
+   docs, evidence packs, or firmware configs in the public tree — keep them in a
+   private docs repo or private release.</li>
+</ol>
+<hr />
+<h2 id="7-mkdocs-site_url-after-cutover">7. MkDocs / <code>site_url</code> after cutover<a class="headerlink" href="#7-mkdocs-site_url-after-cutover" title="Permanent link">&para;</a></h2>
+<p>When the protected hostname is live:</p>
+<ol>
+<li>Set <code>site_url</code> in <code>mkdocs.yml</code> to <code>https://docs.yourdomain.com</code> (your real host).</li>
+<li>Rebuild:</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">cd</span><span class="w"> </span>anti-drone-dome
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">source</span><span class="w"> </span>.venv-docs/bin/activate
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>mkdocs<span class="w"> </span>build<span class="w"> </span>-d<span class="w"> </span>public
 </code></pre></div>
-<p>Verify GPU:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">python</span> <span class="n">-c</span> <span class="s2">&quot;import torch; print(torch.cuda.get_device_name(0))&quot;</span>
-</code></pre></div></p>
-<h2 id="3-re-download-datasets-gitignored-must-re-fetch">3. Re-download datasets (gitignored — must re-fetch)<a class="headerlink" href="#3-re-download-datasets-gitignored-must-re-fetch" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">python</span> <span class="n">-m</span> <span class="n">venv</span> <span class="n">venv-dataprep</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">.\</span><span class="n">venv-dataprep</span><span class="p">\</span><span class="n">Scripts</span><span class="p">\</span><span class="n">Activate</span><span class="p">.</span><span class="n">ps1</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">pip</span> <span class="n">install</span> <span class="n">roboflow</span> <span class="n">pyyaml</span> <span class="n">requests</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="nv">$env:ROBOFLOW_API_KEY</span> <span class="p">=</span> <span class="s2">&quot;your_key_here&quot;</span>   <span class="c"># from .env on old laptop</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">python</span> <span class="n">scripts</span><span class="p">\</span><span class="n">fetch_public_datasets</span><span class="p">.</span><span class="n">py</span> <span class="p">-</span><span class="n">-roboflow-only</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">deactivate</span>
-</code></pre></div>
-<h2 id="4-merge-datasets">4. Merge datasets<a class="headerlink" href="#4-merge-datasets" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">python</span> <span class="n">scripts</span><span class="p">\</span><span class="n">merge_datasets</span><span class="p">.</span><span class="n">py</span> <span class="p">`</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  <span class="p">-</span><span class="n">-datasets</span> <span class="n">data</span><span class="p">\</span><span class="n">public</span><span class="p">\</span><span class="n">shahed-ubivw</span> <span class="n">data</span><span class="p">\</span><span class="n">public</span><span class="p">\</span><span class="n">fpv-drone</span><span class="p">-</span><span class="n">4posq</span> <span class="p">`</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>  <span class="p">-</span><span class="n">-map</span> <span class="s2">&quot;1=loitering_munition&quot;</span> <span class="s2">&quot;airplane=fpv_drone&quot;</span> <span class="s2">&quot;antiaircraft=skip&quot;</span> <span class="s2">&quot;soldier=skip&quot;</span> <span class="s2">&quot;vehicle=skip&quot;</span>
-</code></pre></div>
-<p>Expected output:
-- ~4,476 train images
-- 3,954 loitering_munition boxes
-- 207 fpv_drone boxes</p>
-<h2 id="5-update-finetunepy-for-3080">5. Update finetune.py for 3080<a class="headerlink" href="#5-update-finetunepy-for-3080" title="Permanent link">&para;</a></h2>
-<p>Open <code>scripts/finetune.py</code> and change:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">batch</span><span class="o">=</span><span class="mi">8</span>    <span class="o">-&gt;</span>  <span class="n">batch</span><span class="o">=</span><span class="mi">32</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">workers</span><span class="o">=</span><span class="mi">2</span>  <span class="o">-&gt;</span>  <span class="n">workers</span><span class="o">=</span><span class="mi">8</span>
-</code></pre></div>
-<code>cache=True</code> is already set — it will now actually fit in 32GB RAM.</p>
-<h2 id="6-train">6. Train<a class="headerlink" href="#6-train" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c"># Keep laptop awake</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">powercfg</span> <span class="p">/</span><span class="n">change</span> <span class="n">standby-timeout-ac</span> <span class="n">0</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">powercfg</span> <span class="p">/</span><span class="n">change</span> <span class="n">monitor-timeout-ac</span> <span class="n">0</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">python</span> <span class="n">scripts</span><span class="p">\</span><span class="n">finetune</span><span class="p">.</span><span class="n">py</span>
-</code></pre></div>
-<p>Training takes ~20-30 min on a 3080 (vs ~2hr on GTX 1650).</p>
-<h2 id="7-results">7. Results<a class="headerlink" href="#7-results" title="Permanent link">&para;</a></h2>
-<p>After training, find outputs in:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>models\finetuned\finetune_&lt;timestamp&gt;\
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>  weights\best.pt          &lt;- use this for inference
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>  results.png              &lt;- loss + mAP curves (hero shot for video)
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  confusion_matrix_normalized.png
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>  val_batch0_pred.jpg      &lt;- sample predictions
-</code></pre></div></p>
-<h2 id="8-test-the-fine-tuned-model-on-camera">8. Test the fine-tuned model on camera<a class="headerlink" href="#8-test-the-fine-tuned-model-on-camera" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">python</span> <span class="n">scripts</span><span class="p">\</span><span class="n">camera_detect</span><span class="p">.</span><span class="n">py</span> <span class="p">-</span><span class="n">-drone-only</span> <span class="p">-</span><span class="n">-model</span> <span class="n">models</span><span class="p">\</span><span class="n">finetuned</span><span class="p">\&lt;</span><span class="n">run</span><span class="p">&gt;\</span><span class="n">weights</span><span class="p">\</span><span class="n">best</span><span class="p">.</span><span class="n">pt</span>
-</code></pre></div>
-<p>Should now show <code>fpv_drone</code> and <code>loitering_munition</code> labels instead of generic <code>drone</code>.</p>
+<ol>
+<li>Commit and push so Vercel serves the updated sitemap/canonical URLs.</li>
+</ol>
+<p><code>documentation/robots.txt</code> is committed to discourage indexing if a URL ever
+leaks; <strong>Access remains the real control plane</strong>.</p>
+<hr />
+<h2 id="8-verification">8. Verification<a class="headerlink" href="#8-verification" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Expected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Incognito → <code>https://docs.yourdomain.com</code></td>
+<td>Cloudflare Access challenge</td>
+</tr>
+<tr>
+<td>Non-allowlisted email</td>
+<td>Denied / no OTP success into the app</td>
+</tr>
+<tr>
+<td>Allowlisted email + OTP or Google</td>
+<td>Full MkDocs site</td>
+</tr>
+<tr>
+<td>Incognito → <code>https://projectlarp.vercel.app</code></td>
+<td>Not a public docs dump (blocked/redirected)</td>
+</tr>
+<tr>
+<td>Anonymous git clone of sensitive material</td>
+<td>Repo private or sensitive paths absent</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="what-not-to-do">What not to do<a class="headerlink" href="#what-not-to-do" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Do <strong>not</strong> rely on a client-side password page in static HTML/JS (bypassable).</li>
+<li>Do <strong>not</strong> put shared passwords in the MkDocs source or git.</li>
+<li>Do <strong>not</strong> treat synthetic campaign results as field certification (see site copyright and <a href="../security-privacy/">Security and privacy</a>).</li>
+</ul>
 
 
 
@@ -2364,7 +2694,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../testing/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Testing and release checks">
+          <a href="../deploy-vercel/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Deploy to Vercel">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2374,27 +2704,11 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Testing and release checks
+                Deploy to Vercel
               </div>
             </div>
           </a>
         
-        
-          
-          <a href="../../contributing/" class="md-footer__link md-footer__link--next" aria-label="Next: Contributing">
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              <div class="md-ellipsis">
-                Contributing
-              </div>
-            </div>
-            <div class="md-footer__button md-icon">
-              
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
-            </div>
-          </a>
         
       </nav>
     
@@ -2423,10 +2737,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "navigation.footer", "content.action.edit", "search.highlight", "search.suggest", "search.share", "content.code.copy", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "navigation.footer", "content.action.edit", "search.highlight", "search.suggest", "search.share", "content.code.copy", "content.tabs.link", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

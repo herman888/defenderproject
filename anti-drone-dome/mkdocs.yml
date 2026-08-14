@@ -1,7 +1,9 @@
 site_name: Project LARP
 site_description: Localised Aerial Response Platform - integrated counter-UAS research and validation
 site_author: Herman Isayenka
-site_url: https://projectlarp.vercel.app
+# After Cloudflare Access cutover, set this to the protected custom hostname
+# (e.g. https://docs.yourdomain.com). See documentation/access-control.md.
+site_url: https://docs.projectlarp.com
 repo_url: https://github.com/herman888/defenderproject
 repo_name: herman888/defenderproject
 edit_uri: edit/main/anti-drone-dome/documentation/
@@ -13,6 +15,7 @@ copyright: Research platform documentation - synthetic results are not field cer
 
 theme:
   name: material
+  custom_dir: overrides
   language: en
   logo: assets/logo.svg
   favicon: assets/logo.svg
@@ -49,6 +52,9 @@ theme:
 plugins:
   - search
 
+extra:
+  generator: false
+
 extra_css:
   - stylesheets/extra.css
 
@@ -70,6 +76,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Security and privacy: security-privacy.md
   - Getting started:
       - Installation: getting-started/installation.md
   - System:
@@ -116,6 +123,7 @@ nav:
       - NVIDIA GPU setup: development/gpu-setup.md
       - Contributing: contributing.md
       - Deploy to Vercel: deploy-vercel.md
+      - Access control: access-control.md
 
 # The design archive (original build prompts) is deliberately NOT published.
 # It lives in docs-internal/design-archive/. Those files are AI build prompts,

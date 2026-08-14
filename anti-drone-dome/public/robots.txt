@@ -1,0 +1,4 @@
+# Defense in depth: documentation is invitation-only behind Cloudflare Access.
+# Access control is enforced at the edge; this file only discourages crawlers.
+User-agent: *
+Disallow: /

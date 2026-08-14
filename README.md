@@ -6,8 +6,9 @@ The integrated Project LARP counter-UAS simulator, command center, validation
 workbench, hardware profiles, and documentation website live under
 `anti-drone-dome/`. Start with
 [`anti-drone-dome/documentation/index.md`](anti-drone-dome/documentation/index.md)
-or the published site at
-[projectlarp.vercel.app](https://projectlarp.vercel.app).
+or the invitation-only docs site (Cloudflare Access on your custom domain;
+see `anti-drone-dome/documentation/access-control.md`). Do not treat
+`projectlarp.vercel.app` as a public share link.
 
 ## Quick start
 

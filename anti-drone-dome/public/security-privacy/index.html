@@ -13,33 +13,33 @@
         <meta name="author" content="Herman Isayenka">
       
       
-        <link rel="canonical" href="https://docs.projectlarp.com/development/gpu-setup/">
+        <link rel="canonical" href="https://docs.projectlarp.com/security-privacy/">
       
       
-        <link rel="prev" href="../testing/">
+        <link rel="prev" href="..">
       
       
-        <link rel="next" href="../../contributing/">
+        <link rel="next" href="../getting-started/installation/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/logo.svg">
+      <link rel="icon" href="../assets/logo.svg">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
   <meta name="robots" content="noindex, nofollow" />
 
     
       
-        <title>NVIDIA GPU setup - Project LARP</title>
+        <title>Security and privacy - Project LARP</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -58,9 +58,9 @@
       
     
     
-      <link rel="stylesheet" href="../../stylesheets/extra.css">
+      <link rel="stylesheet" href="../stylesheets/extra.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -85,7 +85,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#nvidia-training-setup-rtx-3080-reference" class="md-skip">
+        <a href="#security-and-privacy" class="md-skip">
           Skip to content
         </a>
       
@@ -101,9 +101,9 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="Project LARP" class="md-header__button md-logo" aria-label="Project LARP" data-md-component="logo">
+    <a href=".." title="Project LARP" class="md-header__button md-logo" aria-label="Project LARP" data-md-component="logo">
       
-  <img src="../../assets/logo.svg" alt="logo">
+  <img src="../assets/logo.svg" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              NVIDIA GPU setup
+              Security and privacy
             
           </span>
         </div>
@@ -243,9 +243,9 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="Project LARP" class="md-nav__button md-logo" aria-label="Project LARP" data-md-component="logo">
+    <a href=".." title="Project LARP" class="md-nav__button md-logo" aria-label="Project LARP" data-md-component="logo">
       
-  <img src="../../assets/logo.svg" alt="logo">
+  <img src="../assets/logo.svg" alt="logo">
 
     </a>
     Project LARP
@@ -272,7 +272,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -296,10 +296,37 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../security-privacy/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security and privacy
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -315,6 +342,92 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#access-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Access model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#intellectual-property" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intellectual property
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#privacy-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Privacy (authentication)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-site-is-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this site is not
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#your-responsibilities-as-a-reader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your responsibilities as a reader
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#operator-responsibilities-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operator responsibilities (summary)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -380,7 +493,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/installation/" class="md-nav__link">
+      <a href="../getting-started/installation/" class="md-nav__link">
         
   
   
@@ -469,7 +582,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../system/architecture/" class="md-nav__link">
+      <a href="../system/architecture/" class="md-nav__link">
         
   
   
@@ -497,7 +610,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../system/implementation-status/" class="md-nav__link">
+      <a href="../system/implementation-status/" class="md-nav__link">
         
   
   
@@ -525,7 +638,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../system/data-contracts/" class="md-nav__link">
+      <a href="../system/data-contracts/" class="md-nav__link">
         
   
   
@@ -614,7 +727,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../software/simulation/" class="md-nav__link">
+      <a href="../software/simulation/" class="md-nav__link">
         
   
   
@@ -642,7 +755,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../simulation/scenarios/" class="md-nav__link">
+      <a href="../simulation/scenarios/" class="md-nav__link">
         
   
   
@@ -670,7 +783,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../simulation/fidelity-and-controls/" class="md-nav__link">
+      <a href="../simulation/fidelity-and-controls/" class="md-nav__link">
         
   
   
@@ -698,7 +811,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../simulation/swarm-coordination/" class="md-nav__link">
+      <a href="../simulation/swarm-coordination/" class="md-nav__link">
         
   
   
@@ -726,7 +839,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../simulation/rendering/" class="md-nav__link">
+      <a href="../simulation/rendering/" class="md-nav__link">
         
   
   
@@ -815,7 +928,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../software/overview/" class="md-nav__link">
+      <a href="../software/overview/" class="md-nav__link">
         
   
   
@@ -843,7 +956,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../software/detection-pipeline/" class="md-nav__link">
+      <a href="../software/detection-pipeline/" class="md-nav__link">
         
   
   
@@ -871,7 +984,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/detection-pipeline-reference/" class="md-nav__link">
+      <a href="../reference/detection-pipeline-reference/" class="md-nav__link">
         
   
   
@@ -960,7 +1073,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ml-training/training/" class="md-nav__link">
+      <a href="../ml-training/training/" class="md-nav__link">
         
   
   
@@ -988,7 +1101,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ml-training/vision-training/" class="md-nav__link">
+      <a href="../ml-training/vision-training/" class="md-nav__link">
         
   
   
@@ -1016,7 +1129,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ml-training/evaluation/" class="md-nav__link">
+      <a href="../ml-training/evaluation/" class="md-nav__link">
         
   
   
@@ -1105,7 +1218,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../validation/overview/" class="md-nav__link">
+      <a href="../validation/overview/" class="md-nav__link">
         
   
   
@@ -1133,7 +1246,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../validation/regression-campaign/" class="md-nav__link">
+      <a href="../validation/regression-campaign/" class="md-nav__link">
         
   
   
@@ -1161,7 +1274,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../validation/hardware-readiness/" class="md-nav__link">
+      <a href="../validation/hardware-readiness/" class="md-nav__link">
         
   
   
@@ -1189,7 +1302,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../results/current-evidence/" class="md-nav__link">
+      <a href="../results/current-evidence/" class="md-nav__link">
         
   
   
@@ -1278,7 +1391,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../operations/mission-recording/" class="md-nav__link">
+      <a href="../operations/mission-recording/" class="md-nav__link">
         
   
   
@@ -1306,7 +1419,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../integration/external-renderers/" class="md-nav__link">
+      <a href="../integration/external-renderers/" class="md-nav__link">
         
   
   
@@ -1334,7 +1447,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../integration/unreal-bridge/" class="md-nav__link">
+      <a href="../integration/unreal-bridge/" class="md-nav__link">
         
   
   
@@ -1423,7 +1536,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../hardware/overview/" class="md-nav__link">
+      <a href="../hardware/overview/" class="md-nav__link">
         
   
   
@@ -1451,7 +1564,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../hardware/flight-controllers/" class="md-nav__link">
+      <a href="../hardware/flight-controllers/" class="md-nav__link">
         
   
   
@@ -1479,7 +1592,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../hardware/radio/" class="md-nav__link">
+      <a href="../hardware/radio/" class="md-nav__link">
         
   
   
@@ -1507,7 +1620,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../hardware/raspberry-pi-companion/" class="md-nav__link">
+      <a href="../hardware/raspberry-pi-companion/" class="md-nav__link">
         
   
   
@@ -1535,7 +1648,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../hardware/safety/" class="md-nav__link">
+      <a href="../hardware/safety/" class="md-nav__link">
         
   
   
@@ -1624,7 +1737,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../firmware/flashing/" class="md-nav__link">
+      <a href="../firmware/flashing/" class="md-nav__link">
         
   
   
@@ -1652,7 +1765,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../firmware/recovery/" class="md-nav__link">
+      <a href="../firmware/recovery/" class="md-nav__link">
         
   
   
@@ -1680,7 +1793,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/firmware-legacy/" class="md-nav__link">
+      <a href="../reference/firmware-legacy/" class="md-nav__link">
         
   
   
@@ -1769,7 +1882,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../gallery/overview/" class="md-nav__link">
+      <a href="../gallery/overview/" class="md-nav__link">
         
   
   
@@ -1801,8 +1914,6 @@
       
   
   
-    
-  
   
   
     
@@ -1815,11 +1926,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_13" >
         
           
           <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="">
@@ -1840,7 +1953,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_13">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1858,7 +1971,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../testing/" class="md-nav__link">
+      <a href="../development/testing/" class="md-nav__link">
         
   
   
@@ -1883,37 +1996,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    NVIDIA GPU setup
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../development/gpu-setup/" class="md-nav__link">
         
   
   
@@ -1929,114 +2015,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#1-pull-the-repo" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Pull the repo
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#2-install-dependencies" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Install dependencies
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3-re-download-datasets-gitignored-must-re-fetch" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Re-download datasets (gitignored — must re-fetch)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4-merge-datasets" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Merge datasets
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#5-update-finetunepy-for-3080" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. Update finetune.py for 3080
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#6-train" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6. Train
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#7-results" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7. Results
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#8-test-the-fine-tuned-model-on-camera" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        8. Test the fine-tuned model on camera
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2049,7 +2027,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../contributing/" class="md-nav__link">
+      <a href="../contributing/" class="md-nav__link">
         
   
   
@@ -2077,7 +2055,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../deploy-vercel/" class="md-nav__link">
+      <a href="../deploy-vercel/" class="md-nav__link">
         
   
   
@@ -2105,7 +2083,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../access-control/" class="md-nav__link">
+      <a href="../access-control/" class="md-nav__link">
         
   
   
@@ -2160,10 +2138,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-pull-the-repo" class="md-nav__link">
+  <a href="#access-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Pull the repo
+        Access model
       
     </span>
   </a>
@@ -2171,10 +2149,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-install-dependencies" class="md-nav__link">
+  <a href="#intellectual-property" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Install dependencies
+        Intellectual property
       
     </span>
   </a>
@@ -2182,10 +2160,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-re-download-datasets-gitignored-must-re-fetch" class="md-nav__link">
+  <a href="#privacy-authentication" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Re-download datasets (gitignored — must re-fetch)
+        Privacy (authentication)
       
     </span>
   </a>
@@ -2193,10 +2171,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-merge-datasets" class="md-nav__link">
+  <a href="#what-this-site-is-not" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Merge datasets
+        What this site is not
       
     </span>
   </a>
@@ -2204,10 +2182,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-update-finetunepy-for-3080" class="md-nav__link">
+  <a href="#your-responsibilities-as-a-reader" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Update finetune.py for 3080
+        Your responsibilities as a reader
       
     </span>
   </a>
@@ -2215,32 +2193,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-train" class="md-nav__link">
+  <a href="#operator-responsibilities-summary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Train
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#7-results" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7. Results
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#8-test-the-fine-tuned-model-on-camera" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        8. Test the fine-tuned model on camera
+        Operator responsibilities (summary)
       
     </span>
   </a>
@@ -2264,7 +2220,7 @@
 
 
   
-    <a href="https://github.com/herman888/defenderproject/edit/main/anti-drone-dome/documentation/development/gpu-setup.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/herman888/defenderproject/edit/main/anti-drone-dome/documentation/security-privacy.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2272,61 +2228,110 @@
   
 
 
-<h1 id="nvidia-training-setup-rtx-3080-reference">NVIDIA training setup (RTX 3080 reference)<a class="headerlink" href="#nvidia-training-setup-rtx-3080-reference" title="Permanent link">&para;</a></h1>
-<h2 id="1-pull-the-repo">1. Pull the repo<a class="headerlink" href="#1-pull-the-repo" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">git</span> <span class="n">pull</span> <span class="n">origin</span> <span class="n">main</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd </span><span class="n">anti-drone-dome</span>
-</code></pre></div>
-<h2 id="2-install-dependencies">2. Install dependencies<a class="headerlink" href="#2-install-dependencies" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">pip</span> <span class="n">install</span> <span class="n">torch</span> <span class="n">torchvision</span> <span class="p">-</span><span class="n">-index-url</span> <span class="n">https</span><span class="p">://</span><span class="n">download</span><span class="p">.</span><span class="n">pytorch</span><span class="p">.</span><span class="n">org</span><span class="p">/</span><span class="n">whl</span><span class="p">/</span><span class="n">cu126</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">pip</span> <span class="n">install</span> <span class="n">ultralytics</span> <span class="n">opencv-python</span> <span class="n">supervision</span> <span class="n">pyyaml</span>
-</code></pre></div>
-<p>Verify GPU:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">python</span> <span class="n">-c</span> <span class="s2">&quot;import torch; print(torch.cuda.get_device_name(0))&quot;</span>
-</code></pre></div></p>
-<h2 id="3-re-download-datasets-gitignored-must-re-fetch">3. Re-download datasets (gitignored — must re-fetch)<a class="headerlink" href="#3-re-download-datasets-gitignored-must-re-fetch" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">python</span> <span class="n">-m</span> <span class="n">venv</span> <span class="n">venv-dataprep</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">.\</span><span class="n">venv-dataprep</span><span class="p">\</span><span class="n">Scripts</span><span class="p">\</span><span class="n">Activate</span><span class="p">.</span><span class="n">ps1</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">pip</span> <span class="n">install</span> <span class="n">roboflow</span> <span class="n">pyyaml</span> <span class="n">requests</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="nv">$env:ROBOFLOW_API_KEY</span> <span class="p">=</span> <span class="s2">&quot;your_key_here&quot;</span>   <span class="c"># from .env on old laptop</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">python</span> <span class="n">scripts</span><span class="p">\</span><span class="n">fetch_public_datasets</span><span class="p">.</span><span class="n">py</span> <span class="p">-</span><span class="n">-roboflow-only</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">deactivate</span>
-</code></pre></div>
-<h2 id="4-merge-datasets">4. Merge datasets<a class="headerlink" href="#4-merge-datasets" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">python</span> <span class="n">scripts</span><span class="p">\</span><span class="n">merge_datasets</span><span class="p">.</span><span class="n">py</span> <span class="p">`</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  <span class="p">-</span><span class="n">-datasets</span> <span class="n">data</span><span class="p">\</span><span class="n">public</span><span class="p">\</span><span class="n">shahed-ubivw</span> <span class="n">data</span><span class="p">\</span><span class="n">public</span><span class="p">\</span><span class="n">fpv-drone</span><span class="p">-</span><span class="n">4posq</span> <span class="p">`</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>  <span class="p">-</span><span class="n">-map</span> <span class="s2">&quot;1=loitering_munition&quot;</span> <span class="s2">&quot;airplane=fpv_drone&quot;</span> <span class="s2">&quot;antiaircraft=skip&quot;</span> <span class="s2">&quot;soldier=skip&quot;</span> <span class="s2">&quot;vehicle=skip&quot;</span>
-</code></pre></div>
-<p>Expected output:
-- ~4,476 train images
-- 3,954 loitering_munition boxes
-- 207 fpv_drone boxes</p>
-<h2 id="5-update-finetunepy-for-3080">5. Update finetune.py for 3080<a class="headerlink" href="#5-update-finetunepy-for-3080" title="Permanent link">&para;</a></h2>
-<p>Open <code>scripts/finetune.py</code> and change:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">batch</span><span class="o">=</span><span class="mi">8</span>    <span class="o">-&gt;</span>  <span class="n">batch</span><span class="o">=</span><span class="mi">32</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">workers</span><span class="o">=</span><span class="mi">2</span>  <span class="o">-&gt;</span>  <span class="n">workers</span><span class="o">=</span><span class="mi">8</span>
-</code></pre></div>
-<code>cache=True</code> is already set — it will now actually fit in 32GB RAM.</p>
-<h2 id="6-train">6. Train<a class="headerlink" href="#6-train" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c"># Keep laptop awake</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">powercfg</span> <span class="p">/</span><span class="n">change</span> <span class="n">standby-timeout-ac</span> <span class="n">0</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">powercfg</span> <span class="p">/</span><span class="n">change</span> <span class="n">monitor-timeout-ac</span> <span class="n">0</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">python</span> <span class="n">scripts</span><span class="p">\</span><span class="n">finetune</span><span class="p">.</span><span class="n">py</span>
-</code></pre></div>
-<p>Training takes ~20-30 min on a 3080 (vs ~2hr on GTX 1650).</p>
-<h2 id="7-results">7. Results<a class="headerlink" href="#7-results" title="Permanent link">&para;</a></h2>
-<p>After training, find outputs in:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>models\finetuned\finetune_&lt;timestamp&gt;\
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>  weights\best.pt          &lt;- use this for inference
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>  results.png              &lt;- loss + mAP curves (hero shot for video)
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  confusion_matrix_normalized.png
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>  val_batch0_pred.jpg      &lt;- sample predictions
-</code></pre></div></p>
-<h2 id="8-test-the-fine-tuned-model-on-camera">8. Test the fine-tuned model on camera<a class="headerlink" href="#8-test-the-fine-tuned-model-on-camera" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">python</span> <span class="n">scripts</span><span class="p">\</span><span class="n">camera_detect</span><span class="p">.</span><span class="n">py</span> <span class="p">-</span><span class="n">-drone-only</span> <span class="p">-</span><span class="n">-model</span> <span class="n">models</span><span class="p">\</span><span class="n">finetuned</span><span class="p">\&lt;</span><span class="n">run</span><span class="p">&gt;\</span><span class="n">weights</span><span class="p">\</span><span class="n">best</span><span class="p">.</span><span class="n">pt</span>
-</code></pre></div>
-<p>Should now show <code>fpv_drone</code> and <code>loitering_munition</code> labels instead of generic <code>drone</code>.</p>
+<h1 id="security-and-privacy">Security and privacy<a class="headerlink" href="#security-and-privacy" title="Permanent link">&para;</a></h1>
+<p>This documentation describes a <strong>confidential research and validation platform</strong>
+(Project LARP / AEGIS). It is shared <strong>only with people we invite</strong>, under our
+request and permission (typically after an NDA or equivalent agreement).</p>
+<div class="admonition danger">
+<p class="admonition-title">Not a public product site</p>
+<p>If you reached these pages without an invitation, do not copy, redistribute,
+or rely on the material. Contact the maintainers and close the session.</p>
+</div>
+<hr />
+<h2 id="access-model">Access model<a class="headerlink" href="#access-model" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Practice</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Who can read</td>
+<td>Allowlisted email identities only</td>
+</tr>
+<tr>
+<td>How you sign in</td>
+<td><strong>Cloudflare Zero Trust Access</strong> — email one-time PIN and/or Google</td>
+</tr>
+<tr>
+<td>What we host</td>
+<td>Prebuilt static MkDocs on Vercel, behind Cloudflare</td>
+</tr>
+<tr>
+<td>Public browsing</td>
+<td><strong>Not allowed</strong> on the protected hostname</td>
+</tr>
+<tr>
+<td>Operator runbook</td>
+<td><a href="../access-control/">Access control</a></td>
+</tr>
+</tbody>
+</table>
+<p>We do <strong>not</strong> use a password form inside the static site as the security boundary.
+Authentication happens <strong>before</strong> page HTML is served.</p>
+<p>To request access, email the maintainers (project contact: site author /
+<code>herman.isayenka1@gmail.com</code> or the address given in your invitation) with:</p>
+<ul>
+<li>Your name and organization</li>
+<li>Work email to allowlist</li>
+<li>Purpose of review</li>
+<li>Confirmation you will not redistribute materials without written approval</li>
+</ul>
+<hr />
+<h2 id="intellectual-property">Intellectual property<a class="headerlink" href="#intellectual-property" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Documentation, software descriptions, architectures, evidence summaries, and
+  related Work Product are proprietary to the project owners / company as defined
+  in your agreement.</li>
+<li>Access is a <strong>license to view</strong> for the stated purpose — not a grant to copy
+  into other products, train models on the corpus, or publish excerpts.</li>
+<li>Screenshots, exports, and downloads (if any) remain confidential.</li>
+<li>Internal tooling or second contractors must follow the same confidentiality
+  rules; team outputs remain company Work Product where your contract says so.</li>
+</ul>
+<hr />
+<h2 id="privacy-authentication">Privacy (authentication)<a class="headerlink" href="#privacy-authentication" title="Permanent link">&para;</a></h2>
+<p>When you authenticate via Cloudflare Access:</p>
+<ul>
+<li>Cloudflare processes your <strong>email</strong> (and Google account attributes if you use
+  Google) to complete login and enforce policy.</li>
+<li>Session cookies keep you signed in for the configured duration (operators
+  typically use about 24 hours).</li>
+<li>We use identity for <strong>access control and abuse prevention</strong>, not for marketing.</li>
+<li>Auth logs may show successful/failed access attempts to operators of the
+  Cloudflare account.</li>
+</ul>
+<p>The documentation site itself is static content. It does not need an application
+user database for reading pages. Do not submit secrets, credentials, or personal
+data into docs issue trackers unless a maintainer asks through a secure channel.</p>
+<hr />
+<h2 id="what-this-site-is-not">What this site is not<a class="headerlink" href="#what-this-site-is-not" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Not a certified field C-UAS system</li>
+<li>Not export-controlled delivery by itself — still follow applicable law and your
+  contract before sharing with additional parties</li>
+<li>Not authorization to operate hardware, weapons, or RF effectors</li>
+<li>Synthetic intercept and lab results are <strong>not</strong> real-world kill-probability or
+  certification evidence</li>
+</ul>
+<p>See <a href="../system/implementation-status/">Implementation status</a> and
+<a href="../results/current-evidence/">Current evidence</a> for capability boundaries.</p>
+<hr />
+<h2 id="your-responsibilities-as-a-reader">Your responsibilities as a reader<a class="headerlink" href="#your-responsibilities-as-a-reader" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Keep login credentials and OTP codes private; do not forward magic/OTP mail.</li>
+<li>Do not share the docs URL broadly; access is per identity.</li>
+<li>Do not scrape, mirror, or upload content to public AI/tools without approval.</li>
+<li>Report suspected leaks to the maintainers immediately.</li>
+<li>Stop using the site when your engagement or NDA ends; expect access to be revoked.</li>
+</ol>
+<hr />
+<h2 id="operator-responsibilities-summary">Operator responsibilities (summary)<a class="headerlink" href="#operator-responsibilities-summary" title="Permanent link">&para;</a></h2>
+<p>Maintainers must keep Access allowlists current, block unprotected Vercel
+hostnames, and keep the source repository from publicly exposing the same IP.
+Full checklist: <a href="../access-control/">Access control</a>.</p>
 
 
 
@@ -2364,7 +2369,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../testing/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Testing and release checks">
+          <a href=".." class="md-footer__link md-footer__link--prev" aria-label="Previous: Home">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2374,20 +2379,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Testing and release checks
+                Home
               </div>
             </div>
           </a>
         
         
           
-          <a href="../../contributing/" class="md-footer__link md-footer__link--next" aria-label="Next: Contributing">
+          <a href="../getting-started/installation/" class="md-footer__link md-footer__link--next" aria-label="Next: Installation">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Contributing
+                Installation
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -2423,10 +2428,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "navigation.footer", "content.action.edit", "search.highlight", "search.suggest", "search.share", "content.code.copy", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "navigation.footer", "content.action.edit", "search.highlight", "search.suggest", "search.share", "content.code.copy", "content.tabs.link", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>
