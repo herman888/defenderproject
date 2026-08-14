@@ -2,6 +2,6 @@
   "framework": null,
   "installCommand": "echo no-install",
   "buildCommand": "echo prebuilt",
-  "outputDirectory": "public",
+  "outputDirectory": "anti-drone-dome/public",
   "cleanUrls": true
 }
