@@ -1,51 +1,40 @@
 # Deploy Project LARP docs to Vercel
 
 **Canonical (protected) docs URL:** `https://docs.projectlarp.com`  
-**Public landing:** `https://www.projectlarp.com` and `https://projectlarp.com` (requires `www` + apex DNS — see [Access control](access-control.md)).
-
-**Vercel default hostname:** `https://projectlarp.vercel.app` — treat as
-**non-public** after cutover (block, protect, or redirect). Do not share it as
-the partner URL.
+**Public landing:** `https://www.projectlarp.com` (needs DNS — see [Access control](access-control.md)).
 
 Docs are **pre-built** into `anti-drone-dome/public/` and committed. Vercel only
-**serves** that folder — no `pip` on Vercel. Authentication is **not** implemented
-in MkDocs; it is enforced by Cloudflare in front of the custom domain.
-
-Partner policy: [Security and privacy](security-privacy.md).
+**serves** that folder — no `pip` on Vercel.
 
 ---
 
-## Vercel settings (required)
+## If the build is red (checklist)
 
-**Settings → General**
+Open **Settings → Build and Deployment**. Turn **Override** OFF unless the value
+matches the table.
 
-- **Project Name:** `projectlarp` (creates `projectlarp.vercel.app`)
-
-**Settings → Build and Deployment:**
-
-| Setting | Value |
-|---------|--------|
+| Setting | Required value |
+|---------|----------------|
 | **Root Directory** | `anti-drone-dome` |
-| **Framework** | Other |
-| **Install Command** | `echo 'no install'` (clear any `pip3` override) |
-| **Build Command** | `echo 'prebuilt static site'` |
+| **Framework Preset** | Other |
+| **Install Command** | `echo no-install` (never `pip3`) |
+| **Build Command** | `echo prebuilt` |
 | **Output Directory** | `public` |
 
-Then **Deployments → Redeploy** the newest commit.
+Then **Deployments → Redeploy** commit `7387c14` (or newer).
 
-If the project was previously named `defenderproject`, rename it to `projectlarp`
-under **Settings → General → Project Name**, or add `projectlarp.vercel.app`
-under **Domains**.
+If Root Directory is the **repo root**, Output Directory must be
+`anti-drone-dome/public`.
 
-### Custom domain (required for Access)
+---
 
-1. Add `docs.yourdomain.com` (or your chosen host) under **Settings → Domains**.
-2. Create the matching **proxied** DNS record in Cloudflare.
-3. Complete the Access application and allowlist in
-   [Access control](access-control.md).
-4. Block or redirect `projectlarp.vercel.app` so it cannot bypass Access.
-5. Set GitHub repository visibility to **private** (or keep sensitive docs out of
-   public git) — site auth does not hide source.
+## Domains
+
+Add in Vercel → Domains: `docs.projectlarp.com`, `www.projectlarp.com`, `projectlarp.com`.
+
+Cloudflare DNS (proxied): `docs`, `www`, and `@` CNAME → `cname.vercel-dns.com`.
+
+Access only on **docs** — not on www/apex.
 
 ---
 
@@ -59,21 +48,3 @@ git add public documentation mkdocs.yml
 git commit -m "Update Project LARP docs"
 git push
 ```
-
-Vercel will redeploy automatically. Access policies are edited in the Cloudflare
-Zero Trust dashboard, not in this repo.
-
-When the protected hostname is live, set `site_url` in `mkdocs.yml` to that URL
-before rebuilding so sitemaps and canonical links match.
-
----
-
-## Local preview
-
-```bash
-cd anti-drone-dome
-source .venv-docs/bin/activate
-mkdocs serve
-```
-
-Local `mkdocs serve` has **no** Cloudflare gate — use only on trusted machines.
