@@ -16,9 +16,9 @@ matches the table.
 | Setting | Required value |
 |---------|----------------|
 | **Root Directory** | `anti-drone-dome` |
-| **Framework Preset** | Other |
-| **Install Command** | `echo no-install` (never `pip3`) |
-| **Build Command** | `echo prebuilt` |
+| **Framework Preset** | Other (**not** Python, **not** Next.js) |
+| **Install Command** | `true` (never `pip3`) |
+| **Build Command** | `true` |
 | **Output Directory** | `public` |
 
 Then **Deployments → Redeploy** commit `7387c14` (or newer).
