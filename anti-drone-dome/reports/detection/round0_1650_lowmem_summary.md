@@ -1,9 +1,10 @@
 # Round 0 - GTX 1650 low-memory fine-tune: interim evidence summary
 
 **Run:** `models/finetuned/round0_1650_lowmem_unfrozen/`
-**Report generated:** 2026-08-19 10:40 EDT (14:40 UTC)
-**Status at time of writing:** **TRAINING IS STILL RUNNING** - epoch 17 of a maximum 100 complete.
-All figures below are interim. This report was written without interrupting the run.
+**Report generated:** 2026-08-19 10:40 EDT; updated 12:05 EDT after the run was stopped.
+**Status:** **RUN STOPPED at epoch 19** of a maximum 100, by operator decision (section 2).
+Best epoch is 13. The run neither early-stopped nor converged - it was ended deliberately
+because its result was not going to be interpretable at any epoch (section 9).
 
 > **Claim boundary.** Every number here is *internal validation on a merged public
 > dataset whose train/val split is known to leak* (see
@@ -82,8 +83,26 @@ Segment A did not fail or crash. Evidence:
 memory, or thermal fault.
 
 The checkpoint was valid (`last.pt` at epoch 14) and the resume succeeded, so restarting was
-correct. **The cause itself is not yet addressed** - Windows Update active hours / pause were
-not changed, so a further forced reboot can kill this run again. See section 10.
+correct. **The cause itself was never addressed** - Windows Update active hours / pause were
+not changed. See section 10.
+
+### Deliberate stop at epoch 19
+
+The run was then **terminated on purpose** at 2026-08-19 ~11:55 EDT (`taskkill` on PIDs 13160
+and 11492), with roughly 13 hours of training still outstanding. The reasoning:
+
+- Its result was **uninterpretable at any epoch** - class `drone` has no data and the
+  validation split leaks, so no amount of further training would produce a readable number.
+- It was **already confounded** by the batch 8 to 5 change, so it could not serve as a
+  hyperparameter datapoint either.
+- The only remaining argument for finishing was ultralytics' end-of-run diagnostic plots, and
+  those were **regenerated from `best.pt` in about 70 seconds** by re-running validation - so
+  finishing bought nothing that was not already available.
+- Training was also consuming a disk with 5.4 GB free.
+
+Both checkpoints were verified loadable after termination; neither was corrupted. Work moves to
+an RTX 3060 on a different machine, where the first run will be a **fresh baseline**, not a
+resume of this one (section 9).
 
 ---
 
@@ -98,9 +117,40 @@ not changed, so a further forced reboot can kill this run again. See section 10.
 | mAP@50(B) | **0.6761** |
 | mAP@50-95(B) | **0.5338** |
 
-Epoch 13 holds `best.pt` on ultralytics fitness (`0.1*mAP50 + 0.9*mAP50-95` = 0.5482); the
-best post-resume epoch so far is 17 at fitness 0.5289. `best.pt` has not been rewritten
-since 04:41:19.
+Epoch 13 holds `best.pt` on ultralytics fitness (`0.1*mAP50 + 0.9*mAP50-95` = 0.5482). No
+later epoch beat it, including epoch 19 (fitness 0.5389), so `best.pt` was never rewritten
+after 04:41:19. Checkpoint verified loadable after termination: `epoch=12` (0-indexed),
+`best_fitness=0.54805`.
+
+### Per-class breakdown - the aggregate number is misleading
+
+Measured by re-running validation on `best.pt` after the run was stopped
+(`models/finetuned/round0_1650_lowmem_valbest/`):
+
+| Class | Val images | Val boxes | P | R | mAP@50 | mAP@50-95 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `drone` | 0 | **0** | - | - | - | **not evaluated - no data** |
+| `fpv_drone` | **9** | **19** | 0.9622 | **0.3158** | **0.3582** | **0.1740** |
+| `loitering_munition` | 697 | 697 | 0.8878 | **0.9943** | **0.9939** | **0.8934** |
+| **all** | 789 | 716 | 0.9250 | 0.6550 | 0.6760 | **0.5337** |
+
+**This is the most important table in the report.** The headline 0.5337 is the average of a
+class that is essentially solved and a class that is broken, and it describes neither:
+
+- **`loitering_munition` at mAP@50 0.994 with 0.994 recall is not a success - it is a leakage
+  signature.** Near-perfect recall on real-world small-target detection is not plausible. Read
+  alongside the 71 shared frames and the unrecoverable session identity of the 3,954 `shahed`
+  images (provenance audit, section 4), the most probable explanation is that the model is being
+  tested on frames it effectively trained on.
+- **`fpv_drone` is not working.** Recall 0.316 means it misses roughly two of every three FPV
+  drones present. High precision (0.962) with low recall means it fires rarely and is usually
+  right when it does - the failure mode is silence, not false alarms. On **9 images and 19
+  boxes**, even these figures carry almost no statistical weight.
+- **`drone`, the class intended for deployment, was never evaluated** because the dataset
+  contains no instances of it.
+
+Any single aggregate mAP quoted from this run - including the 0.5337 above - should be
+considered uninformative. Quote the per-class rows or nothing.
 
 ### Per-epoch history (all 17 completed epochs)
 
@@ -124,9 +174,11 @@ since 04:41:19.
 | 15 | 0.7512 | 0.6287 | 0.6206 | 0.4912 |
 | 16 | 0.7124 | 0.7077 | 0.6510 | 0.4938 |
 | 17 | 0.7997 | 0.6550 | 0.6659 | 0.5137 |
+| 18 | 0.7603 | 0.6806 | 0.6805 | 0.5173 |
+| 19 | 0.9937 | 0.6508 | 0.6742 | 0.5239 |
 
-**Early-stop status:** not triggered. Best epoch is 13; 4 epochs have elapsed since, against
-patience 15. Training continues.
+**Early-stop status:** never triggered. Best epoch is 13; 6 epochs elapsed since, against
+patience 15. The run was stopped manually at epoch 19 rather than allowed to continue.
 
 **Metric instability:** precision swings between 0.60 and 0.99 epoch-to-epoch. This is not
 noise in the ordinary sense - it is a direct consequence of the class imbalance in section 5
@@ -191,7 +243,7 @@ compared to any published benchmark.
 | --- | --- | --- | --- |
 | Base checkpoint | `models/yolo11n_drone.pt` | `311b8bea0a5a9f2b2dd407ade666a91831bbcb4dcd9d4b6580dbe33aac3123be` | stable |
 | **Best (epoch 13)** | `models/finetuned/round0_1650_lowmem_unfrozen/weights/best.pt` | `7a2f26493130f09a31037349f2abc11accde67de1edca238e5febb76ae4eb4c4` | 16,079,841 B, mtime 2026-08-19 04:41:19 EDT |
-| Latest | `.../weights/last.pt` | **not hashed** | rewritten every epoch by the live run; any hash would be stale on write |
+| Last (epoch 19) | `.../weights/last.pt` | `ce79071e2ead3d341406d8bc784d94402983b27ee3f9bfab4c85f1651c03de37` | 16,080,545 B; now stable - hashed after the run was stopped |
 | Prior run best | `models/finetuned/finetune_20260622_200022/weights/best.pt` | `98566edb6aeb9c89e79083ebf3397e4f716ebd9f6275edc6120d23dda90dde4d` | 5,475,098 B |
 | Prior run best | `models/finetuned/finetune_20260624_123457/weights/best.pt` | `4972a321c1c56e0459ffa574e3b230263d33910a5d0d57c28306bcca53bea517` | 5,478,042 B |
 
@@ -200,8 +252,20 @@ ultralytics strips this at completion, yielding ~5.5 MB like the prior runs. **R
 the run ends** - the completion-time strip changes the file and therefore the hash.
 
 Other run files present: `args.yaml`, `results.csv`, `labels.jpg`, `train_batch{0,1,2}.jpg`.
-Validation plots (`BoxPR_curve.png`, `confusion_matrix.png`, `results.png`,
-`val_batch*_pred.jpg`) are **not yet written** - ultralytics emits them at run completion.
+
+Validation diagnostics were **regenerated from `best.pt` after the stop** and live in
+`models/finetuned/round0_1650_lowmem_valbest/`: `confusion_matrix.png`,
+`confusion_matrix_normalized.png`, `PR_curve.png`, `P_curve.png`, `R_curve.png`,
+`F1_curve.png`, and `val_batch{0,1,2}_{labels,pred}.jpg`. These were produced by a plain
+validation pass, not by training, and can be reproduced at any time from the hashed `best.pt`.
+
+### Dataset location
+
+The dataset was copied to an external SSD at `D:/larp/data/` and verified byte-identical
+against `round0_dataset_manifest.json` (aggregate
+`737ba36c67a61a2c6e91f54ab177dab14515a213560656e02ae358e91b46769a`, 21,068 files). The SSD copy
+has its stale ultralytics `.cache` files removed and its `data.yaml` `path:` re-pointed to
+`D:/larp/data/merged`. The original under `anti-drone-dome/data/` is unchanged.
 
 ---
 
@@ -223,8 +287,21 @@ Utilisation below 100% with `workers=0` is expected: single-threaded host-side d
 the bottleneck, not the GPU. Thermals are comfortable; the 4 GB VRAM ceiling, not heat, is the
 binding constraint on this machine.
 
-**No inference-latency measurement exists** for this model on any target. The numbers above are
-training-time host GPU telemetry only and say nothing about Pi or Hailo performance.
+### Measured inference speed - training host only
+
+From the post-stop validation pass on `best.pt` (GTX 1650, 640 px, batch 8, FP32, AMP off):
+
+| Stage | Per image |
+| --- | --- |
+| preprocess | 0.8 ms |
+| **inference** | **28.3 ms** |
+| postprocess | 9.1 ms |
+| total | ~38.2 ms (~26 fps) |
+
+**This is a GTX 1650 desktop-GPU figure and nothing more.** It is not a Pi number, not a Hailo
+number, and not an end-to-end camera-to-observation latency. It excludes capture, transport,
+tracking, and telemetry. Its only legitimate use is as a sanity check that the model runs at a
+plausible speed on a full-size GPU. **No onboard performance claim can be derived from it.**
 
 ---
 
@@ -272,13 +349,17 @@ supportable**, and the roadmap's "bring-up passed" line should be corrected.
 
 **Verdict: NOT DEPLOYABLE. Not yet a candidate.**
 
-- The run is **incomplete** (epoch 17/100) and is **not a controlled experiment** - batch size
-  changed from 8 to 5 mid-run after a Windows Update reboot.
-- Its best interim result (mAP@50-95 **0.5338**) is **below both prior local fine-tunes**
-  (0.6311, 0.5795), though at a much earlier epoch, so the comparison is not yet meaningful.
-- Even a strong final number would not qualify this model, because the **validation split is
-  contaminated** (71 shared frames, 4/4 shared source videos) and the **primary deployed class
-  `drone` has zero training instances**.
+- The run is **incomplete** (stopped at epoch 19/100) and was **never a controlled experiment** -
+  batch size changed from 8 to 5 mid-run after a Windows Update reboot.
+- Its best result (mAP@50-95 **0.5337**) is **below both prior local fine-tunes** (0.6311,
+  0.5795), but at a much earlier epoch, so that comparison was never meaningful either.
+- **The per-class breakdown is the disqualifying evidence, not the aggregate.** The model scores
+  0.994 mAP@50 on `loitering_munition` - implausibly high, and best read as a leakage signature -
+  while `fpv_drone` sits at 0.316 recall on 19 boxes, and `drone` was never evaluated at all
+  because no such labels exist. A single averaged number over those three states is not a
+  measurement of anything.
+- The **validation split is contaminated** (71 shared frames, 4 of 4 shared source videos), so
+  no number computed against it can be trusted in either direction.
 
 ### Evidence that is missing
 
@@ -306,8 +387,14 @@ Concretely:
    class mapping, per-file SHA-256, and split assignment.
 3. Run `scripts/compare_detection_models.py` (already present) over the frozen test set for
    `yolo11n_drone.pt`, `finetune_20260622_200022/best.pt`, `finetune_20260624_123457/best.pt`,
-   and this run's `best.pt` once it completes.
+   and this run's `best.pt` (hashed above, no further training needed).
 4. Report per-class P/R/mAP plus a false-positive review.
+
+The single sharpest thing to watch: **whether `loitering_munition` holds anywhere near 0.994
+mAP@50 on a clean source-level split.** If it collapses, the leak was doing the work and every
+prior number in this project needs restating. If it holds, the class really is easy and the
+effort belongs entirely on `drone` and `fpv_drone`. Either answer is worth more than another
+training round.
 
 **Measurable outcome:** the delta between leaked-split mAP and clean-split mAP. That single
 number tells you how much of the current 0.53-0.63 range is real. It is also the cheapest way
@@ -323,7 +410,9 @@ per-class numbers.
 
 | Risk | Evidence | Recommended action |
 | --- | --- | --- |
-| **Another forced reboot kills the run** | Two Windows Update restarts already occurred at 04:59 and 05:01 today | Set Windows Update active hours / pause updates for the run's duration. This is the un-addressed half of section 2. |
-| **C: drive has only 5.5 GB free** | `Get-PSDrive`: 470.2 GB used, **5.5 GB free** | Blocks all dataset downloads (project rule: at least 25 GB required) and risks the run itself - checkpoints plus an already-2.1 MB stderr log keep growing. Free space before anything else. |
-| Batch-size drift on future resumes | `--batch` omitted on resume, so AutoBatch re-selects | Always pass an explicit `--batch` when resuming. |
-| `last.pt` hash is unstable | Rewritten every epoch, then stripped at completion | Hash and lock artifacts only after the run ends, via `scripts/lock_vision_model.py`. |
+| **Forced reboots kill long runs** | Two Windows Update restarts at 04:59 and 05:01 destroyed 14 epochs of work | **Carry this to the 3060.** Set Windows Update active hours or pause updates before starting any multi-hour run. Never mitigated on this host. |
+| **C: drive has 5.4 GB free** | 470 GB used of 475.7 GB | Was the binding blocker on every dataset in the register. **Now largely relieved:** an external SSD (`D:`, exFAT, 772 GB free) holds the verified dataset copy and should host future datasets. |
+| Batch-size drift on resume | `--batch` omitted, so AutoBatch re-selected 5 instead of 8 | Always pass an explicit `--batch`. This single omission is what made the run uninterpretable as an experiment. |
+| **3060 results will not be comparable to these** | Ampere enables AMP (the 1650 fails the AMP check and trained FP32), plus more VRAM, larger batch, and `workers>0` | Treat the first 3060 run as a **new baseline**. Do not resume this checkpoint across machines; record the four changed variables explicitly. |
+| Training off an external SSD | exFAT, no journaling, USB-attached | A disconnected cable kills a run. Prefer copying to internal storage for training and keeping the SSD as the canonical master; always eject cleanly. |
+| Artifact hashes drift while a run is live | `last.pt` is rewritten every epoch | Hash and lock only after a run ends, via `scripts/lock_vision_model.py`. Both checkpoints here are now hashed and stable. |
