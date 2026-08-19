@@ -1,0 +1,55 @@
+{
+  "schema": "aegis.dataset-checksums.v1",
+  "purpose": "Verify an exact copy of anti-drone-dome/data/ after transfer to another machine, and anchor Round 0 dataset provenance.",
+  "generated_utc": "2026-08-19T15:24:43.590388+00:00",
+  "root": "anti-drone-dome/data",
+  "excluded": {
+    "patterns": [
+      "*.cache"
+    ],
+    "files": [
+      "data/merged/labels/train.cache",
+      "data/merged/labels/val.cache"
+    ],
+    "reason": "ultralytics label caches are derived artifacts embedding absolute host paths; they differ per machine and must not affect the digest. Delete them after transfer and let ultralytics regenerate."
+  },
+  "total": {
+    "files": 21068,
+    "bytes": 321429270,
+    "aggregate_sha256": "737ba36c67a61a2c6e91f54ab177dab14515a213560656e02ae358e91b46769a"
+  },
+  "groups": {
+    "data/merged/images/train": {
+      "files": 4476,
+      "bytes": 135334752,
+      "aggregate_sha256": "96c82931790eeb1be77c62d876459b598c3e0fa68037c3208d73a9922692760c"
+    },
+    "data/merged/images/val": {
+      "files": 789,
+      "bytes": 24772051,
+      "aggregate_sha256": "30c8d64f6f841dde3795d10314d5200261d52346585cd6eb32985f4ca1b70712"
+    },
+    "data/merged/labels/train": {
+      "files": 4476,
+      "bytes": 295299,
+      "aggregate_sha256": "87eebe88f32dfca4859beee63e361e900223e93e78a2962a4e721af724203569"
+    },
+    "data/merged/labels/val": {
+      "files": 789,
+      "bytes": 36756,
+      "aggregate_sha256": "b1bcf8f5a8cdff51e784dc111b7910afafcfac271e992af58e3597023be2f3a5"
+    },
+    "data/public/shahed-ubivw": {
+      "files": 9305,
+      "bytes": 70163811,
+      "aggregate_sha256": "4dbbaf2618089e3986eca84dc7f609a43715574ade9ac8e4d72095d1ab4d8240"
+    },
+    "data/public/fpv-drone-4posq": {
+      "files": 1231,
+      "bytes": 90826092,
+      "aggregate_sha256": "fae4d79159a3f87ac4fa5dfafec2c9f45c258bf29940420ee8cfe80d60278367"
+    }
+  },
+  "verify": "python -c \"import hashlib,os;rows=sorted((os.path.join(dp,fn).replace(chr(92),'/'),hashlib.sha256(open(os.path.join(dp,fn),'rb').read()).hexdigest()) for dp,dn,fns in os.walk('data') for fn in fns if not fn.endswith('.cache'));h=hashlib.sha256();[h.update(f'{r}:{d}'.encode()+b'\n') for r,d in rows];print(h.hexdigest())\"",
+  "note": "Compare 'total.aggregate_sha256' on both machines. Equal means byte-identical trees."
+}
