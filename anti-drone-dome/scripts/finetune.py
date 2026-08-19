@@ -56,6 +56,10 @@ def main() -> None:
     parser.add_argument("--imgsz",   type=int,   default=_DEFAULT_IMGSZ)
     parser.add_argument("--patience", type=int,  default=_DEFAULT_PATIENCE,
                         help="Early-stopping patience in epochs (default: 15).")
+    parser.add_argument("--workers", type=int, default=_DEFAULT_WORKERS,
+                        help="Data-loader workers (use 0 on memory-constrained Windows machines).")
+    parser.add_argument("--no-cache", action="store_true",
+                        help="Do not cache images in RAM; recommended when available RAM is limited.")
     parser.add_argument("--device",  default="0",
                         help="Training device: '0' for GPU, 'cpu' for CPU (default: '0')")
     parser.add_argument("--resume",  default=None,
@@ -120,6 +124,8 @@ def main() -> None:
   Device       : {args.device}
   imgsz        : {args.imgsz}
   batch        : {args.batch}
+  workers      : {args.workers}
+  cache images : {not args.no_cache}
   epochs       : {args.epochs}  (early stop patience={args.patience})
   Output       : {out_dir / run_name}
 ─────────────────────────────────────────────────────────────────
@@ -132,7 +138,7 @@ def main() -> None:
         imgsz        = args.imgsz,
         batch        = args.batch,
         device       = args.device,
-        workers      = _DEFAULT_WORKERS,
+        workers      = args.workers,
         project      = str(out_dir),
         name         = run_name,
         exist_ok     = True,
@@ -149,8 +155,8 @@ def main() -> None:
         hsv_h        = 0.015,
         hsv_s        = 0.7,
         hsv_v        = 0.4,
-        # Keep cache in RAM (16 GB available) to speed up epoch iterations
-        cache        = True,
+        # Cache helps only when the host has sufficient spare RAM.
+        cache        = not args.no_cache,
         # Optimiser
         optimizer    = "AdamW",
         lr0          = 0.001,
