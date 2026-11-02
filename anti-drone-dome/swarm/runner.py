@@ -24,7 +24,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from guidance.intercept import PurePursuitGuidance  # noqa: E402
 from guidance.setpoint import ned_to_enu  # noqa: E402
 from scenarios import INTRUDER_TYPES  # noqa: E402
-from sim.airframe_profiles import get_airframe_profile  # noqa: E402
+from sim.airframe_profiles import get_airframe_profile
+from sim.broadphase import VoxelBroadPhase, resolve_nearest_within  # noqa: E402
 from sim.flight_envelope import FlightEnvelope, limit_acceleration  # noqa: E402
 from swarm.coordinator import SwarmCoordinator  # noqa: E402
 from swarm.rf_link import RfLinkModel  # noqa: E402
@@ -251,22 +252,21 @@ def run_scenario(
 
         t += _DT
 
-        # Resolve intercepts (nearest interceptor within radius kills the threat).
-        for threat in active_threats:
-            if threat.status != "ACTIVE":
+        # Resolve intercepts with voxel broad phase (exact within radius).
+        # Dense saturation attacks (20×50) no longer pay full O(N·M).
+        queries = [(th.position, th) for th in active_threats if th.status == "ACTIVE"]
+        targets = [(it.position, it) for it in active_interceptors if not it.expended]
+        pairs = resolve_nearest_within(queries, targets, intercept_r)
+        for pair in pairs:
+            if pair is None:
                 continue
-            best, best_d = None, intercept_r
-            for interceptor in active_interceptors:
-                if interceptor.expended:
-                    continue
-                d = float(np.linalg.norm(interceptor.position - threat.position))
-                if d <= best_d:
-                    best_d, best = d, interceptor
-            if best is not None:
-                threat.status = "NEUTRALIZED"
-                threat.resolved_time = t
-                best.expended = True
-                best.kill = threat.id
+            threat, interceptor, _dist = pair
+            if threat.status != "ACTIVE" or interceptor.expended:
+                continue
+            threat.status = "NEUTRALIZED"
+            threat.resolved_time = t
+            interceptor.expended = True
+            interceptor.kill = threat.id
 
         # Resolve breaches.
         for threat in active_threats:

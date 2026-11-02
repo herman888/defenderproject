@@ -80,6 +80,8 @@ class SwarmCoordinator:
         self.link_timeout_s = float(link_timeout_s)
         self._offer_interval_s = 1.0 / rf_model.config.update_rate_hz
         self._links: dict[str, _InterceptorLinkState] = {}
+        self._last_plan_time = -1e9
+        self._last_plan = None
 
     def _link_state(self, interceptor_id: str) -> _InterceptorLinkState:
         state = self._links.get(interceptor_id)
@@ -104,6 +106,8 @@ class SwarmCoordinator:
         return cost, result
 
     def plan(self, coordinator_state, interceptor_states, threat_tracks, t) -> SwarmPlan:
+        if self._last_plan is not None and (t - self._last_plan_time) < self._offer_interval_s:
+            return self._last_plan
         coord_pos = np.asarray(coordinator_state["position"], dtype=float)
         active_ids = {threat["id"] for threat in threat_tracks}
         threat_by_id = {threat["id"]: threat for threat in threat_tracks}
@@ -190,10 +194,13 @@ class SwarmCoordinator:
         }
         leakers = [threat_ids[j] for j in result.leakers]
         link_health = self._link_health(orders)
-        return SwarmPlan(
+        plan = SwarmPlan(
             orders=orders, assignment=assignment, leakers=leakers,
             link_health=link_health,
         )
+        self._last_plan_time = t
+        self._last_plan = plan
+        return plan
 
     @staticmethod
     def _nearest_active(interceptor, threat_tracks):

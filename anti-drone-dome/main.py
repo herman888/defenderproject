@@ -89,6 +89,7 @@ class _ExternalViewerOnlyDashboard:
         return None
 
 from sim.physics         import PhysicsWorld
+from sim.broadphase import resolve_nearest_within
 from sim.camera_debug_ui import CameraZoomDebugUi
 from sim.drone      import Drone, LoiteringMunition
 from sim.waypoints  import WaypointNavigator
@@ -2174,22 +2175,33 @@ def _run_swarm_mission(scenario_id, *, telemetry_udp=None,
                 if lag > 0:
                     time.sleep(min(lag, 0.05))
 
+            # Voxel broad-phase contact resolution (exact, lower latency in dense swarms).
+            queries = []
+            targets = []
             for th in active_threats:
                 if th["status"] != "ACTIVE":
                     continue
                 tpos = np.asarray(th["munition"].get_position(), dtype=float)
-                best, best_d = None, intercept_r
-                for it in active_interceptors:
-                    if it["expended"]:
-                        continue
-                    d = float(np.linalg.norm(
-                        np.asarray(it["drone"].get_position(), dtype=float) - tpos
-                    ))
-                    if d <= best_d:
-                        best_d, best = d, it
-                if best is not None:
-                    th["status"], th["resolved_time"] = "NEUTRALIZED", t
-                    best["expended"] = True
+                queries.append((tpos, th))
+            for it in active_interceptors:
+                if it["expended"]:
+                    continue
+                ipos = np.asarray(it["drone"].get_position(), dtype=float)
+                targets.append((ipos, it))
+            pairs = resolve_nearest_within(queries, targets, intercept_r)
+            neutralized = set()
+            for pair in pairs:
+                if pair is None:
+                    continue
+                th, it, _dist = pair
+                if th["status"] != "ACTIVE" or it["expended"]:
+                    continue
+                th["status"], th["resolved_time"] = "NEUTRALIZED", t
+                it["expended"] = True
+                neutralized.add(id(th))
+            # Breaches (still O(N); rare and cheap)
+            for tpos, th in queries:
+                if th["status"] != "ACTIVE":
                     continue
                 if float(np.linalg.norm(tpos - np.asarray(center))) <= breach_r:
                     th["status"], th["resolved_time"] = "BREACHED", t
